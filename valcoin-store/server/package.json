@@ -1,0 +1,12 @@
+{
+  "name": "valcoin-store-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "store_server.js",
+  "scripts": {
+    "start": "node store_server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}

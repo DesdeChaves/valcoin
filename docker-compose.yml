@@ -1,0 +1,225 @@
+services:
+  postgres:
+    image: postgres:13
+    container_name: valcoin_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: valcoin
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - valcoin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d valcoin"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  redis:
+    image: redis:6.2-alpine
+    container_name: valcoin_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - valcoin-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  valcoin-admin-server:
+    build:
+      context: ./valcoin-admin
+      dockerfile: Dockerfile
+    image: desdechaves/valcoin-admin-server
+    container_name: valcoin_admin_server
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://user:password@postgres:5432/valcoin?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+      LOG_LEVEL: info
+      JWT_SECRET: your-secret-key-change-this-in-production
+    ports:
+      - "3001:3001"
+    networks:
+      - valcoin-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  valcoin-admin-client:
+    build:
+      context: ./valcoin-admin
+      dockerfile: Dockerfile.client
+    image: desdechaves/valcoin-admin-client
+    container_name: valcoin_admin_client
+    ports:
+      - "3000:80"
+    networks:
+      - valcoin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  valcoin-store-server:
+    build:
+      context: ./valcoin-store/server
+      dockerfile: Dockerfile
+    image: desdechaves/valcoin-store-server
+    container_name: valcoin_store_server
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://user:password@postgres:5432/valcoin?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      PORT: 3001
+      LOG_LEVEL: info
+    networks:
+      - valcoin-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  valcoin-store-client:
+    build:
+      context: ./valcoin-store/client
+      dockerfile: Dockerfile.client
+      args:
+        PUBLIC_URL: /store
+    image: desdechaves/valcoin-store-client
+    container_name: valcoin_store_client
+    networks:
+      - valcoin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  nginx:
+    image: nginx:1.21-alpine
+    container_name: valcoin_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./inicio.html:/etc/nginx/html/inicio.html:ro
+    networks:
+      - valcoin-network
+    depends_on:
+      valcoin-admin-server:
+        condition: service_healthy
+      valcoin-admin-client:
+        condition: service_healthy
+      valcoin-store-server:
+        condition: service_healthy
+      valcoin-store-client:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: valcoin_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@valcoin.pt
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - valcoin-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: valcoin_watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300 --cleanup
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_NOTIFICATIONS: email
+      WATCHTOWER_NOTIFICATION_EMAIL_FROM: system@valcoin.pt
+      WATCHTOWER_NOTIFICATION_EMAIL_TO: admin@valcoin.pt
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
+  pgadmin_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/pgadmin
+
+networks:
+  valcoin-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,334 @@
+\hypertarget{manual-de-utilizador-avanuxe7ado-da-aplicauxe7uxe3o-valcoin}{%
+\section{Manual de Utilizador Avançado da Aplicação
+Valcoin}\label{manual-de-utilizador-avanuxe7ado-da-aplicauxe7uxe3o-valcoin}}
+
+Este manual descreve em detalhe as funcionalidades da plataforma
+Valcoin, um ecossistema gamificado de literacia financeira. Abrange os
+perfis de Administrador, Professor e Aluno (Valkid/Valteen).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{administrador}{%
+\subsection{1. Administrador}\label{administrador}}
+
+O Administrador detém o controlo total sobre o ecossistema Valcoin,
+sendo responsável pela sua configuração, personalização e supervisão
+económica.
+
+\hypertarget{dashboard-de-controlo}{%
+\subsubsection{1.1. Dashboard de Controlo}\label{dashboard-de-controlo}}
+
+O dashboard é o centro nevrálgico da plataforma, apresentando métricas
+vitais em tempo real: - \textbf{Métricas de Utilizadores:} Total de
+utilizadores, utilizadores ativos, e a sua distribuição (Aluno,
+Professor, Admin). - \textbf{Métricas de Transações:} Volume total de
+transações, estado (concluídas, pendentes, rejeitadas) e tipo
+(crédito/débito). - \textbf{Métricas Económicas:} - \textbf{Total de
+Valcoins (VC):} Soma dos VC em todas as carteiras e os VC gastos. -
+\textbf{Taxa de Câmbio:} Valor de 1 VC em Euros, tanto a taxa fixa como
+uma taxa dinâmica calculada com base nas receitas da escola. -
+\textbf{Receitas da Escola:} Total de receitas registadas no sistema. -
+\textbf{Métricas de Legado:} Pontos de legado totais e crescimento
+mensal, refletindo as contribuições mais valiosas dos alunos.
+
+\hypertarget{configurauxe7uxe3o-da-economia}{%
+\subsubsection{1.2. Configuração da
+Economia}\label{configurauxe7uxe3o-da-economia}}
+
+A principal responsabilidade do Admin é modelar a economia da Valcoin.
+
+\hypertarget{gestuxe3o-de-regras-de-transauxe7uxe3o}{%
+\paragraph{1.2.1. Gestão de Regras de
+Transação}\label{gestuxe3o-de-regras-de-transauxe7uxe3o}}
+
+As ``Transaction Rules'' são o motor da economia. O Admin pode criar,
+editar e desativar regras que definem como os Valcoins são ganhos e
+gastos. Cada regra pode ter: - \textbf{Nome e Valor:} Ex: ``Participação
+na Aula'', +10 VC. - \textbf{Permissões:} Quem pode iniciar e quem pode
+receber a transação (e.g., Professor -\textgreater{} Aluno). -
+\textbf{Limites:} Restrições de utilização por período (mensal, anual) e
+por disciplina. - \textbf{Categoria:} Uma categoria especial é
+\textbf{``Legado''}. Transações com esta categoria são registadas
+permanentemente no perfil do aluno, significando uma contribuição de
+grande valor. - \textbf{Requisitos:} Pode exigir um ano de escolaridade
+mínimo/máximo para a sua aplicação.
+
+\hypertarget{produtos-financeiros}{%
+\paragraph{1.2.2. Produtos Financeiros}\label{produtos-financeiros}}
+
+O Admin cria os produtos financeiros que os alunos (Valteens) podem
+subscrever: - \textbf{Produtos de Poupança:} Define contas poupança com
+prazo (em meses), taxa de juro, e depósitos mínimos/máximos. -
+\textbf{Produtos de Crédito:} Define as condições dos micro-empréstimos,
+como o montante máximo, prazo de pagamento e taxas de juro associadas.
+
+\hypertarget{configurauxe7uxf5es-gerais-do-sistema}{%
+\paragraph{1.2.3. Configurações Gerais do
+Sistema}\label{configurauxe7uxf5es-gerais-do-sistema}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Utilizadores Especiais:} Designar contas de sistema cruciais,
+  como o \texttt{ivaDestinationUserId} (para onde vai o IVA das
+  transações) e o \texttt{interestSourceUserId} (a conta que financia os
+  juros das poupanças).
+\end{itemize}
+
+\hypertarget{gestuxe3o-fiscal-e-de-produtos}{%
+\paragraph{1.2.4. Gestão Fiscal e de
+Produtos}\label{gestuxe3o-fiscal-e-de-produtos}}
+
+Para simular uma economia real, o Admin gere um sistema fiscal e de
+categorização de produtos: - \textbf{Taxas de IVA:} O sistema permite a
+configuração de múltiplas taxas de IVA (e.g., Normal, Reduzida, Isenta).
+Cada produto ou serviço na loja é associado a uma destas taxas. -
+\textbf{Categorias de Produtos:} O Admin pode criar categorias para os
+produtos da loja (e.g., ``Material Escolar'', ``Alimentação'',
+``Bilhetes''). Estas categorias têm um propósito de literacia fiscal: -
+\textbf{Dedução Fiscal:} Uma categoria pode ser marcada como
+\texttt{is\_deductible}, permitindo que uma parte ou a totalidade do
+valor gasto em produtos dessa categoria possa ser ``deduzida'' da coleta
+de impostos, ensinando na prática como funcionam os benefícios fiscais.
+
+\hypertarget{gestuxe3o-da-comunidade}{%
+\subsubsection{1.3. Gestão da
+Comunidade}\label{gestuxe3o-da-comunidade}}
+
+\hypertarget{gestuxe3o-de-casas-houses}{%
+\paragraph{1.3.1. Gestão de Casas
+(Houses)}\label{gestuxe3o-de-casas-houses}}
+
+As ``Houses'' são comunidades dentro da escola (semelhante às casas de
+Hogwarts), fomentando a colaboração e competição saudável. -
+\textbf{Criação:} O Admin cria as casas, definindo nome, cor, logo e
+descrição. - \textbf{Atribuição:} Associa um Professor como ``Chefe de
+Casa'' e pode nomear um Aluno como ``Líder''. - \textbf{Gestão de
+Membros:} Adiciona e remove alunos das casas. - \textbf{Supervisão:} O
+dashboard de cada casa mostra estatísticas agregadas: saldo total dos
+membros, dívida total, e a percentagem de membros com contas poupança
+ativas.
+
+\hypertarget{gestuxe3o-de-utilizadores-e-matruxedculas}{%
+\paragraph{1.3.2. Gestão de Utilizadores e
+Matrículas}\label{gestuxe3o-de-utilizadores-e-matruxedculas}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Importação em Massa:} Para além da criação manual, o Admin
+  pode carregar ficheiros (e.g., CSV) para criar em massa utilizadores
+  (alunos, professores), disciplinas, e realizar matrículas em turmas e
+  inscrições em disciplinas, utilizando listas de serviços letivos da
+  escola.
+\item
+  \textbf{Aprovação de Empréstimos:} Avalia e aprova ou rejeita os
+  pedidos de micro-empréstimos feitos pelos alunos.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{professor}{%
+\subsection{2. Professor}\label{professor}}
+
+O Professor é o principal agente de dinamização da economia Valcoin no
+dia-a-dia, utilizando as regras criadas pelo Admin para interagir com os
+alunos.
+
+\hypertarget{principais-funcionalidades}{%
+\subsubsection{Principais
+Funcionalidades}\label{principais-funcionalidades}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Atribuir Valcoins:} Utiliza as ``Transaction Rules''
+  pré-definidas para atribuir Valcoins aos alunos.
+\item
+  \textbf{Atribuir Pontos de Legado:} Ao usar uma regra da categoria
+  ``Legado'', o professor confere uma honra especial ao aluno.
+\item
+  \textbf{Gestão de Turmas:} Visualiza os alunos das suas turmas e o seu
+  progresso individual.
+\item
+  \textbf{Chefe de Casa (se aplicável):} Se for designado Chefe de uma
+  Casa, tem acesso ao dashboard dessa casa.
+\item
+  \textbf{Acompanhamento:} Pode consultar o histórico de transações, o
+  saldo, as poupanças e os empréstimos dos seus alunos.
+\item
+  \textbf{Validação de Bilhetes:} Pode usar a interface de validação
+  para marcar bilhetes de eventos como ``utilizados''.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{aluno}{%
+\subsection{3. Aluno}\label{aluno}}
+
+O Aluno interage com o ecossistema Valcoin para aprender a gerir as suas
+finanças pessoais de forma prática e motivadora.
+
+\hypertarget{valkid-alunos-mais-novos}{%
+\subsubsection{3.1. Valkid (Alunos mais
+novos)}\label{valkid-alunos-mais-novos}}
+
+A interface é simples e visual, focada em conceitos básicos: consulta de
+saldo, histórico de conquistas e uma loja de recompensas simples.
+
+\hypertarget{valteen-alunos-mais-velhos}{%
+\subsubsection{3.2. Valteen (Alunos mais
+velhos)}\label{valteen-alunos-mais-velhos}}
+
+A plataforma oferece um conjunto robusto de ferramentas de literacia
+financeira.
+
+\hypertarget{a-tua-conta}{%
+\paragraph{3.2.1. A Tua Conta}\label{a-tua-conta}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Dashboard Pessoal:} Um resumo da sua vida financeira: saldo,
+  histórico, poupanças e empréstimos.
+\item
+  \textbf{O Teu Legado:} Uma secção especial no perfil que exibe todas
+  as distinções da categoria ``Legado'' que recebeu.
+\end{itemize}
+
+\hypertarget{funcionalidades-financeiras}{%
+\paragraph{3.2.2. Funcionalidades
+Financeiras}\label{funcionalidades-financeiras}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Contas Poupança:} Pode subscrever produtos de poupança,
+  depositar Valcoins e acompanhar o crescimento com juros.
+\item
+  \textbf{Micro-Empréstimos:} Pode solicitar um empréstimo, justificando
+  o pedido, e tem a responsabilidade de o pagar.
+\end{itemize}
+
+\hypertarget{vida-em-comunidade}{%
+\paragraph{3.2.3. Vida em Comunidade}\label{vida-em-comunidade}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{A Minha Casa (House):} Pertence a uma casa, colabora com
+  colegas e acompanha o ranking e estatísticas do grupo.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{a-loja-valcoin-aprendizagem-e-funcionamento}{%
+\subsection{4. A Loja Valcoin: Aprendizagem e
+Funcionamento}\label{a-loja-valcoin-aprendizagem-e-funcionamento}}
+
+A loja é mais do que um mercado; é uma ferramenta pedagógica central
+para a literacia financeira.
+
+\hypertarget{objetivos-pedaguxf3gicos}{%
+\subsubsection{4.1. Objetivos
+Pedagógicos}\label{objetivos-pedaguxf3gicos}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Valor vs.~Preço:} Os alunos aprendem que os Valcoins têm um
+  valor real (convertível para Euros no dashboard do Admin) e que os
+  produtos têm um custo que reflete esse valor, acrescido de impostos
+  (IVA).
+\item
+  \textbf{Tomada de Decisão Financeira:} A loja força o aluno a decidir
+  entre a gratificação imediata (comprar produtos mais baratos) e o
+  planeamento a longo prazo (poupar para um item mais caro e desejado).
+\item
+  \textbf{Orçamentação:} A necessidade de gerir um saldo limitado para
+  adquirir bens ensina a importância de criar um orçamento e de fazer
+  escolhas.
+\item
+  \textbf{Impacto Fiscal:} Ao comprar produtos de diferentes categorias
+  e com diferentes taxas de IVA, os alunos observam na prática como os
+  impostos afetam o custo final de um produto e como certas despesas (de
+  categorias dedutíveis) podem ter benefícios.
+\end{itemize}
+
+\hypertarget{funcionamento}{%
+\subsubsection{4.2. Funcionamento}\label{funcionamento}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Criação de Produtos:} O Admin (ou vendedores designados)
+  adiciona produtos à loja, definindo nome, preço em Valcoins,
+  quantidade em stock, categoria e a taxa de IVA aplicável.
+\item
+  \textbf{Compra pelo Aluno:} O aluno navega na loja, escolhe um produto
+  e confirma a compra. O sistema debita automaticamente o valor total
+  (preço + IVA) do seu saldo.
+\item
+  \textbf{Gestão de Stock:} O sistema gere o stock em tempo real. Se um
+  produto esgota, fica indisponível para compra.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\hypertarget{sistema-de-bilhuxe9tica-digital}{%
+\subsection{5. Sistema de Bilhética
+Digital}\label{sistema-de-bilhuxe9tica-digital}}
+
+Integrado na loja, o sistema de bilhética permite a venda e gestão de
+entradas para eventos (e.g., festas da escola, cinema, workshops) de
+forma segura e digital.
+
+\hypertarget{criauxe7uxe3o-e-compra}{%
+\subsubsection{5.1. Criação e Compra}\label{criauxe7uxe3o-e-compra}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Produto-Bilhete:} O Admin cria um produto na loja e marca-o
+  como sendo um ``bilhete'' (\texttt{is\_ticket}).
+\item
+  \textbf{Compra Segura:} Quando um aluno compra este produto, o sistema
+  gera uma entrada única e pessoal na base de dados -- o bilhete
+  digital.
+\end{itemize}
+
+\hypertarget{utilizauxe7uxe3o-e-validauxe7uxe3o}{%
+\subsubsection{5.2. Utilização e
+Validação}\label{utilizauxe7uxe3o-e-validauxe7uxe3o}}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Download do Bilhete:} O aluno pode descarregar um ficheiro PDF
+  que contém os detalhes do evento e um QR Code único.
+\item
+  \textbf{Validação na Entrada:} No dia do evento, um responsável (e.g.,
+  um professor, um segurança) utiliza uma interface de validação
+  especial:
+
+  \begin{enumerate}
+  \def\labelenumi{\arabic{enumi}.}
+  \tightlist
+  \item
+    Acede à página de validação (que pode ser pública).
+  \item
+    Escaneia o QR Code do bilhete do aluno ou digita o seu ID.
+  \item
+    O sistema verifica em tempo real se o bilhete é válido e se já foi
+    utilizado.
+  \end{enumerate}
+\item
+  \textbf{Marcação como ``Utilizado'':} Após a validação bem-sucedida, o
+  responsável marca o bilhete como ``utilizado'', o que invalida o QR
+  Code e impede a sua reutilização, garantindo que cada bilhete é usado
+  apenas uma vez.
+\item
+  \textbf{Gestão pelo Admin/Vendedor:} O criador do evento pode aceder a
+  um painel para ver todos os bilhetes vendidos, quem os comprou e o seu
+  estado (válido ou utilizado).
+\end{itemize}

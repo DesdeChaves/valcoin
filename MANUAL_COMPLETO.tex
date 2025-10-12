@@ -1,0 +1,38 @@
+\documentclass[11pt, a4paper]{article}
+
+% PACOTES ESSENCIAIS
+\usepackage{fontspec} % Permite usar fontes do sistema com XeLaTeX
+\usepackage{geometry} % Para configurar as margens
+\usepackage[portuguese]{babel} % Suporte para a língua portuguesa
+\usepackage{graphicx} % Para incluir imagens
+
+% PACOTES PARA MELHORAR O ASPETO
+\usepackage{sectsty} % Permite customizar os títulos das secções
+\usepackage{parskip} % Espaço entre parágrafos em vez de indentação
+\usepackage{enumitem} % Controlo sobre listas
+
+% PACOTE PARA LINKS E REFERÊNCIAS (essencial para corrigir o erro)
+\usepackage[unicode=true, pdfusetitle]{hyperref}
+
+% CONFIGURAÇÕES
+\geometry{a4paper, margin=1in} % Margens de 1 polegada
+\setmainfont{Linux Libertine O} % Define uma fonte principal (pode precisar de a ter instalada)
+\sectionfont{\fontsize{16}{18}\selectfont}
+\subsectionfont{\fontsize{14}{16}\selectfont}
+\subsubsectionfont{\fontsize{12}{14}\selectfont}
+
+% Definição para o comando \tightlist do pandoc
+\def\tightlist{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+
+\begin{document}
+
+\input{MANUAL_VALCOIN.tex}
+
+\end{document}

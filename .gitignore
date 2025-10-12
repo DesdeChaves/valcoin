@@ -1,0 +1,22 @@
+
+# Dependencies
+/node_modules
+/valcoin-admin/node_modules
+/valcoin-store/server/node_modules
+
+# Data and credentials
+/data/
+.env.admin
+credentials.txt
+dados.alunos_rita.csv-autosaveods
+
+# Build artifacts and logs
+*.log
+*.aux
+*.out
+*.pdf
+*.docx
+
+# OS-specific files
+._*
+.DS_Store
