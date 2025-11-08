@@ -4,6 +4,10 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('./libs/db');
+
+// ============================================================================
+// IMPORTS - ValCoin (Admin/Finance System)
+// ============================================================================
 const {
   getUsers,
   getUserById,
@@ -15,7 +19,16 @@ const {
   updateUserPassword,
   changeUserPassword,
 } = require('./libs/users');
-const { startInterestPaymentCron, startLoanRepaymentCron, startProfessorSalaryCron, startInactivityFeeCron,  testProfessorSalaryManually, runInterestPaymentManually} = require('./libs/cronJobs');
+
+const { 
+  startInterestPaymentCron, 
+  startLoanRepaymentCron, 
+  startProfessorSalaryCron, 
+  startInactivityFeeCron,  
+  testProfessorSalaryManually, 
+  runInterestPaymentManually
+} = require('./libs/cronJobs');
+
 const {
   getTransactions,
   getTransactionById,
@@ -26,12 +39,14 @@ const {
   approveTransaction,
   rejectTransaction,
 } = require('./libs/transactions');
+
 const {
   getSubjects,
   createSubject,
   updateSubject,
   softDeleteSubject,
 } = require('./libs/subjects');
+
 const {
   getEnrollments,
   getEnrollmentById,
@@ -39,6 +54,7 @@ const {
   updateEnrollment,
   deleteEnrollment,
 } = require('./libs/enrollments');
+
 const {
   getClasses,
   createClass,
@@ -46,6 +62,7 @@ const {
   deleteClass,
   getStudentsByClass,
 } = require('./libs/classes');
+
 const {
   getTransactionRules,
   createTransactionRule,
@@ -55,17 +72,20 @@ const {
   getApplicableRules,
   checkApplicability,
 } = require('./libs/transactionRules');
+
 const {
   getDisciplinaTurma,
   createDisciplinaTurma,
   updateDisciplinaTurma,
 } = require('./libs/disciplina_turma');
+
 const {
   getAllCiclos,
   createCiclo,
   updateCiclo,
   deleteCiclo,
 } = require('./libs/ciclos');
+
 const {
   getAlunoTurma,
   getAlunoTurmaById,
@@ -73,6 +93,7 @@ const {
   updateAlunoTurma,
   deleteAlunoTurma,
 } = require('./libs/aluno_turma');
+
 const { getSettings, updateSettings } = require('./libs/settings');
 const { getSchoolRevenues, createSchoolRevenue, updateSchoolRevenue, deleteSchoolRevenue } = require('./libs/schoolRevenues');
 const { getDashboardMetrics } = require('./libs/dashboard');
@@ -81,7 +102,6 @@ const { getSavingsProducts, createSavingsProduct, updateSavingsProduct, deleteSa
 const { getCreditProducts, createCreditProduct, updateCreditProduct, deleteCreditProduct } = require('./libs/creditProducts');
 const { getHouses, getHouseById, getMyHouse, createHouse, updateHouse, manageHouseMembers, deleteHouse, getAvailableStudents, getStudentHouseHistory } = require('./libs/houses');
 
-// Importar funcionalidades dos professores
 const {
   authenticateProfessorJWT,
   getProfessorDashboard,
@@ -104,25 +124,52 @@ const {
   checkStudentRuleApplicability,
   getStudentLegadoHistory,
 } = require('./libs/studentTransactions');
+
 const { getStudentSavingsAccounts, createStudentSavingsAccount } = require('./libs/studentSavings');
 const { applyForLoan, getStudentLoans, approveLoan, rejectLoan, getStudentLoansByStudentId, repayLoan } = require('./libs/studentLoans');
-
 const { authenticateStoreJWT, createStoreTransaction } = require('./libs/storeTransactions');
 
+// ============================================================================
+// IMPORTS - Feedback/Assessment System (libs/feedback/)
+// ============================================================================
+const contadoresRoutes = require('./libs/feedback/contadores');
+const criteriosRoutes = require('./libs/feedback/criterios');
+const dossiesRoutes = require('./libs/feedback/dossies');
+const instrumentosRoutes = require('./libs/feedback/instrumentos');
+const resultadosRoutes = require('./libs/feedback/resultados');
+const momentosAvaliacaoRoutes = require('./libs/feedback/momentos_avaliacao');
+const feedbackStudentsRoutes = require('./libs/feedback/students');
+
+const { getProfessorFeedbackDashboard } = require('./libs/feedback/dashboard.js');
+
+// Users router for feedback-specific routes (includes professor assessment routes)
+const usersRouter = require('./libs/feedback/users');
+
+// ============================================================================
+// APP SETUP
+// ============================================================================
 const app = express();
-
-app.use((req, res, next) => {
-  console.log(`Incoming request: ${req.method} ${req.path}`);
-  next();
-});
 const port = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'unified-secret-key';
 
-app.use(cors());
+// Middleware
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost'],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+}));
 app.use(bodyParser.json());
 
-// Initialize admin user and log credentials
-console.log('Starting ValCoin Admin Server...');
+// Request logging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
+// ============================================================================
+// INITIALIZE SERVICES
+// ============================================================================
+console.log('Starting Unified Server (ValCoin + Feedback)...');
 initializeAdminUser();
 startInterestPaymentCron();
 startLoanRepaymentCron();
@@ -130,7 +177,32 @@ startProfessorSalaryCron();
 startInactivityFeeCron();
 testProfessorSalaryManually();
 
-// Middleware de autenticação para qualquer utilizador autenticado
+// ============================================================================
+// AUTHENTICATION MIDDLEWARE
+// ============================================================================
+
+// Generic JWT authentication - sets req.user if valid token
+const authenticateJWT = (req, res, next) => {
+  console.log('authenticateJWT called for:', req.path);
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        console.error('JWT verification failed for:', req.path, err.message);
+        return res.sendStatus(403);
+      }
+      req.user = user;
+      console.log('JWT authenticated user:', user.tipo_utilizador, 'for:', req.path);
+      next();
+    });
+  } else {
+    console.error('No authorization header provided for:', req.path);
+    res.sendStatus(401);
+  }
+};
+
+// Requires any authenticated user
 const authenticateAnyUserJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader) {
@@ -147,53 +219,72 @@ const authenticateAnyUserJWT = (req, res, next) => {
   }
 };
 
-// Middleware de autenticação para Administradores
-const authenticateJWT = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  console.log('Auth header:', authHeader);
-  if (authHeader) {
-    const token = authHeader.split(' ')[1];
-    console.log('Token:', token);
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (err) {
-        console.error('JWT verification failed:', err.message);
-        return res.sendStatus(403);
-      }
-      console.log('Decoded user:', user);
-      if (user.tipo_utilizador !== 'ADMIN' && user.tipo_utilizador !== 'PROFESSOR') {
-        console.error('Non-admin user attempted access:', user.tipo_utilizador);
-        return res.sendStatus(403);
-      }
-      req.user = user;
-      next();
-    });
-  } else {
-    console.error('No authorization header provided');
-    res.sendStatus(401);
-  }
-};
-
-// Middleware de autenticação apenas para Administradores
+// Admin only
 const authenticateAdminJWT = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (authHeader) {
     const token = authHeader.split(' ')[1];
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
-        return res.sendStatus(403); // Forbidden
+        return res.sendStatus(403);
       }
       if (user.tipo_utilizador !== 'ADMIN') {
-        return res.sendStatus(403); // Forbidden
+        return res.sendStatus(403);
       }
       req.user = user;
       next();
     });
   } else {
-    res.sendStatus(401); // Unauthorized
+    res.sendStatus(401);
   }
 };
 
-// Rota de login
+// Admin or Professor
+const authenticateAdminOrProfessor = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        return res.sendStatus(403);
+      }
+      if (user.tipo_utilizador !== 'ADMIN' && user.tipo_utilizador !== 'PROFESSOR') {
+        return res.sendStatus(403);
+      }
+      req.user = user;
+      next();
+    });
+  } else {
+    res.sendStatus(401);
+  }
+};
+
+// Professor only
+const authorizeProfessor = (req, res, next) => {
+  if (!req.user) {
+    return res.sendStatus(401);
+  }
+  if (req.user.tipo_utilizador !== 'PROFESSOR') {
+    return res.sendStatus(403);
+  }
+  next();
+};
+
+// Student only
+const authorizeStudent = (req, res, next) => {
+  if (!req.user) {
+    return res.sendStatus(401);
+  }
+  if (req.user.tipo_utilizador !== 'ALUNO') {
+    return res.sendStatus(403);
+  }
+  next();
+};
+
+// ============================================================================
+// AUTHENTICATION ROUTES (Unified Login)
+// ============================================================================
+
 app.post('/api/login', async (req, res) => {
   const { numero_mecanografico, password } = req.body;
   try {
@@ -201,7 +292,15 @@ app.post('/api/login', async (req, res) => {
     if (rows.length > 0) {
       const user = rows[0];
       if (bcrypt.compareSync(password, user.password_hash)) {
-        const accessToken = jwt.sign({ id: user.id, numero_mecanografico: user.numero_mecanografico, tipo_utilizador: user.tipo_utilizador }, JWT_SECRET, { expiresIn: '1h' });
+        const accessToken = jwt.sign(
+          { 
+            id: user.id, 
+            numero_mecanografico: user.numero_mecanografico, 
+            tipo_utilizador: user.tipo_utilizador 
+          }, 
+          JWT_SECRET, 
+          { expiresIn: '8h' }
+        );
         const { password_hash, ...userWithoutPassword } = user;
         res.json({ accessToken, user: userWithoutPassword });
       } else {
@@ -211,7 +310,7 @@ app.post('/api/login', async (req, res) => {
       res.status(401).json({ error: 'Invalid credentials' });
     }
   } catch (err) {
-    console.error(err);
+    console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -222,19 +321,28 @@ app.get('/api/user', authenticateAnyUserJWT, (req, res) => {
 
 app.post('/api/user/change-password', authenticateAnyUserJWT, changeUserPassword);
 
-// Rota para a loja
+// ============================================================================
+// VALCOIN ROUTES - Store
+// ============================================================================
+
 app.post('/api/store/buy', authenticateStoreJWT, createStoreTransaction);
 
-// Rotas para Professores
-app.get('/api/professor/dashboard', authenticateProfessorJWT, getProfessorDashboard);
+// ============================================================================
+// VALCOIN ROUTES - Professor
+// ============================================================================
+
+app.get('/api/professor/valcoin-dashboard', authenticateProfessorJWT, getProfessorDashboard);
 app.post('/api/professor/transactions', authenticateProfessorJWT, createProfessorTransaction);
 app.get('/api/professor/tap-rules', authenticateProfessorJWT, getProfessorTapRules);
 app.post('/api/professor/tap-transactions', authenticateProfessorJWT, createProfessorTapTransaction);
 app.get('/api/professor/student-transaction-history', authenticateProfessorJWT, getProfessorStudentTransactionHistory);
 app.post('/api/professor/check-rule-applicability', authenticateProfessorJWT, checkProfessorRuleApplicability);
 
-// Rotas para Alunos
-app.get('/api/student/dashboard', authenticateStudentJWT, getStudentDashboard);
+// ============================================================================
+// VALCOIN ROUTES - Student
+// ============================================================================
+
+app.get('/api/student/valcoin-dashboard', authenticateStudentJWT, getStudentDashboard);
 app.post('/api/student/manual-payment', authenticateStudentJWT, createStudentManualPayment);
 app.get('/api/student/payable-users', authenticateStudentJWT, getPayableUsers);
 app.get('/api/student/settings', authenticateStudentJWT, getStudentSettings);
@@ -255,124 +363,270 @@ app.get('/api/student/loans/my-loans', authenticateStudentJWT, getStudentLoansBy
 app.post('/api/student/loans/:id/repay', authenticateStudentJWT, repayLoan);
 
 // Student Loans (Admin)
-app.get('/api/student/loans', authenticateJWT, getStudentLoans);
-app.patch('/api/student/loans/:id/approve', authenticateJWT, approveLoan);
-app.patch('/api/student/loans/:id/reject', authenticateJWT, rejectLoan);
+app.get('/api/admin/student-loans', authenticateAdminOrProfessor, getStudentLoans);
+app.patch('/api/admin/student-loans/:id/approve', authenticateAdminOrProfessor, approveLoan);
+app.patch('/api/admin/student-loans/:id/reject', authenticateAdminOrProfessor, rejectLoan);
 
-// Classes - Students
-app.get('/api/classes/:id/students', authenticateStudentJWT, getStudentsByClass);
+// ============================================================================
+// FEEDBACK ROUTES - Professor Assessment System
+// ============================================================================
 
-// Dashboard
-app.get('/api/dashboard', authenticateJWT, getDashboardMetrics);
+// Dashboard route
+app.get('/api/professor/feedback-dashboard', authenticateJWT, authorizeProfessor, getProfessorFeedbackDashboard);
 
-// Users
-app.get('/api/users', authenticateJWT, getUsers);
+
+app.get('/api/feedback/studentsprofessor/disciplina/:disciplineId/alunos', 
+  authenticateJWT, 
+  authorizeProfessor,  // <-- PROFESSOR pode acessar
+  async (req, res) => {
+    try {
+      const { disciplineId } = req.params;
+      console.log('🔍 Fetching students for discipline:', disciplineId);
+      console.log('👤 Requested by professor:', req.user.id);
+
+      // Query para buscar alunos matriculados na disciplina_turma
+      const query = `
+            WITH selected_discipline AS (
+                SELECT disciplina_turma_id
+                FROM professor_disciplina_turma
+                WHERE id = $1
+            )
+            SELECT u.id, u.nome, u.numero_mecanografico
+            FROM users u
+            JOIN aluno_disciplina ad ON u.id = ad.aluno_id
+            WHERE ad.disciplina_turma_id = (SELECT disciplina_turma_id FROM selected_discipline)
+              AND u.tipo_utilizador = 'ALUNO'
+              AND u.ativo = true
+            ORDER BY u.nome;
+      `;
+
+      const { rows } = await db.query(query, [disciplineId]);
+      
+      console.log(`✅ Found ${rows.length} students`);
+      res.json(rows);
+      
+    } catch (error) {
+      console.error('❌ Error fetching students by discipline:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch students',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
+
+// Rota 1: Buscar todas as notas de um aluno em todos os dossiês
+app.get('/api/feedback/studentprofessor/:studentId/all-grades', 
+  authenticateJWT,
+  authorizeProfessor,
+  async (req, res) => {
+    const { studentId } = req.params;
+    console.log('📊 Fetching ALL grades for student:', studentId);
+    
+    try {
+      const result = await db.query(`
+        SELECT
+          d.id as dossier_id,
+          d.nome as dossier_nome,
+          s.nome as disciplina_nome,
+          ma.id as momento_id,
+          ma.nome as momento_nome,
+          nfm.nota,
+          ma.created_at as data_avaliacao
+        FROM
+          nota_final_momento nfm
+        JOIN
+          momento_avaliacao ma ON nfm.momento_avaliacao_id = ma.id
+        JOIN
+          dossie d ON ma.dossie_id = d.id
+        JOIN
+          professor_disciplina_turma pdt ON d.professor_disciplina_turma_id = pdt.id
+        JOIN
+          disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
+        JOIN
+          subjects s ON dt.disciplina_id = s.id
+        WHERE
+          nfm.aluno_id = $1
+        ORDER BY
+          s.nome, d.nome, ma.created_at DESC;
+      `, [studentId]);
+      
+      console.log(`✅ Found ${result.rows.length} grades for student ${studentId}`);
+      res.status(200).json(result.rows);
+      
+    } catch (error) {
+      console.error('❌ Error fetching all student grades:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ 
+        error: 'Failed to fetch all student grades',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
+// Rota 2: Buscar notas de um aluno em um dossiê específico
+app.get('/api/feedback/studentprofessor/:studentId/dossier/:dossierId/grades', 
+  authenticateJWT,
+  authorizeProfessor,
+  async (req, res) => {
+    const { studentId, dossierId } = req.params;
+    console.log(`📊 Fetching grades for student ${studentId} in dossier ${dossierId}`);
+    
+    try {
+      const result = await db.query(`
+        SELECT 
+          ma.id as momento_id, 
+          ma.nome as momento_nome, 
+          nfm.nota, 
+          ma.created_at as data_avaliacao, 
+          s.nome as disciplina_nome
+        FROM momento_avaliacao ma
+        LEFT JOIN nota_final_momento nfm ON ma.id = nfm.momento_avaliacao_id AND nfm.aluno_id = $1
+        JOIN dossie d ON ma.dossie_id = d.id
+        JOIN professor_disciplina_turma pdt ON d.professor_disciplina_turma_id = pdt.id
+        JOIN disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
+        JOIN subjects s ON dt.disciplina_id = s.id
+        WHERE ma.dossie_id = $2
+        ORDER BY ma.created_at DESC;
+      `, [studentId, dossierId]);
+      
+      console.log(`✅ Found ${result.rows.length} grades for student ${studentId} in dossier ${dossierId}`);
+      res.status(200).json(result.rows);
+      
+    } catch (error) {
+      console.error('❌ Error fetching student grades by dossier:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ 
+        error: 'Failed to fetch grades by dossier',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+);
+
+
+// Mount feedback system routes (all require professor authentication)
+app.use('/api/feedback/contadores', authenticateJWT, authorizeProfessor, contadoresRoutes);
+app.use('/api/feedback/criterios', authenticateJWT, authorizeProfessor, criteriosRoutes);
+app.use('/api/feedback/dossies', authenticateJWT, authorizeProfessor, dossiesRoutes);
+app.use('/api/feedback/instrumentos', authenticateJWT, authorizeProfessor, instrumentosRoutes);
+app.use('/api/feedback/resultados', authenticateJWT, authorizeProfessor, resultadosRoutes);
+app.use('/api/feedback/momentos-avaliacao', authenticateJWT, authorizeProfessor, momentosAvaliacaoRoutes);
+
+// Professor-specific user routes (disciplines, dossiers, criteria, instruments, counters)
+// These routes are defined in users.js router and include:
+// - GET /:id/disciplines
+// - GET /:userId/dossiers/all
+// - GET /:userId/criteria/all
+// - GET /:userId/instruments/all
+// - GET /:userId/counters/all
+app.use('/api/feedback/users', authenticateJWT, authorizeProfessor, usersRouter);
+
+// ============================================================================
+// FEEDBACK ROUTES - Student Assessment View
+// ============================================================================
+
+app.get('/api/student/feedback-dashboard', authenticateJWT, authorizeStudent, (req, res) => {
+  res.json({ 
+    message: `Welcome Student ${req.user.numero_mecanografico}`, 
+    system: 'feedback',
+    user: req.user
+  });
+});
+
+app.use('/api/feedback/students', authenticateJWT, authorizeStudent, feedbackStudentsRoutes);
+
+// ============================================================================
+// ADMIN ROUTES - Dashboard
+// ============================================================================
+
+app.get('/api/dashboard', authenticateAdminOrProfessor, getDashboardMetrics);
+
+// ============================================================================
+// ADMIN ROUTES - Users
+// ============================================================================
+
+app.get('/api/users', authenticateAdminOrProfessor, getUsers);
 app.get('/api/unassigned-students', authenticateAnyUserJWT, getUnassignedStudents);
 app.get('/api/users/:id', authenticateAnyUserJWT, getUserById);
-app.post('/api/users', authenticateJWT, createUser);
-app.put('/api/users/:id', authenticateJWT, updateUser);
+app.post('/api/users', authenticateAdminOrProfessor, createUser);
+app.put('/api/users/:id', authenticateAdminOrProfessor, updateUser);
 app.put('/api/admin/users/:id/password', authenticateAdminJWT, updateUserPassword);
-app.delete('/api/users/:id', authenticateJWT, deleteUser);
+app.delete('/api/users/:id', authenticateAdminOrProfessor, deleteUser);
 
-// Transactions
-app.get('/api/transactions', authenticateJWT, getTransactions);
-app.get('/api/transactions/:id', authenticateJWT, getTransactionById);
-app.get('/api/transactions/group/:groupId', authenticateJWT, getTransactionsByGroupId);
-app.post('/api/transactions', authenticateJWT, createTransaction);
-app.put('/api/transactions/:id', authenticateJWT, updateTransaction);
-app.delete('/api/transactions/:id', authenticateJWT, deleteTransaction);
-app.patch('/api/transactions/:id/approve', authenticateJWT, approveTransaction);
-app.patch('/api/transactions/:id/reject', authenticateJWT, rejectTransaction);
+// ============================================================================
+// ADMIN ROUTES - Transactions
+// ============================================================================
 
-// Subjects
-app.get('/api/subjects', authenticateJWT, getSubjects);
-app.post('/api/subjects', authenticateJWT, createSubject);
-app.put('/api/subjects/:id', authenticateJWT, updateSubject);
-app.delete('/api/subjects/:id', authenticateJWT, softDeleteSubject);
+app.get('/api/transactions', authenticateAdminOrProfessor, getTransactions);
+app.get('/api/transactions/:id', authenticateAdminOrProfessor, getTransactionById);
+app.get('/api/transactions/group/:groupId', authenticateAdminOrProfessor, getTransactionsByGroupId);
+app.post('/api/transactions', authenticateAdminOrProfessor, createTransaction);
+app.put('/api/transactions/:id', authenticateAdminOrProfessor, updateTransaction);
+app.delete('/api/transactions/:id', authenticateAdminOrProfessor, deleteTransaction);
+app.patch('/api/transactions/:id/approve', authenticateAdminOrProfessor, approveTransaction);
+app.patch('/api/transactions/:id/reject', authenticateAdminOrProfessor, rejectTransaction);
 
-// Enrollments
-app.get('/api/enrollments', authenticateJWT, getEnrollments);
-app.get('/api/enrollments/:id', authenticateJWT, getEnrollmentById);
-app.post('/api/enrollments', authenticateJWT, createEnrollment);
-app.put('/api/enrollments/:id', authenticateJWT, updateEnrollment);
-app.delete('/api/enrollments/:id', authenticateJWT, deleteEnrollment);
+// ============================================================================
+// ADMIN ROUTES - Subjects
+// ============================================================================
 
-// Classes
+app.get('/api/subjects', authenticateAdminOrProfessor, getSubjects);
+app.post('/api/subjects', authenticateAdminOrProfessor, createSubject);
+app.put('/api/subjects/:id', authenticateAdminOrProfessor, updateSubject);
+app.delete('/api/subjects/:id', authenticateAdminOrProfessor, softDeleteSubject);
+
+// ============================================================================
+// ADMIN ROUTES - Enrollments
+// ============================================================================
+
+app.get('/api/enrollments', authenticateAdminOrProfessor, getEnrollments);
+app.get('/api/enrollments/:id', authenticateAdminOrProfessor, getEnrollmentById);
+app.post('/api/enrollments', authenticateAdminOrProfessor, createEnrollment);
+app.put('/api/enrollments/:id', authenticateAdminOrProfessor, updateEnrollment);
+app.delete('/api/enrollments/:id', authenticateAdminOrProfessor, deleteEnrollment);
+
+// ============================================================================
+// ADMIN ROUTES - Classes
+// ============================================================================
+
 app.get('/api/classes', authenticateAnyUserJWT, getClasses);
-app.post('/api/classes', authenticateJWT, createClass);
-app.put('/api/classes/:id', authenticateJWT, updateClass);
-app.delete('/api/classes/:id', authenticateJWT, deleteClass);
+app.get('/api/classes/:id/students', authenticateAnyUserJWT, getStudentsByClass);
+app.post('/api/classes', authenticateAdminOrProfessor, createClass);
+app.put('/api/classes/:id', authenticateAdminOrProfessor, updateClass);
+app.delete('/api/classes/:id', authenticateAdminOrProfessor, deleteClass);
 
-// Transaction Rules
-app.get('/api/transactionRules', authenticateJWT, getTransactionRules);
-app.post('/api/transactionRules', authenticateJWT, createTransactionRule);
-app.put('/api/transactionRules/:id', authenticateJWT, updateTransactionRule);
-app.delete('/api/transactionRules/:id', authenticateJWT, deleteTransactionRule);
-app.post('/api/applyTransactionRule', authenticateJWT, (req, res, next) => {
-  console.log('Received request to /applyTransactionRule:', req.body);
-  applyTransactionRule(req, res, next);
-});
-app.post('/api/transaction-rules/apply', authenticateJWT, (req, res, next) => {
-  console.log('Received request to /applyTransactionRule:', req.body);
-  applyTransactionRule(req, res, next);
-});
-app.get('/api/transaction-rules/applicable', authenticateJWT, getApplicableRules);
-app.post('/api/transaction-rules/check-applicability', authenticateJWT, checkApplicability);
+// ============================================================================
+// ADMIN ROUTES - Transaction Rules
+// ============================================================================
 
-// Disciplina Turma
-app.get('/api/disciplina_turma', authenticateJWT, getDisciplinaTurma);
-app.post('/api/disciplina_turma', authenticateJWT, createDisciplinaTurma);
-app.put('/api/disciplina_turma/:id', authenticateJWT, updateDisciplinaTurma);
+app.get('/api/transactionRules', authenticateAdminOrProfessor, getTransactionRules);
+app.post('/api/transactionRules', authenticateAdminOrProfessor, createTransactionRule);
+app.put('/api/transactionRules/:id', authenticateAdminOrProfessor, updateTransactionRule);
+app.delete('/api/transactionRules/:id', authenticateAdminOrProfessor, deleteTransactionRule);
+app.post('/api/applyTransactionRule', authenticateAdminOrProfessor, applyTransactionRule);
+app.post('/api/transaction-rules/apply', authenticateAdminOrProfessor, applyTransactionRule);
+app.get('/api/transaction-rules/applicable', authenticateAdminOrProfessor, getApplicableRules);
+app.post('/api/transaction-rules/check-applicability', authenticateAdminOrProfessor, checkApplicability);
 
-// Ciclos
-app.get('/api/admin/ciclos', authenticateJWT, async (req, res) => {
-  try {
-    const ciclos = await getAllCiclos();
-    res.json(ciclos);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// ============================================================================
+// ADMIN ROUTES - Disciplina Turma
+// ============================================================================
 
-app.post('/api/admin/ciclos', authenticateJWT, async (req, res) => {
-  try {
-    const newCiclo = await createCiclo(req.body);
-    res.status(201).json(newCiclo);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+app.get('/api/disciplina_turma', authenticateAdminOrProfessor, getDisciplinaTurma);
+app.post('/api/disciplina_turma', authenticateAdminOrProfessor, createDisciplinaTurma);
+app.put('/api/disciplina_turma/:id', authenticateAdminOrProfessor, updateDisciplinaTurma);
 
-app.put('/api/admin/ciclos/:id', authenticateJWT, async (req, res) => {
-  try {
-    const updatedCiclo = await updateCiclo(req.params.id, req.body);
-    if (updatedCiclo) {
-      res.json(updatedCiclo);
-    } else {
-      res.status(404).json({ error: 'Ciclo not found' });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// ============================================================================
+// ADMIN ROUTES - Ciclos
+// ============================================================================
 
-app.delete('/api/admin/ciclos/:id', authenticateJWT, async (req, res) => {
-  try {
-    const deletedCiclo = await deleteCiclo(req.params.id);
-    if (deletedCiclo) {
-      res.status(204).send();
-    } else {
-      res.status(404).json({ error: 'Ciclo not found' });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
+app.get('/api/admin/ciclos', authenticateAdminOrProfessor, getAllCiclos);
+app.post('/api/admin/ciclos', authenticateAdminOrProfessor, createCiclo);
+app.put('/api/admin/ciclos/:id', authenticateAdminOrProfessor, updateCiclo);
+app.delete('/api/admin/ciclos/:id', authenticateAdminOrProfessor, deleteCiclo);
 app.post('/api/admin/run-interest-payment', authenticateAdminJWT, async (req, res) => {
   try {
     const result = await runInterestPaymentManually();
@@ -387,109 +641,118 @@ app.post('/api/admin/run-interest-payment', authenticateAdminJWT, async (req, re
   }
 });
 
-// Aluno Turma
-app.get('/api/aluno_turma', authenticateJWT, getAlunoTurma);
-app.get('/api/aluno_turma/:id', authenticateJWT, getAlunoTurmaById);
-app.post('/api/aluno_turma', authenticateJWT, createAlunoTurma);
-app.put('/api/aluno_turma/:id', authenticateJWT, updateAlunoTurma);
-app.delete('/api/aluno_turma/:id', authenticateJWT, deleteAlunoTurma);
+// ============================================================================
+// ADMIN ROUTES - Aluno Turma
+// ============================================================================
 
-// Settings
+app.get('/api/aluno_turma', authenticateAdminOrProfessor, getAlunoTurma);
+app.get('/api/aluno_turma/:id', authenticateAdminOrProfessor, getAlunoTurmaById);
+app.post('/api/aluno_turma', authenticateAdminOrProfessor, createAlunoTurma);
+app.put('/api/aluno_turma/:id', authenticateAdminOrProfessor, updateAlunoTurma);
+app.delete('/api/aluno_turma/:id', authenticateAdminOrProfessor, deleteAlunoTurma);
+
+// ============================================================================
+// ADMIN ROUTES - Settings
+// ============================================================================
+
 app.get('/api/settings', authenticateAnyUserJWT, getSettings);
-app.put('/api/settings', authenticateJWT, updateSettings);
+app.put('/api/settings', authenticateAdminOrProfessor, updateSettings);
 
-// School Revenues
-app.get('/api/school-revenues', authenticateJWT, getSchoolRevenues);
-app.post('/api/school-revenues', authenticateJWT, createSchoolRevenue);
-app.put('/api/school-revenues/:id', authenticateJWT, updateSchoolRevenue);
-app.delete('/api/school-revenues/:id', authenticateJWT, deleteSchoolRevenue);
+// ============================================================================
+// ADMIN ROUTES - School Revenues
+// ============================================================================
 
-// Categories
-app.get('/api/categories', authenticateJWT, async (req, res) => {
-  try {
-    const categories = await getAllCategories();
-    res.json(categories);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+app.get('/api/school-revenues', authenticateAdminOrProfessor, getSchoolRevenues);
+app.post('/api/school-revenues', authenticateAdminOrProfessor, createSchoolRevenue);
+app.put('/api/school-revenues/:id', authenticateAdminOrProfessor, updateSchoolRevenue);
+app.delete('/api/school-revenues/:id', authenticateAdminOrProfessor, deleteSchoolRevenue);
 
-app.post('/api/categories', authenticateJWT, async (req, res) => {
-  try {
-    const newCategory = await createCategory(req.body);
-    res.status(201).json(newCategory);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// ============================================================================
+// ADMIN ROUTES - Categories
+// ============================================================================
 
-app.put('/api/categories/:id', authenticateJWT, async (req, res) => {
-  try {
-    const updatedCategory = await updateCategory(req.params.id, req.body);
-    if (updatedCategory) {
-      res.json(updatedCategory);
-    } else {
-      res.status(404).json({ error: 'Category not found' });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+app.get('/api/categories', authenticateAdminOrProfessor, getAllCategories);
+app.post('/api/categories', authenticateAdminOrProfessor, createCategory);
+app.put('/api/categories/:id', authenticateAdminOrProfessor, updateCategory);
+app.delete('/api/categories/:id', authenticateAdminOrProfessor, deleteCategory);
 
-app.delete('/api/categories/:id', authenticateJWT, async (req, res) => {
-  try {
-    const wasDeleted = await deleteCategory(req.params.id);
-    if (wasDeleted) {
-      res.status(204).send();
-    } else {
-      res.status(404).json({ error: 'Category not found' });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// ============================================================================
+// ADMIN ROUTES - Savings Products
+// ============================================================================
 
-// Savings Products
 app.get('/api/savings-products', authenticateAnyUserJWT, getSavingsProducts);
-app.post('/api/savings-products', authenticateJWT, createSavingsProduct);
-app.put('/api/savings-products/:id', authenticateJWT, updateSavingsProduct);
-app.delete('/api/savings-products/:id', authenticateJWT, deleteSavingsProduct);
+app.post('/api/savings-products', authenticateAdminOrProfessor, createSavingsProduct);
+app.put('/api/savings-products/:id', authenticateAdminOrProfessor, updateSavingsProduct);
+app.delete('/api/savings-products/:id', authenticateAdminOrProfessor, deleteSavingsProduct);
 
-// Credit Products
+// ============================================================================
+// ADMIN ROUTES - Credit Products
+// ============================================================================
+
 app.get('/api/credit-products', authenticateAnyUserJWT, getCreditProducts);
-app.post('/api/credit-products', authenticateJWT, createCreditProduct);
-app.put('/api/credit-products/:id', authenticateJWT, updateCreditProduct);
-app.delete('/api/credit-products/:id', authenticateJWT, deleteCreditProduct);
+app.post('/api/credit-products', authenticateAdminOrProfessor, createCreditProduct);
+app.put('/api/credit-products/:id', authenticateAdminOrProfessor, updateCreditProduct);
+app.delete('/api/credit-products/:id', authenticateAdminOrProfessor, deleteCreditProduct);
 
-// House System
+// ============================================================================
+// ADMIN ROUTES - House System
+// ============================================================================
+
 app.get('/api/houses', authenticateAnyUserJWT, getHouses);
-app.post('/api/houses', authenticateJWT, createHouse); // Only admin can create
-app.get('/api/my-house', authenticateAnyUserJWT, getMyHouse);
 app.get('/api/houses/available-students', authenticateAnyUserJWT, getAvailableStudents);
 app.get('/api/houses/:id', authenticateAnyUserJWT, getHouseById);
-app.put('/api/houses/:id', authenticateAnyUserJWT, updateHouse); // Leader or Admin
-app.post('/api/houses/:id/members', authenticateAnyUserJWT, manageHouseMembers); // Leader or Admin
-app.delete('/api/houses/:id', authenticateJWT, deleteHouse); // Admin only
+app.get('/api/my-house', authenticateAnyUserJWT, getMyHouse);
+app.post('/api/houses', authenticateAdminOrProfessor, createHouse);
+app.put('/api/houses/:id', authenticateAnyUserJWT, updateHouse);
+app.post('/api/houses/:id/members', authenticateAnyUserJWT, manageHouseMembers);
+app.delete('/api/houses/:id', authenticateAdminOrProfessor, deleteHouse);
 
+// ============================================================================
+// HEALTH CHECK
+// ============================================================================
 
-// Health check endpoint (adicionar antes do app.listen)
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    service: 'valcoin-admin-server' 
+    service: 'unified-server',
+    systems: ['valcoin', 'feedback']
   });
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK',
+    systems: {
+      valcoin: 'active',
+      feedback: 'active'
+    }
+  });
 });
 
-// Rota para obter todos os dados (para depuração)
-app.get('/api/all-data', (req, res) => {
-  res.json(mockData);
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
+
+// ============================================================================
+// START SERVER
+// ============================================================================
+
+app.listen(port, () => {
+  console.log('=====================================');
+  console.log(`✓ Unified Server running on port ${port}`);
+  console.log(`✓ ValCoin System: Active`);
+  console.log(`✓ Feedback System: Active`);
+  console.log(`✓ Health check: http://localhost:${port}/health`);
+  console.log('=====================================');
+});
+
+module.exports = app;

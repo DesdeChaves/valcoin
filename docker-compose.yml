@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:13
+    image: postgres:14
     container_name: valcoin_postgres
     environment:
       POSTGRES_USER: user
@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./final_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - postgres_data:/var/lib/postgresql/data
     networks:
       - valcoin-network
@@ -153,6 +153,8 @@ services:
         condition: service_healthy
       valcoin-store-client:
         condition: service_healthy
+      feedback-client:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
@@ -180,6 +182,28 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  feedback-client:
+    build:
+      context: ./feedback/client
+      dockerfile: Dockerfile.client
+      args:
+        PUBLIC_URL: /feedback
+    container_name: feedback_client
+    ports:
+      - "3003:80"
+    networks:
+      - valcoin-network
+    depends_on:
+      valcoin-admin-server:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
       interval: 10s
       timeout: 5s
       retries: 5

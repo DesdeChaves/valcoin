@@ -162,6 +162,14 @@ def process_assignments():
             disciplina_turma_id = cur.fetchone()[0]
             stats["disciplina_turma_associacoes"] += 1
 
+            # -- Criar associação professor_disciplina_turma --
+            cur.execute(
+                """INSERT INTO professor_disciplina_turma (professor_id, disciplina_turma_id)
+                   VALUES (%s, %s) ON CONFLICT (professor_id, disciplina_turma_id) DO NOTHING;""",
+                (professor_id, disciplina_turma_id)
+            )
+            stats["professor_disciplina_turma_associacoes"] += 1
+
             # -- Inscrever alunos da turma na disciplina --
             cur.execute("SELECT aluno_id FROM aluno_turma WHERE turma_id = %s AND ano_letivo = %s AND ativo = true;", (turma_id, ano_letivo_default))
             students_in_class = {row[0] for row in cur.fetchall()}

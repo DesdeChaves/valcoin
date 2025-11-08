@@ -1,3 +1,5 @@
+const express = require('express');
+const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
@@ -5,6 +7,10 @@ const redisClient = require('./redis');
 const { clearAdminDashboardCache } = require('./dashboard');
 
 const USERS_CACHE_KEY = 'users:all';
+
+// ============================================================================
+// CACHE MANAGEMENT
+// ============================================================================
 
 const clearUsersCache = async () => {
     try {
@@ -14,6 +20,10 @@ const clearUsersCache = async () => {
         console.error('Error clearing users cache:', err);
     }
 };
+
+// ============================================================================
+// CORE USER FUNCTIONS (used by both systems)
+// ============================================================================
 
 const getUsers = async (req, res) => {
   try {
@@ -223,7 +233,247 @@ const changeUserPassword = async (req, res) => {
   }
 };
 
+// ============================================================================
+// FEEDBACK SYSTEM - Professor Routes
+// ============================================================================
+
+// Get professor disciplines
+router.get('/:id/disciplines', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`Fetching disciplines for professor ID: ${id}`);
+    const { rows } = await db.query(`
+      SELECT
+          pdt.id AS professor_disciplina_turma_id,
+          s.id AS subject_id,
+          s.nome AS subject_name,
+          s.codigo AS subject_code,
+          c.id AS class_id,
+          c.nome AS class_name,
+          c.codigo AS class_code,
+          pdt.ativo AS active
+      FROM
+          professor_disciplina_turma pdt
+      JOIN
+          disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
+      JOIN
+          subjects s ON dt.disciplina_id = s.id
+      JOIN
+          classes c ON dt.turma_id = c.id
+      WHERE
+          pdt.professor_id = $1;
+    `, [id]);
+    console.log(`Found ${rows.length} disciplines for professor ID: ${id}`);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching professor disciplines:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get all dossiers for a professor
+router.get('/:userId/dossiers/all', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { showInactive } = req.query;
+    const filterActive = showInactive !== 'true';
+
+    // First, get all disciplines for the professor
+    const disciplinesResult = await db.query(
+      `SELECT pdt.id as professor_disciplina_turma_id, s.nome as subject_name, s.codigo as subject_code, c.nome as class_name, c.codigo as class_code
+       FROM professor_disciplina_turma pdt
+       JOIN disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
+       JOIN subjects s ON dt.disciplina_id = s.id
+       JOIN classes c ON dt.turma_id = c.id
+       WHERE pdt.professor_id = $1 ${filterActive ? 'AND pdt.ativo = true' : ''}`,
+      [userId]
+    );
+
+    const disciplines = disciplinesResult.rows;
+
+    // For each discipline, get the dossiers
+    const dossiersByDiscipline = await Promise.all(
+      disciplines.map(async (discipline) => {
+        const dossiersResult = await db.query(
+          `SELECT * FROM dossie WHERE professor_disciplina_turma_id = $1 ${filterActive ? 'AND ativo = true' : ''} ORDER BY nome`,
+          [discipline.professor_disciplina_turma_id]
+        );
+        return {
+          ...discipline,
+          dossiers: dossiersResult.rows,
+        };
+      })
+    );
+
+    res.json(dossiersByDiscipline);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get all criteria for a professor
+router.get('/:userId/criteria/all', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    // First, get all dossiers for the professor
+    const dossiersResult = await db.query(
+      `SELECT d.id, d.nome,
+              s.nome AS subject_name, s.codigo AS subject_code,
+              cl.nome AS class_name, cl.codigo AS class_code
+       FROM dossie d
+       JOIN professor_disciplina_turma pdt ON pdt.id = d.professor_disciplina_turma_id
+       JOIN disciplina_turma dt ON dt.id = pdt.disciplina_turma_id
+       JOIN subjects s ON s.id = dt.disciplina_id
+       JOIN classes cl ON cl.id = dt.turma_id
+       WHERE pdt.professor_id = $1 AND d.ativo = true
+       ORDER BY d.nome`,
+      [userId]
+    );
+
+    const dossiers = dossiersResult.rows;
+
+    // For each dossier, get the criteria
+    const criteriaByDossier = await Promise.all(
+      dossiers.map(async (dossier) => {
+        const criteriaResult = await db.query(
+          'SELECT * FROM criterio WHERE dossie_id = $1 AND ativo = true ORDER BY nome',
+          [dossier.id]
+        );
+        return {
+          ...dossier,
+          criterios: criteriaResult.rows,
+        };
+      })
+    );
+
+    res.json(criteriaByDossier);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get all instruments for a professor
+router.get('/:userId/instruments/all', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { showInactive } = req.query;
+    const filterActive = showInactive !== 'true';
+
+    // First, get all criteria for the professor
+    const criteriaResult = await db.query(
+      `SELECT c.id, c.nome,
+              d.id AS dossier_id, d.nome AS dossier_name,
+              s.nome AS subject_name, s.codigo AS subject_code,
+              cl.nome AS class_name, cl.codigo AS class_code
+       FROM criterio c
+       JOIN dossie d ON c.dossie_id = d.id
+       JOIN professor_disciplina_turma pdt ON d.professor_disciplina_turma_id = pdt.id
+       JOIN disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
+       JOIN subjects s ON dt.disciplina_id = s.id
+       JOIN classes cl ON dt.turma_id = cl.id
+       WHERE pdt.professor_id = $1 ${filterActive ? 'AND c.ativo = true' : ''}
+       ORDER BY c.nome`,
+      [userId]
+    );
+
+    const criteria = criteriaResult.rows;
+
+    // For each criterion, get the instruments
+    const instrumentsByCriterion = await Promise.all(
+      criteria.map(async (criterion) => {
+        const instrumentsResult = await db.query(
+          `SELECT * FROM elemento_avaliacao WHERE criterio_id = $1 ${filterActive ? 'AND ativo = true' : ''} ORDER BY nome`,
+          [criterion.id]
+        );
+        return {
+          ...criterion,
+          instrumentos: instrumentsResult.rows,
+        };
+      })
+    );
+
+    res.json(instrumentsByCriterion);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get all counters for a professor
+router.get('/:userId/counters/all', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { showInactive } = req.query;
+    const filterActive = showInactive !== 'true';
+
+    // First, get all disciplines for the professor
+    const disciplinesResult = await db.query(
+      `SELECT pdt.id as professor_disciplina_turma_id, s.nome as subject_name, s.codigo as subject_code, c.nome as class_name, c.codigo as class_code
+       FROM professor_disciplina_turma pdt
+       JOIN disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
+       JOIN subjects s ON dt.disciplina_id = s.id
+       JOIN classes c ON dt.turma_id = c.id
+       WHERE pdt.professor_id = $1 ${filterActive ? 'AND pdt.ativo = true' : ''}`,
+      [userId]
+    );
+
+    const disciplines = disciplinesResult.rows;
+
+    // For each discipline, get the dossiers
+    const dossiersByDiscipline = await Promise.all(
+      disciplines.map(async (discipline) => {
+        const dossiersResult = await db.query(
+          `SELECT d.id, d.nome FROM dossie d WHERE d.professor_disciplina_turma_id = $1 ${filterActive ? 'AND d.ativo = true' : ''} ORDER BY nome`,
+          [discipline.professor_disciplina_turma_id]
+        );
+
+        // For each dossier, get the counters
+        const dossiersWithCounters = await Promise.all(
+          dossiersResult.rows.map(async (dossier) => {
+            const countersResult = await db.query(
+              `SELECT * FROM contador WHERE dossie_id = $1 ${filterActive ? 'AND ativo = true' : ''} ORDER BY shortname`,
+              [dossier.id]
+            );
+            return {
+              ...dossier,
+              counters: countersResult.rows,
+            };
+          })
+        );
+
+        return {
+          ...discipline,
+          dossiers: dossiersWithCounters,
+        };
+      })
+    );
+
+    res.json(dossiersByDiscipline);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ============================================================================
+// ROUTER - Basic CRUD routes
+// ============================================================================
+
+router.get('/', getUsers);
+router.get('/unassigned', getUnassignedStudents);
+router.get('/:id', getUserById);
+router.post('/', createUser);
+router.put('/:id', updateUser);
+router.delete('/:id', deleteUser);
+router.put('/:id/password', updateUserPassword);
+router.post('/change-password', changeUserPassword);
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
 module.exports = {
+  router,
+  // Functions for direct use (ValCoin system)
   getUsers,
   getUserById,
   createUser,
@@ -234,3 +484,6 @@ module.exports = {
   updateUserPassword,
   changeUserPassword
 };
+
+// Default export for use with app.use()
+module.exports.default = router;

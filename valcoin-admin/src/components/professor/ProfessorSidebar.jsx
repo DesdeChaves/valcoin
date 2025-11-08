@@ -1,10 +1,11 @@
 // src/components/professor/ProfessorSidebar.jsx
 import React from 'react';
-import { LayoutDashboard, ArrowRightLeft, Zap, LogOut, Award, KeyRound } from 'lucide-react';
+import { LayoutDashboard, ArrowRightLeft, Zap, LogOut, Award, KeyRound, Settings } from 'lucide-react';
 
 const ProfessorSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePasswordModal }) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'manage-house', label: 'Gerir a minha Casa', icon: Settings },
     { id: 'new-transaction', label: 'Pagamento Manual', icon: ArrowRightLeft },
     { id: 'tap-rapido', label: 'Pagamento automático', icon: Zap },
     { id: 'avaliacao', label: 'Avaliação', icon: Award },

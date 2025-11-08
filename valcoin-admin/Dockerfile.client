@@ -23,7 +23,7 @@ RUN npm run build
 RUN echo "Build directory contents:" && ls -la build/
 
 # Stage 2: Serve the application with Nginx
-FROM nginx:stable-alpine
+FROM nginx:1.25-alpine
 
 # Remove default nginx website
 RUN rm -rf /usr/share/nginx/html/*

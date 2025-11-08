@@ -15,14 +15,14 @@ const pool = new Pool({
     // Configurações do pool - mais restritivas para evitar conexões órfãs
     max: 5, // Máximo 5 conexões (reduzido de 20)
     min: 1, // Mínimo 1 conexão sempre ativa
-    idleTimeoutMillis: 10000, // 10 segundos para fechar conexões idle
+    idleTimeoutMillis: 300000, // 5 minutos para fechar conexões idle
     connectionTimeoutMillis: 2000, // Timeout para nova conexão
     acquireTimeoutMillis: 5000, // Timeout para obter conexão do pool
     statement_timeout: 30000, // Timeout para statements SQL (30s)
     query_timeout: 30000, // Timeout para queries (30s)
     
     // Configurações avançadas para limpeza
-    allowExitOnIdle: true, // Permite fechar o pool quando idle
+    allowExitOnIdle: false, // Permite fechar o pool quando idle
     maxUses: 7500, // Máximo de usos por conexão antes de renovar
 });
 

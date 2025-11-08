@@ -5,6 +5,7 @@ import ProfessorSidebar from './ProfessorSidebar';
 import ProfessorTransactionForm from './ProfessorTransactionForm';
 import ProfessorTap from './ProfessorTap';
 import StudentEvaluation from './StudentEvaluation'; // Import the new component
+import ProfessorHouseManagement from './ProfessorHouseManagement'; // Import the new component
 import ValCoinIcon from '../icons/ValCoinIcon';
 import ChangePasswordModal from '../ChangePasswordModal';
 
@@ -285,6 +286,8 @@ const ProfessorDashboard = ({ onLogout }) => {
             professorAssignments={dashboardData.professorAssignments}
           />
         );
+      case 'manage-house': // New case
+        return <ProfessorHouseManagement currentUser={dashboardData?.professor} />;
       default:
         return null;
     }

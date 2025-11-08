@@ -118,21 +118,39 @@ const getMyHouse = async (req, res) => {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const { rows } = await db.query(
-            'SELECT house_info FROM user_houses_overview WHERE user_id = $1',
+        // Find the user's current house ID
+        const { rows: memberRows } = await db.query(
+            'SELECT house_id FROM house_members WHERE user_id = $1 AND data_saida IS NULL',
             [userId]
         );
 
-        if (rows.length === 0) {
-            // User is not in any house
+        if (memberRows.length === 0) {
             return res.json({ inHouse: false });
         }
+        const houseId = memberRows[0].house_id;
 
-        // The view returns the complete house object with all necessary stats
-        res.json(rows[0].house_info);
+        // Now, fetch the house details like getHouseById
+        const { rows: houses } = await db.query('SELECT * FROM houses WHERE house_id = $1', [houseId]);
+        if (houses.length === 0) {
+            // This would be an inconsistent state, but handle it
+            return res.status(404).json({ error: 'House not found for member' });
+        }
+
+        const { rows: members } = await db.query(`
+            SELECT u.id, u.nome, u.tipo_utilizador, hm.role, hm.data_entrada
+            FROM house_members hm
+            JOIN users u ON hm.user_id = u.id
+            WHERE hm.house_id = $1 AND hm.data_saida IS NULL
+            ORDER BY hm.role, u.nome
+        `, [houseId]);
+
+        const [enrichedHouse] = await enrichHousesWithStats(houses);
+        enrichedHouse.members = members;
+
+        res.json(enrichedHouse);
 
     } catch (err) {
-        console.error('Error getting user house from view:', err);
+        console.error('Error getting user house:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -257,7 +275,7 @@ const updateHouse = async (req, res) => {
             }
         }
         
-        if (isAdmin) {
+        if (isAdmin || isProfessor) {
             if (professor_id) {
                 // Remove current professor
                 await client.query(
