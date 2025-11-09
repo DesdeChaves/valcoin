@@ -331,6 +331,58 @@ app.post('/api/store/buy', authenticateStoreJWT, createStoreTransaction);
 // VALCOIN ROUTES - Professor
 // ============================================================================
 
+// Unified Professor Dashboard
+app.get('/api/professor/dashboard', authenticateProfessorJWT, async (req, res) => {
+  try {
+    // Create mock request/response objects to call the existing functions
+    const valcoinReq = { user: req.user };
+    const feedbackReq = { user: req.user };
+    let valcoinData = {};
+    let feedbackData = {};
+    let errorOccurred = false;
+
+    // Create a mock response object to capture the JSON data
+    const valcoinRes = {
+      json: (data) => { valcoinData = data; },
+      status: (code) => {
+        console.error(`ValCoin dashboard function failed with status ${code}`);
+        errorOccurred = true;
+        return { json: (err) => console.error(err) };
+      }
+    };
+    const feedbackRes = {
+      json: (data) => { feedbackData = data; },
+      status: (code) => {
+        console.error(`Feedback dashboard function failed with status ${code}`);
+        errorOccurred = true;
+        return { json: (err) => console.error(err) };
+      }
+    };
+
+    // Call both dashboard functions in parallel
+    await Promise.all([
+      getProfessorDashboard(valcoinReq, valcoinRes),
+      getProfessorFeedbackDashboard(feedbackReq, feedbackRes)
+    ]);
+
+    if (errorOccurred) {
+      return res.status(500).json({ error: 'Failed to retrieve complete dashboard data.' });
+    }
+
+    // Combine the results
+    const unifiedDashboardData = {
+      valcoin: valcoinData,
+      feedback: feedbackData,
+    };
+
+    res.json(unifiedDashboardData);
+  } catch (err) {
+    console.error('Error creating unified professor dashboard:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 app.get('/api/professor/valcoin-dashboard', authenticateProfessorJWT, getProfessorDashboard);
 app.post('/api/professor/transactions', authenticateProfessorJWT, createProfessorTransaction);
 app.get('/api/professor/tap-rules', authenticateProfessorJWT, getProfessorTapRules);
@@ -372,7 +424,7 @@ app.patch('/api/admin/student-loans/:id/reject', authenticateAdminOrProfessor, r
 // ============================================================================
 
 // Dashboard route
-app.get('/api/professor/feedback-dashboard', authenticateJWT, authorizeProfessor, getProfessorFeedbackDashboard);
+app.get('/api/feedback/professor/feedback-dashboard', authenticateJWT, authorizeProfessor, getProfessorFeedbackDashboard);
 
 
 app.get('/api/feedback/studentsprofessor/disciplina/:disciplineId/alunos', 

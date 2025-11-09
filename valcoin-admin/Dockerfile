@@ -1,5 +1,5 @@
 # Use an official Node.js runtime as a parent image
-FROM node:22-alpine
+FROM node:22-slim
 
 # Set the working directory in the container
 WORKDIR /usr/src/app
@@ -14,8 +14,7 @@ RUN npm install --only=production
 COPY . .
 
 # Create a non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S appuser -u 1001
+RUN addgroup --gid 1001 nodejs && adduser --uid 1001 --gid 1001 --disabled-password --gecos "" appuser
 USER appuser
 
 # Your app binds to port 3001, so expose it
