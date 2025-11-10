@@ -38,17 +38,19 @@ redisClient.on('connect', () => {
     console.log(`Connected to Redis at ${redisHost}:${redisPort}`);
 });
 
-// Conectar
-async function connectWithRetry() {
-    try {
-        await redisClient.connect();
-        console.log('Redis connection established');
-    } catch (err) {
-        console.error('Failed to connect to Redis:', err.message);
-        setTimeout(connectWithRetry, 5000);
+// Export the client directly, and a function to connect it
+module.exports = {
+    redisClient, // Export the client instance
+    connect: async () => { // Export a connect function
+        if (!redisClient.isOpen) { // Check if already connected
+            try {
+                await redisClient.connect();
+                console.log('Redis connection established');
+            } catch (err) {
+                console.error('Failed to connect to Redis:', err.message);
+                throw err;
+            }
+        }
+        return redisClient;
     }
-}
-
-connectWithRetry();
-
-module.exports = redisClient;
+};

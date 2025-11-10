@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 const { updateUserBalancesOnApproval, enrichTransactions } = require('./transactions');
 const { invalidateCachesForTransaction } = require('./cache');
-const connectRedisPromise = require('./redis');
+const { redisClient } = require('./redis');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const CACHE_EXPIRATION = 60; // Cache expiration in seconds
@@ -32,8 +32,7 @@ const getProfessorDashboard = async (req, res) => {
     const cacheKey = `professor-dashboard:${professorId}`;
 
     try {
-        const redis = await connectRedisPromise; // Await the promise
-        const cachedData = await redis.get(cacheKey);
+        const cachedData = await redisClient.get(cacheKey);
         if (cachedData) {
             console.log(`[CACHE HIT] Serving dashboard for professor ${professorId} from cache.`);
             return res.json(JSON.parse(cachedData));
@@ -91,7 +90,7 @@ const getProfessorDashboard = async (req, res) => {
             professor: professor
         };
 
-        await redis.set(cacheKey, JSON.stringify(dashboardData), { EX: CACHE_EXPIRATION }); // Use redis
+        await redisClient.set(cacheKey, JSON.stringify(dashboardData), { EX: CACHE_EXPIRATION });
         console.log(`[CACHE SET] Dashboard for professor ${professorId} stored in cache.`);
 
         res.json(dashboardData);

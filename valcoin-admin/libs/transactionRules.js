@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
-const connectRedisPromise = require('./redis');
+const { redisClient } = require('./redis');
 const { invalidateCachesForTransaction } = require('./cache');
 const { updateUserBalancesOnApproval } = require('./transactions');
 
@@ -8,8 +8,7 @@ const RULES_CACHE_KEY = 'transactionRules:all';
 
 const clearTransactionRulesCache = async () => {
     try {
-        const redis = await connectRedisPromise;
-        await redis.del(RULES_CACHE_KEY);
+        await redisClient.del(RULES_CACHE_KEY);
         console.log(`[CACHE DEL] Cleared transaction rules cache.`);
     } catch (err) {
         console.error('Error clearing transaction rules cache:', err);
@@ -123,8 +122,7 @@ const checkTransactionLimit = async (rule, aluno_id, disciplina_id, currentDate)
 
 const getTransactionRules = async (req, res) => {
   try {
-    const redis = await connectRedisPromise;
-    const cachedRules = await redis.get(RULES_CACHE_KEY);
+    const cachedRules = await redisClient.get(RULES_CACHE_KEY);
     if (cachedRules) {
         console.log(`[CACHE HIT] Serving transaction rules from cache.`);
         return res.json(JSON.parse(cachedRules));
@@ -133,7 +131,7 @@ const getTransactionRules = async (req, res) => {
     console.log(`[CACHE MISS] Fetching transaction rules from DB.`);
     const { rows } = await db.query('SELECT * FROM transaction_rules WHERE ativo = true ORDER BY nome');
     
-    await redis.set(RULES_CACHE_KEY, JSON.stringify(rows), { EX: 3600 }); // Cache for 1 hour
+    await redisClient.set(RULES_CACHE_KEY, JSON.stringify(rows), { EX: 3600 }); // Cache for 1 hour
     console.log(`[CACHE SET] Transaction rules stored in cache.`);
 
     res.json(rows);
