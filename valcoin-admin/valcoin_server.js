@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('./libs/db');
-const connectRedis = require('./libs/redis');
+const connectRedisPromise = require('./libs/redis');
 
 // ============================================================================
 // IMPORTS - ValCoin (Admin/Finance System)
@@ -800,7 +800,7 @@ app.use((err, req, res, next) => {
 // ============================================================================
 
 // Await Redis connection before starting the server
-connectRedis.then(() => {
+connectRedisPromise.then(() => {
   app.listen(port, () => {
     console.log('=====================================');
     console.log(`✓ Unified Server running on port ${port}`);
