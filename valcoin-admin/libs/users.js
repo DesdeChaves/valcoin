@@ -3,7 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
-const redisClient = require('./redis');
+const connectRedisPromise = require('./redis');
 const { clearAdminDashboardCache } = require('./dashboard');
 
 const USERS_CACHE_KEY = 'users:all';
@@ -14,7 +14,8 @@ const USERS_CACHE_KEY = 'users:all';
 
 const clearUsersCache = async () => {
     try {
-        await redisClient.del(USERS_CACHE_KEY);
+        const redis = await connectRedisPromise;
+        await redis.del(USERS_CACHE_KEY);
         console.log(`[CACHE DEL] Cleared users cache.`);
     } catch (err) {
         console.error('Error clearing users cache:', err);
@@ -27,7 +28,8 @@ const clearUsersCache = async () => {
 
 const getUsers = async (req, res) => {
   try {
-    const cachedUsers = await redisClient.get(USERS_CACHE_KEY);
+    const redis = await connectRedisPromise;
+    const cachedUsers = await redis.get(USERS_CACHE_KEY);
     if (cachedUsers) {
         console.log(`[CACHE HIT] Serving users from cache.`);
         return res.json(JSON.parse(cachedUsers));
@@ -36,7 +38,7 @@ const getUsers = async (req, res) => {
     console.log(`[CACHE MISS] Fetching users from DB.`);
     const { rows } = await db.query('SELECT id, numero_mecanografico, nome, email, tipo_utilizador, ano_escolar, ativo, saldo, data_criacao FROM users');
     
-    await redisClient.set(USERS_CACHE_KEY, JSON.stringify(rows), { EX: 3600 }); // Cache for 1 hour
+    await redis.set(USERS_CACHE_KEY, JSON.stringify(rows), { EX: 3600 }); // Cache for 1 hour
     console.log(`[CACHE SET] Users stored in cache.`);
 
     res.json(rows);

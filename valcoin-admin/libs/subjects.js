@@ -1,13 +1,14 @@
 const db = require('./db');
-const redisClient = require('./redis');
+const connectRedisPromise = require('./redis');
 const { clearAdminDashboardCache } = require('./dashboard');
 
 const SUBJECTS_CACHE_KEY = 'subjects:all';
 
 const clearSubjectsCache = async () => {
     try {
-        await redisClient.del(SUBJECTS_CACHE_KEY);
-        console.log(`[CACHE DEL] Cleared subjects cache.`);
+        const redis = await connectRedisPromise;
+        await redis.del(SUBJECTS_CACHE_KEY);
+        console.log(`[CACHE CLEARED] Key: ${SUBJECTS_CACHE_KEY}`);
     } catch (err) {
         console.error('Error clearing subjects cache:', err);
     }
@@ -15,7 +16,8 @@ const clearSubjectsCache = async () => {
 
 const getSubjects = async (req, res) => {
     try {
-        const cachedSubjects = await redisClient.get(SUBJECTS_CACHE_KEY);
+        const redis = await connectRedisPromise;
+        const cachedSubjects = await redis.get(SUBJECTS_CACHE_KEY);
         if (cachedSubjects) {
             console.log(`[CACHE HIT] Serving subjects from cache.`);
             return res.json(JSON.parse(cachedSubjects));
@@ -24,7 +26,7 @@ const getSubjects = async (req, res) => {
         console.log(`[CACHE MISS] Fetching subjects from DB.`);
         const { rows } = await db.query('SELECT * FROM subjects WHERE ativo = true');
         
-        await redisClient.set(SUBJECTS_CACHE_KEY, JSON.stringify(rows), { EX: 3600 }); // Cache for 1 hour
+        await redis.set(SUBJECTS_CACHE_KEY, JSON.stringify(rows), { EX: 3600 }); // Cache for 1 hour
         console.log(`[CACHE SET] Subjects stored in cache.`);
 
         res.json(rows);
