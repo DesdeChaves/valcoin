@@ -395,7 +395,7 @@ app.post('/api/professor/check-rule-applicability', authenticateProfessorJWT, ch
 // VALCOIN ROUTES - Student
 // ============================================================================
 
-app.get('/api/student/valcoin-dashboard', authenticateStudentJWT, getStudentDashboard);
+app.get('/api/student/dashboard', authenticateStudentJWT, getStudentDashboard);
 app.post('/api/student/manual-payment', authenticateStudentJWT, createStudentManualPayment);
 app.get('/api/student/payable-users', authenticateStudentJWT, getPayableUsers);
 app.get('/api/student/settings', authenticateStudentJWT, getStudentSettings);
