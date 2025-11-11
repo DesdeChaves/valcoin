@@ -1,5 +1,5 @@
 const db = require('./db');
-const redisClient = require('./redis');
+const { redisClient } = require('./redis');
 
 const CACHE_KEY = 'dashboard:admin';
 const CACHE_EXPIRATION = 60; // 60 seconds

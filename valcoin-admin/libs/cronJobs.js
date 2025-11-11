@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const db = require('./db');
-const redis = require('./redis');
+const { redisClient } = require('./redis');
 
 const startInterestPaymentCron = () => {
   console.log('Scheduling interest payment cron job...');
@@ -491,8 +491,8 @@ const startProfessorSalaryCron = () => {
             console.log(`Updated ${updateResult.rowCount} professor balances`);
 
             // Clear Redis cache
-            if (redis && redis.del) {
-                await redis.del('transactions');
+            if (redisClient && redisClient.del) {
+                await redisClient.del('transactions');
                 console.log('Redis cache cleared');
             }
 
