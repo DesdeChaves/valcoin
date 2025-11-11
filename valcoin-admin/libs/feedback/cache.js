@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const redisClient = require('./redis.js');
+const { redisClient } = require('./redis.js');
 
 router.post('/cache/clear', async (req, res) => {
     const { key } = req.body;

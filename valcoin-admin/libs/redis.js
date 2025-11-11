@@ -2,8 +2,9 @@ const redis = require('redis');
 const { URL } = require('url');
 
 if (!process.env.REDIS_URL) {
-    throw new Error('REDIS_URL environment variable is not set.');
+    process.env.REDIS_URL = 'redis://localhost:6379';
 }
+
 
 console.log('REDIS_URL:', process.env.REDIS_URL);
 

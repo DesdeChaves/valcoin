@@ -1,11 +1,14 @@
 const { Pool } = require('pg');
 
+const IDLE_TIMEOUT_MILLIS = 300000; // Define as a constant
+
 // Configuração de conexão flexível para Docker e Desenvolvimento Local
 if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL environment variable is not set.');
 }
 const connectionConfig = {
     connectionString: process.env.DATABASE_URL,
+    idleTimeoutMillis: IDLE_TIMEOUT_MILLIS, // Explicitly set here
 };
 
 // Pool de conexões com a configuração decidida e settings otimizados
@@ -15,7 +18,6 @@ const pool = new Pool({
     // Configurações do pool - mais restritivas para evitar conexões órfãs
     max: 5, // Máximo 5 conexões (reduzido de 20)
     min: 1, // Mínimo 1 conexão sempre ativa
-    idleTimeoutMillis: 300000, // 5 minutos para fechar conexões idle
     connectionTimeoutMillis: 2000, // Timeout para nova conexão
     acquireTimeoutMillis: 5000, // Timeout para obter conexão do pool
     statement_timeout: 30000, // Timeout para statements SQL (30s)
@@ -220,7 +222,7 @@ if (process.env.NODE_ENV !== 'test') {
     
     // Log inicial
     console.log('🚀 Pool PostgreSQL inicializado com sucesso!');
-    console.log(`📋 Configuração: max=${pool.options.max}, min=${pool.options.min}, idleTimeout=${pool.options.idleTimeoutMillis}ms`);
+    console.log(`📋 Configuração: max=${pool.options.max}, min=${pool.options.min}, idleTimeout=${IDLE_TIMEOUT_MILLIS}ms (from constant)`);
 }
 
 module.exports = {

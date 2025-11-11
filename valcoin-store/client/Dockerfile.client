@@ -10,6 +10,7 @@ ENV PUBLIC_URL=$PUBLIC_URL
 
 COPY package*.json ./
 
+RUN npm cache clean --force && npm config set registry https://registry.npmjs.org/
 RUN npm install
 
 COPY . .

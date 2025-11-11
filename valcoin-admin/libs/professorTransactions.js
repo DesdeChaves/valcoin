@@ -6,7 +6,7 @@ const { invalidateCachesForTransaction } = require('./cache');
 const { redisClient } = require('./redis');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const CACHE_EXPIRATION = 60; // Cache expiration in seconds
+const CACHE_EXPIRATION = 10; // 10 seconds
 
 const authenticateProfessorJWT = (req, res, next) => {
     const authHeader = req.headers.authorization;
