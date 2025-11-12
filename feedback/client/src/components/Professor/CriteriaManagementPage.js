@@ -18,8 +18,8 @@ function CriteriaManagementPage() {
   const fetchCriteria = async () => {
     try {
       const response = await fetchCriteriaByDossier(dossieId);
-      setDossie(response.data.dossie);
-      setCriteria(response.data.criterios);
+      setDossie(response.dossie);
+      setCriteria(response.criterios);
     } catch (err) {
       setError('Erro ao carregar critérios.');
       console.error('Error fetching criteria:', err);

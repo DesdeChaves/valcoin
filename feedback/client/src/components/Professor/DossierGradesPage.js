@@ -21,7 +21,7 @@ const DossierGradesPage = () => {
         const fetchGrades = async () => {
             try {
                 const response = await fetchDossierGrades(dossieId);
-                const { students, criteria, dossie } = response.data;
+                const { students, criteria, dossie } = response;
                 setDossie(dossie);
 
                 const calculatedGrades = students.map(student => {
@@ -73,7 +73,7 @@ const DossierGradesPage = () => {
         const fetchMomentos = async () => {
             try {
                 const response = await fetchMomentosAvaliacaoByDossie(dossieId);
-                setMomentosAvaliacao(response.data);
+                setMomentosAvaliacao(response);
             } catch (err) {
                 console.error('Error fetching momentos de avaliação:', err);
             }

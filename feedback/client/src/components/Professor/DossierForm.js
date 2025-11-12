@@ -20,7 +20,7 @@ const DossierForm = ({ isOpen, onClose, onSave, dossier, professorId }) => {
             const fetchDisciplines = async () => {
                 try {
                     const response = await fetchProfessorDisciplines(professorId);
-                    setDisciplines(response.data);
+                    setDisciplines(response);
                     setLoadingDisciplines(false);
                 } catch (err) {
                     setErrorDisciplines('Error fetching disciplines');

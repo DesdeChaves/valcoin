@@ -19,10 +19,10 @@ function InstrumentManagementPage() {
     try {
       // Fetch criterion details to display its name
       const criterionResponse = await fetchCriterionDetails(criterioId);
-      setCriterion(criterionResponse.data);
+      setCriterion(criterionResponse);
 
       const instrumentsResponse = await fetchInstrumentsByCriterion(criterioId);
-      setInstruments(instrumentsResponse.data);
+      setInstruments(instrumentsResponse);
     } catch (err) {
       setError('Erro ao carregar instrumentos.');
       console.error('Error fetching instruments:', err);

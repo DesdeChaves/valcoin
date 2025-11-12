@@ -22,7 +22,7 @@ function StudentViewPage() {
         const loadDisciplines = () => {
             fetchProfessorDisciplines(user.id)
                 .then(response => {
-                    setDisciplines(response.data);
+                    setDisciplines(response);
                 })
                 .catch(err => {
                     setError('Failed to load disciplines.');
@@ -44,7 +44,7 @@ function StudentViewPage() {
             // Fetch dossiers
             fetchDossiersByDiscipline(disciplineId)
                 .then(dossiersResponse => {
-                    setDossiers(dossiersResponse.data.dossies);
+                    setDossiers(dossiersResponse.dossies);
                 })
                 .catch(err => {
                     setError('Failed to load dossiers.');
@@ -53,7 +53,7 @@ function StudentViewPage() {
             // Fetch students
             fetchStudentsProfessorByDiscipline(disciplineId)
                 .then(studentsResponse => {
-                    setStudents(studentsResponse.data);
+                    setStudents(studentsResponse);
                 })
                 .catch(err => {
                     setError('Failed to load students.');

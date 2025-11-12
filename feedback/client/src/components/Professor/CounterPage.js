@@ -14,30 +14,43 @@ const CounterPage = () => {
     const [showInactive, setShowInactive] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
-    
+
     const professorId = JSON.parse(localStorage.getItem('user'))?.id;
 
     const fetchCounters = async () => {
+        if (!professorId) {
+            setError('Professor ID não encontrado. Por favor, faça login.');
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
-            const response = await fetchProfessorCounters(professorId, showInactive);
-            setCounters(response.data);
             setError(null);
+            const response = await fetchProfessorCounters(professorId, showInactive);
+            console.log('fetchProfessorCounters response:', response); // Debug
+            let data;
+            if (response && typeof response === 'object') {
+                if ('data' in response) {
+                    data = response.data;
+                } else {
+                    data = response;
+                }
+            } else {
+                data = [];
+            }
+            setCounters(Array.isArray(data) ? data : []);
         } catch (err) {
-            setError('Error fetching counters');
             console.error('Error fetching counters:', err);
+            setError('Erro ao carregar contadores. Por favor, tente novamente.');
+            setCounters([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (professorId) {
-            fetchCounters();
-        } else {
-            setError('Professor ID not found. Please log in.');
-            setLoading(false);
-        }
+        fetchCounters();
     }, [professorId, showInactive]);
 
     const openCreateModal = () => {
@@ -66,7 +79,7 @@ const CounterPage = () => {
             fetchCounters();
         } catch (err) {
             console.error('Error saving counter:', err);
-            alert('Error saving counter.');
+            alert('Erro ao salvar contador.');
         }
     };
 
@@ -77,23 +90,22 @@ const CounterPage = () => {
                 fetchCounters();
             } catch (err) {
                 console.error('Error deleting counter:', err);
-                alert('Error deleting counter.');
+                alert('Erro ao apagar contador.');
             }
         }
     };
 
     // Flatten counters for filtering
     const getAllCounters = () => {
-        if (!counters || !Array.isArray(counters)) {
-            return [];
-        }
+        if (!Array.isArray(counters)) return [];
+
         return counters.flatMap(disciplineGroup =>
-            (disciplineGroup.dossiers && Array.isArray(disciplineGroup.dossiers) ? disciplineGroup.dossiers : []).flatMap(dossierGroup =>
-                (dossierGroup.counters && Array.isArray(dossierGroup.counters) ? dossierGroup.counters : []).map(counter => ({
+            (Array.isArray(disciplineGroup.dossiers) ? disciplineGroup.dossiers : []).flatMap(dossierGroup =>
+                (Array.isArray(dossierGroup.counters) ? dossierGroup.counters : []).map(counter => ({
                     ...counter,
-                    subject_name: disciplineGroup.subject_name,
-                    class_name: disciplineGroup.class_name,
-                    dossier_name: dossierGroup.nome,
+                    subject_name: disciplineGroup.subject_name || '',
+                    class_name: disciplineGroup.class_name || '',
+                    dossier_name: dossierGroup.nome || '',
                     dossier_id: dossierGroup.id
                 }))
             )
@@ -101,14 +113,22 @@ const CounterPage = () => {
     };
 
     const filteredCounters = getAllCounters().filter(counter =>
-        counter.shortname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        counter.subject_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        counter.dossier_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        counter.tipo.toLowerCase().includes(searchTerm.toLowerCase())
+        (counter.shortname || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (counter.subject_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (counter.dossier_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (counter.tipo || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const totalCounters = getAllCounters().length;
+    const totalCounters = filteredCounters.length;
 
+    // Cálculo seguro de dossiês ativos
+    const activeDossiersCount = Array.isArray(counters)
+        ? counters.reduce((acc, d) => acc + (Array.isArray(d.dossiers) ? d.dossiers.length : 0), 0)
+        : 0;
+
+    const disciplinesCount = Array.isArray(counters) ? counters.length : 0;
+
+    // Loading
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen bg-gray-50">
@@ -120,6 +140,7 @@ const CounterPage = () => {
         );
     }
 
+    // Erro
     if (error) {
         return (
             <div className="min-h-screen bg-gray-50 p-6">
@@ -176,7 +197,7 @@ const CounterPage = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-6">
-                {/* Statistics */}
+                {/* Estatísticas */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-white rounded-lg p-4 border border-gray-200">
                         <div className="flex items-center justify-between">
@@ -194,7 +215,7 @@ const CounterPage = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-500 font-medium">Disciplinas</p>
-                                <p className="text-2xl font-semibold text-gray-800 mt-1">{counters.length}</p>
+                                <p className="text-2xl font-semibold text-gray-800 mt-1">{disciplinesCount}</p>
                             </div>
                             <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
                                 <Filter className="w-6 h-6 text-indigo-600" />
@@ -206,9 +227,7 @@ const CounterPage = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-500 font-medium">Dossiês Ativos</p>
-                                <p className="text-2xl font-semibold text-gray-800 mt-1">
-                                    {(counters && Array.isArray(counters) ? counters : []).reduce((acc, d) => acc + (d.dossiers && Array.isArray(d.dossiers) ? d.dossiers.length : 0), 0)}
-                                </p>
+                                <p className="text-2xl font-semibold text-gray-800 mt-1">{activeDossiersCount}</p>
                             </div>
                             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                                 <Settings className="w-6 h-6 text-green-600" />
@@ -217,7 +236,7 @@ const CounterPage = () => {
                     </div>
                 </div>
 
-                {/* Filters */}
+                {/* Filtros */}
                 <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -250,7 +269,7 @@ const CounterPage = () => {
                     </div>
                 </div>
 
-                {/* Content */}
+                {/* Conteúdo */}
                 {filteredCounters.length === 0 ? (
                     <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                         <BarChart3 className="w-16 h-16 mx-auto text-gray-300 mb-4" />

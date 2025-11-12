@@ -22,7 +22,7 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
             const fetchDisciplines = async () => {
                 try {
                     const response = await fetchProfessorDisciplines(professorId);
-                    setDisciplines(response.data);
+                    setDisciplines(response);
                     setLoadingData(false);
                 } catch (err) {
                     setErrorData('Error fetching disciplines');
@@ -41,7 +41,7 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
             const fetchDossiers = async () => {
                 try {
                     const response = await fetchDossiersByDiscipline(selectedDisciplineId);
-                    setDossiers(response.data.dossies);
+                    setDossiers(response.dossies);
                     console.log('Fetched dossiers:', response.data.dossies);
                 } catch (err) {
                     setErrorData('Error fetching dossiers');

@@ -18,9 +18,9 @@ const DossierGradeDetailsPage = () => {
                 try {
                     setLoading(true);
                     const response = await fetchStudentDossierGrades(studentId, dossierId);
-                    setGradeDetails(response.data);
+                    setGradeDetails(response);
                     // Expand all criteria by default
-                    setExpandedCriteria(response.data.criteria.map(c => c.id));
+                    setExpandedCriteria(response.criteria.map(c => c.id));
                     setError(null);
                 } catch (err) {
                     setError('Error fetching grade details');

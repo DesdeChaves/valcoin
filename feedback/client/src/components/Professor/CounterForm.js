@@ -57,7 +57,7 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
             const fetchDossiersData = async () => {
                 try {
                     const response = await fetchProfessorDossiers(professorId, false);
-                    const allDossiers = response.data.flatMap(discipline => discipline.dossiers);
+                    const allDossiers = response.flatMap(discipline => discipline.dossiers);
                     setDossiers(allDossiers);
                     setLoadingData(false);
                 } catch (err) {

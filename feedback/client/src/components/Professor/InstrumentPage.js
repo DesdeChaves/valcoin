@@ -21,7 +21,27 @@ const InstrumentPage = () => {
         try {
             setLoading(true);
             const response = await fetchProfessorInstruments(professorId, showInactive);
-            setInstruments(response.data);
+            console.log('📊 Full response:', response);
+            
+            // Compatibilidade: aceita tanto response.data (axios) quanto response direto (handleRequest)
+            let instrumentsData;
+            if (response && typeof response === 'object') {
+                // Se tem propriedade 'data', usa ela (resposta axios direta)
+                if ('data' in response) {
+                    instrumentsData = response.data;
+                } else {
+                    // Caso contrário, assume que response já é o array
+                    instrumentsData = response;
+                }
+            } else {
+                instrumentsData = [];
+            }
+            
+            console.log('📊 Instruments data:', instrumentsData);
+            console.log('📊 Is array?', Array.isArray(instrumentsData));
+            
+            // Garante que é sempre um array
+            setInstruments(Array.isArray(instrumentsData) ? instrumentsData : []);
             setError(null);
         } catch (err) {
             setError('Error fetching instruments');
@@ -83,36 +103,82 @@ const InstrumentPage = () => {
     };
 
     // Get unique dossiers for filter
-    const dossiers = [
-        { id: 'all', name: 'Todos os Dossiês' },
-        ...(instruments && Array.isArray(instruments) ? instruments.map(d => ({ 
-            id: d.dossier_id, 
-            name: `${d.dossier_name} - ${d.subject_name}` 
-        })) : [])
-    ];
+    const getUniqueDossiers = () => {
+        const dossierMap = new Map();
+        
+        if (!instruments || !Array.isArray(instruments)) {
+            return [{ id: 'all', name: 'Todos os Dossiês' }];
+        }
+
+        instruments.forEach(criterion => {
+            if (criterion.dossier_id && !dossierMap.has(criterion.dossier_id)) {
+                dossierMap.set(criterion.dossier_id, {
+                    id: criterion.dossier_id,
+                    name: `${criterion.dossier_name} - ${criterion.subject_name}`
+                });
+            }
+        });
+
+        return [
+            { id: 'all', name: 'Todos os Dossiês' },
+            ...Array.from(dossierMap.values())
+        ];
+    };
+
+    const dossiers = getUniqueDossiers();
 
     // Filter instruments
     const getFilteredInstruments = () => {
         if (!instruments || !Array.isArray(instruments)) {
+            console.log('⚠️ No instruments or not array');
             return [];
         }
+
+        console.log('🔍 Filtering with:', { searchTerm, selectedDossier });
+        
         return instruments
-            .map(criterionGroup => ({
-                ...criterionGroup,
-                instrumentos: criterionGroup.instrumentos.filter(instrument => {
-                    const matchesSearch = instrument.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                         criterionGroup.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                         criterionGroup.subject_name.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesDossier = selectedDossier === 'all' || criterionGroup.dossier_id === selectedDossier;
-                    return matchesSearch && matchesDossier;
-                })
-            }))
-            .filter(criterionGroup => criterionGroup.instrumentos.length > 0);
+            .map(criterionGroup => {
+                // Filter instruments within this criterion
+                const filteredInstruments = (criterionGroup.instrumentos || []).filter(instrument => {
+                    const matchesSearch = 
+                        instrument.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        criterionGroup.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        criterionGroup.subject_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                    
+                    return matchesSearch;
+                });
+
+                // Return criterion with filtered instruments
+                return {
+                    ...criterionGroup,
+                    instrumentos: filteredInstruments
+                };
+            })
+            // Filter out criteria that match dossier filter and have instruments
+            .filter(criterionGroup => {
+                const matchesDossier = selectedDossier === 'all' || criterionGroup.dossier_id === selectedDossier;
+                const hasInstruments = criterionGroup.instrumentos && criterionGroup.instrumentos.length > 0;
+                
+                console.log('📋 Criterion:', criterionGroup.nome, {
+                    matchesDossier,
+                    hasInstruments,
+                    instrumentCount: criterionGroup.instrumentos?.length || 0
+                });
+                
+                return matchesDossier && hasInstruments;
+            });
     };
 
     const filteredInstruments = getFilteredInstruments();
-    const totalInstruments = (instruments && Array.isArray(instruments) ? instruments : []).reduce((acc, c) => acc + (c.instrumentos && Array.isArray(c.instrumentos) ? c.instrumentos.length : 0), 0);
-    const totalCriteria = (instruments && Array.isArray(instruments) ? instruments : []).length;
+    
+    // Calculate totals
+    const totalInstruments = (instruments && Array.isArray(instruments) ? instruments : [])
+        .reduce((acc, c) => acc + (c.instrumentos && Array.isArray(c.instrumentos) ? c.instrumentos.length : 0), 0);
+    
+    const totalCriteria = (instruments && Array.isArray(instruments) ? instruments : [])
+        .filter(c => c.instrumentos && c.instrumentos.length > 0).length;
+
+    console.log('📊 Stats:', { totalInstruments, totalCriteria, filteredCount: filteredInstruments.length });
 
     if (loading) {
         return (
@@ -204,7 +270,7 @@ const InstrumentPage = () => {
                     <div className="bg-white rounded-lg p-4 border border-gray-200">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-gray-500 font-medium">Critérios</p>
+                                <p className="text-sm text-gray-500 font-medium">Critérios com Instrumentos</p>
                                 <p className="text-2xl font-semibold text-gray-800 mt-1">{totalCriteria}</p>
                             </div>
                             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -293,7 +359,9 @@ const InstrumentPage = () => {
                         <p className="text-lg text-gray-600 mb-2">
                             {searchTerm || selectedDossier !== 'all' 
                                 ? 'Nenhum instrumento encontrado'
-                                : 'Nenhum instrumento criado'}
+                                : totalInstruments > 0 
+                                    ? 'Os critérios não têm instrumentos associados'
+                                    : 'Nenhum instrumento criado'}
                         </p>
                         <p className="text-sm text-gray-500 mb-4">
                             {searchTerm || selectedDossier !== 'all'
@@ -315,7 +383,7 @@ const InstrumentPage = () => {
                 ) : (
                     <div className="space-y-6">
                         {filteredInstruments.map((criterionGroup) => (
-                            <div key={criterionGroup.criterion_id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                            <div key={criterionGroup.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                                 {/* Criterion Header */}
                                 <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-4">
                                     <div className="flex items-center justify-between">

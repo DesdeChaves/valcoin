@@ -20,7 +20,7 @@ const DossierCountersPage = () => {
         try {
             setLoading(true);
             const response = await fetchDossierCounters(dossieId);
-            setStudentsData(response.data || []);
+            setStudentsData(response || []);
             setError(null);
         } catch (err) {
             setError('Erro ao carregar alunos e contadores.');

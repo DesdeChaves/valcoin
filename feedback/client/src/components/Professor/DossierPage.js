@@ -14,30 +14,33 @@ const DossierPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDiscipline, setSelectedDiscipline] = useState('all');
     const navigate = useNavigate();
-    
+
     const professorId = JSON.parse(localStorage.getItem('user'))?.id;
 
     const fetchDossiers = async () => {
+        if (!professorId) {
+            setError('ID do professor não encontrado. Por favor, faça login novamente.');
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
-            const response = await fetchProfessorDossiers(professorId, showInactive);
-            setDossiers(response.data);
             setError(null);
+            const response = await fetchProfessorDossiers(professorId, showInactive);
+            console.log('fetchProfessorDossiers response:', response); // Debug
+            setDossiers(Array.isArray(response) ? response : []);
         } catch (err) {
-            setError('Erro ao carregar dossiês. Por favor, tente novamente.');
             console.error('Error fetching dossiers:', err);
+            setError('Erro ao carregar dossiês. Por favor, tente novamente.');
+            setDossiers([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (professorId) {
-            fetchDossiers();
-        } else {
-            setError('ID do professor não encontrado. Por favor, faça login novamente.');
-            setLoading(false);
-        }
+        fetchDossiers();
     }, [professorId, showInactive]);
 
     const openCreateModal = () => {
@@ -82,36 +85,42 @@ const DossierPage = () => {
         }
     };
 
-    // Get unique disciplines for filter
-    const disciplines = [
-        { id: 'all', name: 'Todas as Disciplinas' },
-        ...(dossiers && Array.isArray(dossiers) ? dossiers.map(d => ({ id: d.disciplina_id, name: d.subject_name })) : [])
-    ];
+    // Filtrar dossiês com base em busca e disciplina
+    const filteredDossiers = Array.isArray(dossiers)
+        ? dossiers
+            .map(discipline => ({
+                ...discipline,
+                dossiers: Array.isArray(discipline.dossiers)
+                    ? discipline.dossiers.filter(dossier => {
+                          const matchesSearch =
+                              dossier.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              discipline.subject_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                          const matchesDiscipline =
+                              selectedDiscipline === 'all' || discipline.disciplina_id === parseInt(selectedDiscipline);
+                          return matchesSearch && matchesDiscipline;
+                      })
+                    : []
+            }))
+            .filter(discipline => discipline.dossiers.length > 0)
+        : [];
 
-    // Filter dossiers based on search and discipline
-    const filteredDossiers = (dossiers && Array.isArray(dossiers) ? dossiers : [])
-        .map(discipline => ({
-            ...discipline,
-            dossiers: (discipline.dossiers && Array.isArray(discipline.dossiers) ? discipline.dossiers : []).filter(dossier => {
-                const matchesSearch = dossier.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     discipline.subject_name.toLowerCase().includes(searchTerm.toLowerCase());
-                const matchesDiscipline = selectedDiscipline === 'all' || 
-                                         discipline.disciplina_id === parseInt(selectedDiscipline);
-                return matchesSearch && matchesDiscipline;
-            })
-        }))
-        .filter(discipline => discipline.dossiers.length > 0);
+    // Estatísticas
+    const totalDossiers = Array.isArray(dossiers)
+        ? dossiers.reduce((acc, d) => acc + (Array.isArray(d.dossiers) ? d.dossiers.length : 0), 0)
+        : 0;
 
-    // Calculate statistics
-    const totalDossiers = (dossiers && Array.isArray(dossiers) ? dossiers : []).reduce((acc, d) => acc + (d.dossiers && Array.isArray(d.dossiers) ? d.dossiers.length : 0), 0);
-    const activeDossiers = (dossiers && Array.isArray(dossiers) ? dossiers : []).reduce((acc, d) => 
-        acc + (d.dossiers && Array.isArray(d.dossiers) ? d.dossiers.filter(dossier => dossier.ativo).length : 0), 0);
+    const activeDossiers = Array.isArray(dossiers)
+        ? dossiers.reduce((acc, d) =>
+              acc + (Array.isArray(d.dossiers) ? d.dossiers.filter(dossier => dossier.ativo).length : 0),
+          0)
+        : 0;
 
-    // Navigation handlers
+    // Navegação
     const navigateToDossier = (dossierId, section) => {
         navigate(`/professor/dossier/${dossierId}/${section}`);
     };
 
+    // Loading
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
@@ -123,6 +132,7 @@ const DossierPage = () => {
         );
     }
 
+    // Erro
     if (error) {
         return (
             <div className="container mx-auto p-4">
@@ -148,7 +158,7 @@ const DossierPage = () => {
                 <p className="text-gray-600">Gerencie seus dossiês, classificações e momentos de avaliação</p>
             </div>
 
-            {/* Statistics */}
+            {/* Estatísticas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-blue-100 border border-blue-300 rounded-lg p-4">
                     <p className="text-sm text-blue-600 font-semibold">Total de Dossiês</p>
@@ -164,14 +174,12 @@ const DossierPage = () => {
                 </div>
             </div>
 
-            {/* Filters and Actions */}
+            {/* Filtros e Ações */}
             <div className="bg-white rounded-lg shadow-md p-4 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Search */}
+                    {/* Pesquisa */}
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Pesquisar
-                        </label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Pesquisar</label>
                         <input
                             type="text"
                             placeholder="Nome do dossiê ou disciplina..."
@@ -181,25 +189,38 @@ const DossierPage = () => {
                         />
                     </div>
 
-                    {/* Discipline Filter */}
+                    {/* Filtro de Disciplina */}
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Disciplina
-                        </label>
-                        <select
-                            value={selectedDiscipline}
-                            onChange={(e) => setSelectedDiscipline(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            {disciplines.map((disc) => (
-                                <option key={disc.id} value={disc.id}>
-                                    {disc.name}
-                                </option>
-                            ))}
-                        </select>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Disciplina</label>
+                        {(() => {
+                            const uniqueDisciplines = Array.isArray(dossiers)
+                                ? [...new Map(
+                                      dossiers.map(d => [d.disciplina_id, { id: d.disciplina_id, name: d.subject_name }])
+                                  ).values()]
+                                : [];
+
+                            const disciplines = [
+                                { id: 'all', name: 'Todas as Disciplinas' },
+                                ...uniqueDisciplines
+                            ];
+
+                            return (
+                                <select
+                                    value={selectedDiscipline}
+                                    onChange={(e) => setSelectedDiscipline(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    {disciplines.map((disc) => (
+                                        <option key={disc.id} value={disc.id}>
+                                            {disc.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            );
+                        })()}
                     </div>
 
-                    {/* Actions */}
+                    {/* Ações */}
                     <div className="flex items-end justify-between gap-2">
                         <label className="inline-flex items-center cursor-pointer">
                             <input
@@ -223,7 +244,7 @@ const DossierPage = () => {
                 </div>
             </div>
 
-            {/* Dossiers List */}
+            {/* Lista de Dossiês */}
             {filteredDossiers.length === 0 ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
                     <svg className="w-16 h-16 mx-auto text-yellow-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,7 +252,7 @@ const DossierPage = () => {
                     </svg>
                     <p className="text-lg text-gray-700 mb-2">Nenhum dossiê encontrado</p>
                     <p className="text-sm text-gray-500">
-                        {searchTerm || selectedDiscipline !== 'all' 
+                        {searchTerm || selectedDiscipline !== 'all'
                             ? 'Tente ajustar os filtros de pesquisa'
                             : 'Comece criando um novo dossiê'}
                     </p>
@@ -240,7 +261,7 @@ const DossierPage = () => {
                 <div className="space-y-6">
                     {filteredDossiers.map((discipline) => (
                         <div key={discipline.disciplina_id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                            {/* Discipline Header */}
+                            {/* Cabeçalho da Disciplina */}
                             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4">
                                 <h2 className="text-xl font-bold">{discipline.subject_name}</h2>
                                 <p className="text-sm text-blue-100">
@@ -248,17 +269,17 @@ const DossierPage = () => {
                                 </p>
                             </div>
 
-                            {/* Dossiers Cards */}
+                            {/* Cartões de Dossiês */}
                             <div className="p-4">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                     {discipline.dossiers.map((dossier) => (
-                                        <div 
-                                            key={dossier.id} 
+                                        <div
+                                            key={dossier.id}
                                             className={`border rounded-lg p-4 hover:shadow-lg transition-shadow ${
                                                 !dossier.ativo ? 'bg-gray-50 opacity-75' : 'bg-white'
                                             }`}
                                         >
-                                            {/* Dossier Header */}
+                                            {/* Cabeçalho do Dossiê */}
                                             <div className="flex items-start justify-between mb-3">
                                                 <div className="flex-1">
                                                     <h3 className="text-lg font-bold text-gray-800 mb-1">
@@ -280,7 +301,7 @@ const DossierPage = () => {
                                                 </div>
                                             </div>
 
-                                            {/* Action Tabs */}
+                                            {/* Abas de Ação */}
                                             <div className="grid grid-cols-3 gap-2 mb-3">
                                                 <button
                                                     onClick={() => navigateToDossier(dossier.id, 'grades')}
@@ -314,7 +335,7 @@ const DossierPage = () => {
                                                 </button>
                                             </div>
 
-                                            {/* Edit and Delete Actions */}
+                                            {/* Ações de Editar/Apagar */}
                                             <div className="flex items-center gap-2 pt-3 border-t">
                                                 <button
                                                     onClick={() => openEditModal(dossier)}

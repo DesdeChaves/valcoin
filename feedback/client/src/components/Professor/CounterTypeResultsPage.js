@@ -20,12 +20,12 @@ const CounterTypeResultsPage = () => {
             try {
                 // Fetch counters of this type for the dossier
                 const countersResponse = await fetchCountersByType(dossieId, tipo);
-                setCounters(countersResponse.data);
+                setCounters(countersResponse);
 
                 // Fetch all students in the dossier
                 const studentsAndCountersResponse = await fetchDossierCounters(dossieId);
 
-                const allStudentsData = studentsAndCountersResponse.data;
+                const allStudentsData = studentsAndCountersResponse;
 
                 const aggregatedStudentsData = allStudentsData.map(student => {
                     let totalRawCount = 0;
@@ -75,7 +75,7 @@ const CounterTypeResultsPage = () => {
             if (!dossieId) return;
             try {
                 const response = await fetchDossierInstruments(dossieId);
-                setInstrumentos(response.data);
+                setInstrumentos(response);
             } catch (err) {
                 console.error('Error fetching instrumentos:', err);
             }
@@ -89,7 +89,7 @@ const CounterTypeResultsPage = () => {
             if (!selectedInstrumentId) return;
             try {
                 const response = await fetchInstrumentGrades(selectedInstrumentId);
-                setInstrumentGrades(response.data);
+                setInstrumentGrades(response);
             }
             catch (err) {
                 console.error('Error fetching instrument grades:', err);

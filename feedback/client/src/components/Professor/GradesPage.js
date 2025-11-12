@@ -31,21 +31,21 @@ function GradesPage() {
       try {
         // Fetch instrument details
         const instrumentResponse = await fetchInstrumentDetails(instrumentId);
-        setInstrument(instrumentResponse.data);
+        setInstrument(instrumentResponse);
 
         // Fetch students and their grades for this instrument
         const gradesResponse = await fetchInstrumentGrades(instrumentId);
         
-        setStudents(gradesResponse.data.map(item => item.aluno));
+        setStudents(gradesResponse.map(item => item.aluno));
         const initialNotes = {};
-        gradesResponse.data.forEach(item => {
+        gradesResponse.forEach(item => {
           initialNotes[item.aluno.id] = item.nota;
         });
         setNotes(initialNotes);
 
         // Fetch statistics
         const statsResponse = await fetchInstrumentStatistics(instrumentId);
-        setStatistics(statsResponse.data.estatisticas);
+        setStatistics(statsResponse.estatisticas);
 
       } catch (err) {
         setError('Erro ao carregar dados.');

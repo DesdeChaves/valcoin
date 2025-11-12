@@ -24,7 +24,7 @@ const StudentCountersPage = () => {
             const getDisciplines = async () => {
                 try {
                     const response = await fetchStudentDisciplines(studentId);
-                    setDisciplines(response.data);
+                    setDisciplines(response);
                 } catch (err) {
                     console.error('Error fetching disciplines for filter:', err);
                 }
@@ -39,7 +39,7 @@ const StudentCountersPage = () => {
             const getCountersList = async () => {
                 try {
                     const response = await fetchStudentCountersList(studentId);
-                    setCountersList(response.data);
+                    setCountersList(response);
                 } catch (err) {
                     console.error('Error fetching counters list for filter:', err);
                 }
@@ -54,8 +54,8 @@ const StudentCountersPage = () => {
                 try {
                     setLoading(true);
                     const response = await fetchStudentCounters(studentId, filters.disciplineId, filters.counterId, filters.sortBy, filters.sortOrder);
-                    setTaps(response.data.taps);
-                    setStatistics(response.data.statistics);
+                    setTaps(response.taps);
+                    setStatistics(response.statistics);
                     setError(null);
                 } catch (err) {
                     setError('Error fetching counters');

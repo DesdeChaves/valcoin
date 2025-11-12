@@ -44,7 +44,7 @@ services:
     build:
       context: ./valcoin-admin
       dockerfile: Dockerfile
-    image: desdechaves/valcoin-admin-server
+    #image: desdechaves/valcoin-admin-server
     container_name: valcoin_admin_server
     environment:
       NODE_ENV: production
@@ -74,7 +74,7 @@ services:
     build:
       context: ./valcoin-admin
       dockerfile: Dockerfile.client
-    image: desdechaves/valcoin-admin-client
+    #image: desdechaves/valcoin-admin-client
     container_name: valcoin_admin_client
     ports:
       - "3000:80"

@@ -14,7 +14,7 @@ function StudentGradesPage() {
         const loadGrades = async () => {
             try {
                 const response = await fetchAllStudentProfessorGrades(studentId);
-                setGrades(response.data);
+                setGrades(response);
             } catch (err) {
                 setError('Failed to load grades.');
             } finally {

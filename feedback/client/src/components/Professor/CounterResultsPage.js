@@ -24,14 +24,14 @@ const CounterResultsPage = () => {
             try {
                 // Fetch counter details
                 const counterResponse = await fetchCounterDetails(counterId);
-                setCounter(counterResponse.data);
-                const fetchedDossieId = counterResponse.data.dossie_id;
+                setCounter(counterResponse);
+                const fetchedDossieId = counterResponse.dossie_id;
                 setDossieId(fetchedDossieId);
 
                 // Fetch students and their calibrated scores
                 const studentsAndCountersResponse = await fetchDossierCounters(fetchedDossieId);
 
-                const filteredStudentsData = studentsAndCountersResponse.data.map(student => {
+                const filteredStudentsData = studentsAndCountersResponse.map(student => {
                     const targetMomento = student.momentos.find(momento => momento.id === counterId);
                     return {
                         id: student.id,
@@ -39,8 +39,8 @@ const CounterResultsPage = () => {
                         numero: student.numero,
                         rawCount: targetMomento ? targetMomento.contagem : 0,
                         calibratedScore: targetMomento ? calculateCalibratedScore(
-                            counterResponse.data.modelo_calibracao,
-                            counterResponse.data.parametros_calibracao,
+                            counterResponse.modelo_calibracao,
+                            counterResponse.parametros_calibracao,
                             targetMomento.contagem
                         ) : 0,
                     };
@@ -69,7 +69,7 @@ const CounterResultsPage = () => {
             if (!dossieId) return;
             try {
                 const response = await fetchDossierInstruments(dossieId);
-                setInstrumentos(response.data);
+                setInstrumentos(response);
             } catch (err) {
                 console.error('Error fetching instrumentos:', err);
             }
@@ -83,7 +83,7 @@ const CounterResultsPage = () => {
             if (!selectedInstrumentId) return;
             try {
                 const response = await fetchInstrumentGrades(selectedInstrumentId);
-                setInstrumentGrades(response.data);
+                setInstrumentGrades(response);
             } catch (err) {
                 console.error('Error fetching instrument grades:', err);
             }

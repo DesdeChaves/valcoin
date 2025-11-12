@@ -19,7 +19,7 @@ const DisciplineDossiersPage = () => {
                 try {
                     setLoading(true);
                     const response = await fetchStudentDossiers(studentId, disciplineId);
-                    setDossiers(response.data);
+                    setDossiers(response);
                     setError(null);
                 } catch (err) {
                     setError('Error fetching dossiers');

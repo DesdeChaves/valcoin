@@ -25,11 +25,11 @@ function MomentoAvaliacaoNotasFinaisPage() {
 
         // Fetch momento de avaliação details
         const momentoResponse = await fetchMomentoAvaliacao(momentoId);
-        setMomentoAvaliacao(momentoResponse.data);
+        setMomentoAvaliacao(momentoResponse);
 
         // Fetch final grades for this moment
         const notasResponse = await fetchNotasFinaisByMomento(momentoId);
-        setNotasFinais(notasResponse.data || []);
+        setNotasFinais(notasResponse || []);
       } catch (err) {
         console.error('Error fetching final grades:', err);
         setError(

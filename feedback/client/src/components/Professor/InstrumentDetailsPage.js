@@ -22,11 +22,11 @@ function InstrumentDetailsPage() {
         setLoading(true);
         // Fetch instrument details
         const instrumentResponse = await fetchInstrumentDetails(instrumentId);
-        setInstrument(instrumentResponse.data);
+        setInstrument(instrumentResponse);
 
         // Fetch statistics
         const statsResponse = await fetchInstrumentStatistics(instrumentId);
-        setStatistics(statsResponse.data.estatisticas);
+        setStatistics(statsResponse.estatisticas);
         setError('');
       } catch (err) {
         setError('Erro ao carregar dados do instrumento ou estatísticas.');

@@ -20,7 +20,7 @@ function MomentoAvaliacaoManagementPage() {
       setLoading(true);
       setError('');
       const response = await fetchMomentosAvaliacaoByDossie(dossieId);
-      setMomentos(response.data || []);
+      setMomentos(response || []);
     } catch (err) {
       setError('Erro ao carregar momentos de avaliação. Por favor, tente novamente.');
       console.error('Error fetching momentos de avaliação:', err);

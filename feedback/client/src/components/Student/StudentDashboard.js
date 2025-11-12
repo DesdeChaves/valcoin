@@ -7,38 +7,47 @@ const StudentDashboard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     const studentId = JSON.parse(localStorage.getItem('user'))?.id;
     const studentName = JSON.parse(localStorage.getItem('user'))?.nome || 'Estudante';
 
     useEffect(() => {
-        if (studentId) {
-            const getDisciplines = async () => {
-                try {
-                    setLoading(true);
-                    const response = await fetchStudentDisciplines(studentId);
-                    setDisciplines(response.data);
-                    setError(null);
-                } catch (err) {
-                    setError('Error fetching disciplines');
-                    console.error('Error fetching disciplines:', err);
-                } finally {
-                    setLoading(false);
-                }
-            };
-            getDisciplines();
-        } else {
-            setError('Student ID not found. Please log in.');
+        if (!studentId) {
+            setError('ID do estudante não encontrado. Por favor, faça login novamente.');
             setLoading(false);
+            return;
         }
+
+        const getDisciplines = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const response = await fetchStudentDisciplines(studentId);
+                console.log('fetchStudentDisciplines response:', response); // Debug
+                setDisciplines(Array.isArray(response) ? response : []);
+            } catch (err) {
+                console.error('Error fetching disciplines:', err);
+                setError('Erro ao carregar disciplinas. Por favor, tente novamente.');
+                setDisciplines([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        getDisciplines();
     }, [studentId]);
 
-    // Filter disciplines by search term
-    const filteredDisciplines = disciplines.filter(discipline =>
-        discipline.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        discipline.turma_nome.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Filtrar disciplinas com segurança
+    const filteredDisciplines = Array.isArray(disciplines)
+        ? disciplines.filter(discipline =>
+              (discipline.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+              (discipline.turma_nome || '').toLowerCase().includes(searchTerm.toLowerCase())
+          )
+        : [];
 
+    const totalDisciplines = Array.isArray(disciplines) ? disciplines.length : 0;
+
+    // Loading
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen bg-gray-50">
@@ -50,6 +59,7 @@ const StudentDashboard = () => {
         );
     }
 
+    // Erro
     if (error) {
         return (
             <div className="min-h-screen bg-gray-50 p-6">
@@ -84,7 +94,7 @@ const StudentDashboard = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-2xl font-semibold text-gray-800">
-                                Olá, {studentName}! 👋
+                                Olá, {studentName}! [waving hand]
                             </h1>
                             <p className="text-sm text-gray-500 mt-1">
                                 Bem-vindo ao seu portal académico
@@ -93,7 +103,7 @@ const StudentDashboard = () => {
                         <div className="hidden md:flex items-center space-x-4">
                             <div className="text-right">
                                 <p className="text-sm text-gray-500">Total de Disciplinas</p>
-                                <p className="text-2xl font-bold text-blue-600">{disciplines.length}</p>
+                                <p className="text-2xl font-bold text-blue-600">{totalDisciplines}</p>
                             </div>
                         </div>
                     </div>
@@ -101,13 +111,13 @@ const StudentDashboard = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-6">
-                {/* Statistics Cards - Mobile */}
+                {/* Estatísticas - Mobile */}
                 <div className="md:hidden mb-6">
                     <div className="bg-white rounded-lg p-4 border border-gray-200">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-500 font-medium">Total de Disciplinas</p>
-                                <p className="text-2xl font-semibold text-gray-800 mt-1">{disciplines.length}</p>
+                                <p className="text-2xl font-semibold text-gray-800 mt-1">{totalDisciplines}</p>
                             </div>
                             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,7 +128,7 @@ const StudentDashboard = () => {
                     </div>
                 </div>
 
-                {/* Search Bar */}
+                {/* Barra de Pesquisa */}
                 <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
                     <div className="relative">
                         <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -134,7 +144,7 @@ const StudentDashboard = () => {
                     </div>
                 </div>
 
-                {/* Disciplines Grid */}
+                {/* Grade de Disciplinas */}
                 {filteredDisciplines.length === 0 ? (
                     <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                         <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,19 +160,19 @@ const StudentDashboard = () => {
                 ) : (
                     <>
                         <div className="mb-4 text-sm text-gray-600">
-                            {filteredDisciplines.length === disciplines.length 
-                                ? `A mostrar ${disciplines.length} ${disciplines.length === 1 ? 'disciplina' : 'disciplinas'}`
-                                : `A mostrar ${filteredDisciplines.length} de ${disciplines.length} disciplinas`
+                            {filteredDisciplines.length === totalDisciplines
+                                ? `A mostrar ${totalDisciplines} ${totalDisciplines === 1 ? 'disciplina' : 'disciplinas'}`
+                                : `A mostrar ${filteredDisciplines.length} de ${totalDisciplines} disciplinas`
                             }
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredDisciplines.map((discipline) => (
-                                <div 
-                                    key={discipline.id} 
+                                <div
+                                    key={discipline.id}
                                     className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-300 group"
                                 >
-                                    {/* Card Header */}
+                                    {/* Cabeçalho do Card */}
                                     <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4">
                                         <div className="flex items-start justify-between">
                                             <div className="flex-1">
@@ -184,7 +194,7 @@ const StudentDashboard = () => {
                                         </div>
                                     </div>
 
-                                    {/* Card Body */}
+                                    {/* Corpo do Card */}
                                     <div className="p-4">
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex items-center text-sm text-gray-500">
@@ -198,7 +208,7 @@ const StudentDashboard = () => {
                                             </span>
                                         </div>
 
-                                        <Link 
+                                        <Link
                                             to={`/student/discipline/${discipline.id}`}
                                             className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium group-hover:shadow-md"
                                         >

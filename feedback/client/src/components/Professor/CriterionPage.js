@@ -13,30 +13,43 @@ const CriterionPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDossier, setSelectedDossier] = useState('all');
     const navigate = useNavigate();
-    
+
     const professorId = JSON.parse(localStorage.getItem('user'))?.id;
 
     const fetchCriteria = async () => {
+        if (!professorId) {
+            setError('ID do professor não encontrado. Por favor, faça login novamente.');
+            setLoading(false);
+            return;
+        }
+
         try {
             setLoading(true);
-            const response = await fetchProfessorCriteria(professorId);
-            setCriteria(response.data);
             setError(null);
+            const response = await fetchProfessorCriteria(professorId);
+            console.log('fetchProfessorCriteria response:', response); // Debug
+            let data;
+            if (response && typeof response === 'object') {
+                if ('data' in response) {
+                    data = response.data;
+                } else {
+                    data = response;
+                }
+            } else {
+                data = [];
+            }
+            setCriteria(Array.isArray(data) ? data : []);
         } catch (err) {
-            setError('Erro ao carregar critérios');
             console.error('Error fetching criteria:', err);
+            setError('Erro ao carregar critérios. Por favor, tente novamente.');
+            setCriteria([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (professorId) {
-            fetchCriteria();
-        } else {
-            setError('Professor ID not found. Please log in.');
-            setLoading(false);
-        }
+        fetchCriteria();
     }, [professorId]);
 
     const openCreateModal = () => {
@@ -65,7 +78,7 @@ const CriterionPage = () => {
             fetchCriteria();
         } catch (err) {
             console.error('Error saving criterion:', err);
-            alert('Error saving criterion.');
+            alert('Erro ao salvar critério.');
         }
     };
 
@@ -76,42 +89,43 @@ const CriterionPage = () => {
                 fetchCriteria();
             } catch (err) {
                 console.error('Error deleting criterion:', err);
-                alert('Error deleting criterion.');
+                alert('Erro ao apagar critério.');
             }
         }
     };
 
-    // Get unique dossiers for filter
-    const dossiers = [
-        { id: 'all', name: 'Todos os Dossiês' },
-        ...(criteria && Array.isArray(criteria) ? criteria.map(d => ({ id: d.dossie_id, name: `${d.nome} - ${d.subject_name}` })) : [])
-    ];
-
-    // Filter criteria
+    // Filtrar critérios com segurança
     const getFilteredCriteria = () => {
-        if (!criteria || !Array.isArray(criteria)) {
-            return [];
-        }
+        if (!Array.isArray(criteria)) return [];
+
         return criteria
             .map(dossierGroup => ({
                 ...dossierGroup,
-                criterios: (dossierGroup.criterios && Array.isArray(dossierGroup.criterios) ? dossierGroup.criterios : []).filter(criterion => {
-                    const matchesSearch = criterion.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                         dossierGroup.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                         dossierGroup.subject_name.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesDossier = selectedDossier === 'all' || dossierGroup.dossie_id === selectedDossier;
-                    return matchesSearch && matchesDossier;
-                })
+                criterios: Array.isArray(dossierGroup.criterios)
+                    ? dossierGroup.criterios.filter(criterion => {
+                          const matchesSearch =
+                              (criterion.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (dossierGroup.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (dossierGroup.subject_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+                          const matchesDossier =
+                              selectedDossier === 'all' || dossierGroup.id === selectedDossier;
+                          return matchesSearch && matchesDossier;
+                      })
+                    : []
             }))
             .filter(dossierGroup => dossierGroup.criterios.length > 0);
     };
 
     const filteredCriteria = getFilteredCriteria();
 
-    // Calculate statistics
-    const totalCriteria = (criteria && Array.isArray(criteria) ? criteria : []).reduce((acc, d) => acc + (d.criterios && Array.isArray(d.criterios) ? d.criterios.length : 0), 0);
-    const totalDossiers = (criteria && Array.isArray(criteria) ? criteria : []).length;
+    // Estatísticas seguras
+    const totalCriteria = Array.isArray(criteria)
+        ? criteria.reduce((acc, d) => acc + (Array.isArray(d.criterios) ? d.criterios.length : 0), 0)
+        : 0;
 
+    const totalDossiers = Array.isArray(criteria) ? criteria.length : 0;
+
+    // Loading
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen bg-gray-50">
@@ -123,6 +137,7 @@ const CriterionPage = () => {
         );
     }
 
+    // Erro
     if (error) {
         return (
             <div className="min-h-screen bg-gray-50 p-6">
@@ -171,9 +186,9 @@ const CriterionPage = () => {
                         </div>
                         <button
                             onClick={openCreateModal}
-                            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center"
+                            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 flex items-center gap-2"
                         >
-                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
                             Novo Critério
@@ -183,8 +198,8 @@ const CriterionPage = () => {
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-6">
-                {/* Statistics */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {/* Estatísticas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div className="bg-white rounded-lg p-4 border border-gray-200">
                         <div className="flex items-center justify-between">
                             <div>
@@ -193,7 +208,7 @@ const CriterionPage = () => {
                             </div>
                             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                                 </svg>
                             </div>
                         </div>
@@ -205,32 +220,16 @@ const CriterionPage = () => {
                                 <p className="text-sm text-gray-500 font-medium">Dossiês</p>
                                 <p className="text-2xl font-semibold text-gray-800 mt-1">{totalDossiers}</p>
                             </div>
-                            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm text-gray-500 font-medium">Média de Critérios</p>
-                                <p className="text-2xl font-semibold text-gray-800 mt-1">
-                                    {totalDossiers > 0 ? (totalCriteria / totalDossiers).toFixed(1) : '0'}
-                                </p>
-                            </div>
-                            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
                                 </svg>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Filters */}
+                {/* Filtros */}
                 <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -253,45 +252,58 @@ const CriterionPage = () => {
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Filtrar por Dossiê
+                                Dossiê
                             </label>
-                            <select
-                                value={selectedDossier}
-                                onChange={(e) => setSelectedDossier(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                            >
-                                {dossiers.map((dossier) => (
-                                    <option key={dossier.id} value={dossier.id}>
-                                        {dossier.name}
-                                    </option>
-                                ))}
-                            </select>
+                            {(() => {
+                                const uniqueDossiers = Array.isArray(criteria)
+                                    ? [...new Map(
+                                          criteria.map(d => [d.id, { id: d.id, name: `${d.nome} - ${d.subject_name}` }])
+                                      ).values()]
+                                    : [];
+
+                                const dossiers = [
+                                    { id: 'all', name: 'Todos os Dossiês' },
+                                    ...uniqueDossiers
+                                ];
+
+                                return (
+                                    <select
+                                        value={selectedDossier}
+                                        onChange={(e) => setSelectedDossier(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                    >
+                                        {dossiers.map((doss) => (
+                                            <option key={doss.id} value={doss.id}>
+                                                {doss.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
 
-                {/* Content */}
+                {/* Conteúdo */}
                 {filteredCriteria.length === 0 ? (
                     <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                         <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                         </svg>
                         <p className="text-lg text-gray-600 mb-2">
-                            {searchTerm || selectedDossier !== 'all' 
-                                ? 'Nenhum critério encontrado'
-                                : 'Nenhum critério criado'}
+                            {searchTerm || selectedDossier !== 'all' ? 'Nenhum critério encontrado' : 'Nenhum critério criado'}
                         </p>
                         <p className="text-sm text-gray-500 mb-4">
                             {searchTerm || selectedDossier !== 'all'
                                 ? 'Tente ajustar os filtros de pesquisa'
                                 : 'Comece criando um novo critério de avaliação'}
                         </p>
-                        {!searchTerm && selectedDossier === 'all' && (
+                        {!(searchTerm || selectedDossier !== 'all') && (
                             <button
                                 onClick={openCreateModal}
-                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center"
+                                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-all inline-flex items-center gap-2"
                             >
-                                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
                                 Criar Primeiro Critério
@@ -301,8 +313,8 @@ const CriterionPage = () => {
                 ) : (
                     <div className="space-y-6">
                         {filteredCriteria.map((dossierGroup) => (
-                            <div key={dossierGroup.dossie_id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                                {/* Dossier Header */}
+                            <div key={dossierGroup.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                {/* Cabeçalho do Dossiê */}
                                 <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-6 py-4">
                                     <div className="flex items-center justify-between">
                                         <div>
@@ -314,7 +326,7 @@ const CriterionPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Criteria Table */}
+                                {/* Tabela de Critérios */}
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
