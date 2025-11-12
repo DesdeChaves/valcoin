@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getStudentLoans, approveLoan, rejectLoan } from '../services/api';
+import { getAllStudentLoans, approveStudentLoan, rejectStudentLoan } from '../services/api';
 
 const StudentLoans = () => {
     const [loans, setLoans] = useState([]);
@@ -7,7 +7,7 @@ const StudentLoans = () => {
 
     const fetchLoans = async () => {
         try {
-            const data = await getStudentLoans();
+            const data = await getAllStudentLoans();
             setLoans(data);
         } catch (error) {
             console.error('Error fetching student loans:', error);
@@ -22,7 +22,7 @@ const StudentLoans = () => {
 
     const handleApprove = async (id) => {
         try {
-            await approveLoan(id);
+            await approveStudentLoan(id);
             fetchLoans();
         } catch (error) {
             console.error('Error approving loan:', error);
@@ -32,7 +32,7 @@ const StudentLoans = () => {
 
     const handleReject = async (id) => {
         try {
-            await rejectLoan(id);
+            await rejectStudentLoan(id);
             fetchLoans();
         } catch (error) {
             console.error('Error rejecting loan:', error);

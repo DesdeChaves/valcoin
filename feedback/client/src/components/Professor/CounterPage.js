@@ -84,9 +84,12 @@ const CounterPage = () => {
 
     // Flatten counters for filtering
     const getAllCounters = () => {
+        if (!counters || !Array.isArray(counters)) {
+            return [];
+        }
         return counters.flatMap(disciplineGroup =>
-            disciplineGroup.dossiers.flatMap(dossierGroup =>
-                dossierGroup.counters.map(counter => ({
+            (disciplineGroup.dossiers && Array.isArray(disciplineGroup.dossiers) ? disciplineGroup.dossiers : []).flatMap(dossierGroup =>
+                (dossierGroup.counters && Array.isArray(dossierGroup.counters) ? dossierGroup.counters : []).map(counter => ({
                     ...counter,
                     subject_name: disciplineGroup.subject_name,
                     class_name: disciplineGroup.class_name,
@@ -204,7 +207,7 @@ const CounterPage = () => {
                             <div>
                                 <p className="text-sm text-gray-500 font-medium">Dossiês Ativos</p>
                                 <p className="text-2xl font-semibold text-gray-800 mt-1">
-                                    {counters.reduce((acc, d) => acc + d.dossiers.length, 0)}
+                                    {(counters && Array.isArray(counters) ? counters : []).reduce((acc, d) => acc + (d.dossiers && Array.isArray(d.dossiers) ? d.dossiers.length : 0), 0)}
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">

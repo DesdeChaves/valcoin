@@ -1,6 +1,6 @@
 // src/components/student/StudentDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { getStudentDashboard, getStudentPayableUsers, getStudentTransactionRules, getStudentApplicableRules, checkStudentRuleApplicability, applyStudentTransactionRule, getClasses, getStudentsByClass } from '../../services/api';
+import { getStudentValcoinDashboard, getStudentPayableUsers, getStudentTransactionRules, getStudentApplicableRules, checkStudentRuleApplicability, applyStudentTransactionRule, getClasses, getStudentsByClass } from '../../services/api';
 import StudentSidebar from './StudentSidebar';
 import StudentManualPayment from './StudentManualPayment';
 import StudentTap from './StudentTap';
@@ -22,7 +22,7 @@ const StudentDashboard = ({ onLogout, currentUser }) => {
     try {
       setLoading(true);
       setError('');
-      const data = await getStudentDashboard();
+      const data = await getStudentValcoinDashboard();
       setDashboardData(data);
     } catch (err) {
       console.error('Erro ao carregar dados do dashboard do aluno:', err);

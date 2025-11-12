@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    fetchProfessorFeedbackDashboard
+    getProfessorFeedbackDashboard
 } from '../../utils/api';
 import { Book, Folder, ListChecks, Hammer, Sliders, ChevronRight, Users, Star, TrendingUp, BarChart } from 'lucide-react';
 
@@ -43,18 +43,24 @@ function ProfessorDashboard() {
 
             try {
                 setLoading(true);
-                const response = await fetchProfessorFeedbackDashboard(user.id);
-                const data = response.data;
+                const response = await getProfessorFeedbackDashboard();
+                const data = response;
 
-                setDisciplines(data.disciplines || []);
+                if (data && data.disciplines) {
+                    setDisciplines(data.disciplines);
+                } else {
+                    setDisciplines([]);
+                }
 
-                setStats({
-                    totalDisciplinas: data.totalDisciplinas,
-                    totalDossiers: data.totalDossiers,
-                    totalCriterios: data.totalCriterios,
-                    totalInstrumentos: data.totalInstrumentos,
-                    totalContadores: data.totalContadores,
-                });
+                if (data) {
+                    setStats({
+                        totalDisciplinas: data.totalDisciplinas || 0,
+                        totalDossiers: data.totalDossiers || 0,
+                        totalCriterios: data.totalCriterios || 0,
+                        totalInstrumentos: data.totalInstrumentos || 0,
+                        totalContadores: data.totalContadores || 0,
+                    });
+                }
 
             } catch (err) {
                 setError('Erro ao carregar os dados do dashboard.');

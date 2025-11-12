@@ -85,14 +85,17 @@ const InstrumentPage = () => {
     // Get unique dossiers for filter
     const dossiers = [
         { id: 'all', name: 'Todos os Dossiês' },
-        ...instruments.map(d => ({ 
+        ...(instruments && Array.isArray(instruments) ? instruments.map(d => ({ 
             id: d.dossier_id, 
             name: `${d.dossier_name} - ${d.subject_name}` 
-        }))
+        })) : [])
     ];
 
     // Filter instruments
     const getFilteredInstruments = () => {
+        if (!instruments || !Array.isArray(instruments)) {
+            return [];
+        }
         return instruments
             .map(criterionGroup => ({
                 ...criterionGroup,
@@ -108,8 +111,8 @@ const InstrumentPage = () => {
     };
 
     const filteredInstruments = getFilteredInstruments();
-    const totalInstruments = instruments.reduce((acc, c) => acc + c.instrumentos.length, 0);
-    const totalCriteria = instruments.length;
+    const totalInstruments = (instruments && Array.isArray(instruments) ? instruments : []).reduce((acc, c) => acc + (c.instrumentos && Array.isArray(c.instrumentos) ? c.instrumentos.length : 0), 0);
+    const totalCriteria = (instruments && Array.isArray(instruments) ? instruments : []).length;
 
     if (loading) {
         return (

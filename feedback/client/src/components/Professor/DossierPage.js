@@ -85,14 +85,14 @@ const DossierPage = () => {
     // Get unique disciplines for filter
     const disciplines = [
         { id: 'all', name: 'Todas as Disciplinas' },
-        ...dossiers.map(d => ({ id: d.disciplina_id, name: d.subject_name }))
+        ...(dossiers && Array.isArray(dossiers) ? dossiers.map(d => ({ id: d.disciplina_id, name: d.subject_name })) : [])
     ];
 
     // Filter dossiers based on search and discipline
-    const filteredDossiers = dossiers
+    const filteredDossiers = (dossiers && Array.isArray(dossiers) ? dossiers : [])
         .map(discipline => ({
             ...discipline,
-            dossiers: discipline.dossiers.filter(dossier => {
+            dossiers: (discipline.dossiers && Array.isArray(discipline.dossiers) ? discipline.dossiers : []).filter(dossier => {
                 const matchesSearch = dossier.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                      discipline.subject_name.toLowerCase().includes(searchTerm.toLowerCase());
                 const matchesDiscipline = selectedDiscipline === 'all' || 
@@ -103,9 +103,9 @@ const DossierPage = () => {
         .filter(discipline => discipline.dossiers.length > 0);
 
     // Calculate statistics
-    const totalDossiers = dossiers.reduce((acc, d) => acc + d.dossiers.length, 0);
-    const activeDossiers = dossiers.reduce((acc, d) => 
-        acc + d.dossiers.filter(dossier => dossier.ativo).length, 0);
+    const totalDossiers = (dossiers && Array.isArray(dossiers) ? dossiers : []).reduce((acc, d) => acc + (d.dossiers && Array.isArray(d.dossiers) ? d.dossiers.length : 0), 0);
+    const activeDossiers = (dossiers && Array.isArray(dossiers) ? dossiers : []).reduce((acc, d) => 
+        acc + (d.dossiers && Array.isArray(d.dossiers) ? d.dossiers.filter(dossier => dossier.ativo).length : 0), 0);
 
     // Navigation handlers
     const navigateToDossier = (dossierId, section) => {

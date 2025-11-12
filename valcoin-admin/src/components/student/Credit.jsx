@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Landmark, PlusCircle } from 'lucide-react';
-import { getSettings, getCreditProducts, applyForLoan } from '../../services/api';
+import { getSettings, getCreditProducts, applyForStudentLoan } from '../../services/api';
 import LoanApplicationModal from './LoanApplicationModal';
 import StudentLoanList from './StudentLoanList';
 
@@ -43,7 +43,7 @@ const Credit = ({ student }) => {
 
     const handleSaveLoan = async (loanData) => {
         try {
-            await applyForLoan(loanData);
+            await applyForStudentLoan(loanData);
             alert('Pedido de empréstimo enviado com sucesso!');
             handleCloseModal();
         } catch (error) {

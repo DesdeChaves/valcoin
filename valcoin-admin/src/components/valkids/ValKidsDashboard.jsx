@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getStudentDashboard, getStudentTransactionRules } from '../../services';
+import { getStudentValcoinDashboard, getStudentTransactionRules } from '../../services';
 import ValKidsPiggyBank from './ValKidsPiggyBank';
 import ValKidsTap from './ValKidsTap';
 
@@ -15,7 +15,7 @@ const ValKidsDashboard = ({ onLogout }) => {
       setLoading(true);
       setError('');
       const [dashboard, rules] = await Promise.all([
-        getStudentDashboard(),
+        getStudentValcoinDashboard(),
         getStudentTransactionRules(),
       ]);
 

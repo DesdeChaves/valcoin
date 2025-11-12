@@ -1,6 +1,6 @@
 // src/components/debug/TransactionDebugView.jsx
 import React, { useState, useEffect } from 'react';
-import { getProfessorDashboard, getSettings } from '../../services';
+import { getProfessorValcoinDashboard, getSettings } from '../../services';
 
 const TransactionDebugView = () => {
   const [transactions, setTransactions] = useState([]);
@@ -11,7 +11,7 @@ const TransactionDebugView = () => {
     const fetchData = async () => {
       try {
         const [dashboardData, settingsData] = await Promise.all([
-          getProfessorDashboard(),
+          getProfessorValcoinDashboard(),
           getSettings()
         ]);
         setTransactions(dashboardData.transactions || []);

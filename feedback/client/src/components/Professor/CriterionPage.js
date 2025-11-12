@@ -84,15 +84,18 @@ const CriterionPage = () => {
     // Get unique dossiers for filter
     const dossiers = [
         { id: 'all', name: 'Todos os Dossiês' },
-        ...criteria.map(d => ({ id: d.dossie_id, name: `${d.nome} - ${d.subject_name}` }))
+        ...(criteria && Array.isArray(criteria) ? criteria.map(d => ({ id: d.dossie_id, name: `${d.nome} - ${d.subject_name}` })) : [])
     ];
 
     // Filter criteria
     const getFilteredCriteria = () => {
+        if (!criteria || !Array.isArray(criteria)) {
+            return [];
+        }
         return criteria
             .map(dossierGroup => ({
                 ...dossierGroup,
-                criterios: dossierGroup.criterios.filter(criterion => {
+                criterios: (dossierGroup.criterios && Array.isArray(dossierGroup.criterios) ? dossierGroup.criterios : []).filter(criterion => {
                     const matchesSearch = criterion.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                          dossierGroup.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                          dossierGroup.subject_name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -106,8 +109,8 @@ const CriterionPage = () => {
     const filteredCriteria = getFilteredCriteria();
 
     // Calculate statistics
-    const totalCriteria = criteria.reduce((acc, d) => acc + d.criterios.length, 0);
-    const totalDossiers = criteria.length;
+    const totalCriteria = (criteria && Array.isArray(criteria) ? criteria : []).reduce((acc, d) => acc + (d.criterios && Array.isArray(d.criterios) ? d.criterios.length : 0), 0);
+    const totalDossiers = (criteria && Array.isArray(criteria) ? criteria : []).length;
 
     if (loading) {
         return (

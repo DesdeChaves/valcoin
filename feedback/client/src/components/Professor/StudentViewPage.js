@@ -159,7 +159,7 @@ function StudentViewPage() {
                                     className="w-full pl-4 pr-10 py-3 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white"
                                 >
                                     <option value="">Selecione uma disciplina</option>
-                                    {disciplines.map(d => (
+                                    {(disciplines && Array.isArray(disciplines) ? disciplines : []).map(d => (
                                         <option key={d.professor_disciplina_turma_id} value={d.professor_disciplina_turma_id}>
                                             {d.subject_name} - {d.class_name}
                                         </option>
@@ -171,7 +171,7 @@ function StudentViewPage() {
                                     </svg>
                                 </div>
                             </div>
-                            {disciplines.length > 0 && (
+                            {(disciplines && Array.isArray(disciplines) && disciplines.length > 0) && (
                                 <p className="mt-2 text-xs text-gray-500 flex items-center">
                                     <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -202,7 +202,7 @@ function StudentViewPage() {
                                     }`}
                                 >
                                     <option value="">Selecione um aluno</option>
-                                    {students.map(s => (
+                                    {(students && Array.isArray(students) ? students : []).map(s => (
                                         <option key={s.id} value={s.id}>
                                             {s.nome}
                                         </option>
@@ -214,7 +214,7 @@ function StudentViewPage() {
                                     </svg>
                                 </div>
                             </div>
-                            {selectedDiscipline && students.length > 0 && (
+                            {selectedDiscipline && (students && Array.isArray(students) && students.length > 0) && (
                                 <p className="mt-2 text-xs text-gray-500 flex items-center">
                                     <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
@@ -222,7 +222,7 @@ function StudentViewPage() {
                                     {students.length} aluno{students.length !== 1 ? 's' : ''} encontrado{students.length !== 1 ? 's' : ''}
                                 </p>
                             )}
-                            {selectedDiscipline && students.length === 0 && (
+                            {selectedDiscipline && (students && Array.isArray(students) && students.length === 0) && (
                                 <p className="mt-2 text-xs text-amber-600 flex items-center">
                                     <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />

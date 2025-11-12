@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../utils/api';
+import { login } from '../utils/api';
 
 function Login() {
   const [numero_mecanografico, setNumeroMecanografico] = useState('');
@@ -11,15 +11,15 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await loginUser({
+      const response = await login({
         numero_mecanografico,
         password,
       });
-      localStorage.setItem('accessToken', response.data.accessToken);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      if (response.data.user.tipo_utilizador === 'PROFESSOR') {
+      localStorage.setItem('authToken', response.accessToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      if (response.user.tipo_utilizador === 'PROFESSOR') {
         navigate('/professor/dashboard');
-      } else if (response.data.user.tipo_utilizador === 'ALUNO') {
+      } else if (response.user.tipo_utilizador === 'ALUNO') {
         navigate('/student/dashboard');
       } else {
         setError('Tipo de utilizador não suportado.');

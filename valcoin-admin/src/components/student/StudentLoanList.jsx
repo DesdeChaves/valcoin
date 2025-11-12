@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getStudentLoansByStudentId, repayLoan } from '../../services/api';
+import { getMyStudentLoans, repayStudentLoan } from '../../services/api';
 import RepaymentModal from './RepaymentModal';
 import ValCoinIcon from '../icons/ValCoinIcon';
 
@@ -11,7 +11,7 @@ const StudentLoanList = () => {
 
     const fetchLoans = async () => {
         try {
-            const data = await getStudentLoansByStudentId();
+            const data = await getMyStudentLoans();
             setLoans(data);
         } catch (error) {
             console.error('Error fetching student loans:', error);
@@ -36,7 +36,7 @@ const StudentLoanList = () => {
 
     const handleSaveRepayment = async (repaymentData) => {
         try {
-            await repayLoan(repaymentData.loan_id, { amount: repaymentData.amount });
+            await repayStudentLoan(repaymentData.loan_id, { amount: repaymentData.amount });
             alert('Pagamento realizado com sucesso!');
             fetchLoans();
             handleCloseModal();

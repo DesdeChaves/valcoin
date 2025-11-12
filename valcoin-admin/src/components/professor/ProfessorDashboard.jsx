@@ -1,6 +1,6 @@
 // src/components/professor/ProfessorDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { getProfessorDashboard, getUsers } from '../../services';
+import { getProfessorValcoinDashboard, getUsers } from '../../services';
 import ProfessorSidebar from './ProfessorSidebar';
 import ProfessorTransactionForm from './ProfessorTransactionForm';
 import ProfessorTap from './ProfessorTap';
@@ -22,7 +22,7 @@ const ProfessorDashboard = ({ onLogout }) => {
       setLoading(true);
       setError('');
       const [data, allUsers] = await Promise.all([
-        getProfessorDashboard(),
+        getProfessorValcoinDashboard(),
         getUsers(),
       ]);
       
