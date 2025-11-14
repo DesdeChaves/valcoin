@@ -34,27 +34,6 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
         }
     }, [professorId]);
 
-    // Fetch dossiers when selectedDisciplineId changes
-    useEffect(() => {
-        console.log('selectedDisciplineId changed:', selectedDisciplineId);
-        if (selectedDisciplineId) {
-            const fetchDossiers = async () => {
-                try {
-                    const response = await fetchDossiersByDiscipline(selectedDisciplineId);
-                    setDossiers(response.dossies);
-                    console.log('Fetched dossiers:', response.data.dossies);
-                } catch (err) {
-                    setErrorData('Error fetching dossiers');
-                    console.error('Error fetching dossiers:', err);
-                }
-            };
-            fetchDossiers();
-        } else {
-            setDossiers([]);
-            console.log('selectedDisciplineId is empty, dossiers reset.');
-        }
-    }, [selectedDisciplineId]);
-
     // Populate form data when editing an existing criterion
     useEffect(() => {
         if (criterion) {
@@ -65,6 +44,18 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
                 dossie_id: criterion.dossie_id || '',
                 ordem: criterion.ordem || '',
             });
+            // Set the selected discipline based on the criterion's dossier's discipline
+            // Assuming criterion object has a discipline_id or similar property
+            // This might need adjustment based on the actual structure of 'criterion'
+            if (criterion.disciplina_id) { // Assuming 'disciplina_id' exists in criterion
+                setSelectedDisciplineId(criterion.disciplina_id);
+            } else if (criterion.dossie_id && disciplines.length > 0) {
+                // Fallback: find discipline from dossiers if disciplina_id is not direct
+                const foundDiscipline = disciplines.find(d => d.dossies?.some(dos => dos.id === criterion.dossie_id));
+                if (foundDiscipline) {
+                    setSelectedDisciplineId(foundDiscipline.professor_disciplina_turma_id);
+                }
+            }
         } else {
             setFormData({
                 nome: '',
@@ -75,7 +66,25 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
             });
             setSelectedDisciplineId('');
         }
-    }, [criterion]);
+    }, [criterion, disciplines]); // Add disciplines to dependency array
+
+    // Fetch dossiers when selectedDisciplineId changes OR when criterion is set for editing
+    useEffect(() => {
+        if (selectedDisciplineId) {
+            const fetchDossiers = async () => {
+                try {
+                    const response = await fetchDossiersByDiscipline(selectedDisciplineId);
+                    setDossiers(response.dossies);
+                } catch (err) {
+                    setErrorData('Error fetching dossiers');
+                    console.error('Error fetching dossiers:', err);
+                }
+            };
+            fetchDossiers();
+        } else {
+            setDossiers([]);
+        }
+    }, [selectedDisciplineId]); // Removed criterion from dependency array to avoid re-fetching on every criterion change
 
     const handleChange = (e) => {
         const { name, value } = e.target;

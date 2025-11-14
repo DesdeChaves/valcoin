@@ -1,140 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import Modal from '../Layout/Modal';
 import InstrumentForm from './InstrumentForm';
-import { fetchProfessorInstruments, saveInstrument, updateInstrument, deleteInstrument } from '../../utils/api';
+import useInstrumentManagement from '../../hooks/useInstrumentManagement'; // Import the custom hook
 
 const InstrumentPage = () => {
-    const [instruments, setInstruments] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingInstrument, setEditingInstrument] = useState(null);
-    const [showInactive, setShowInactive] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedDossier, setSelectedDossier] = useState('all');
-    const navigate = useNavigate();
-    
-    const professorId = JSON.parse(localStorage.getItem('user'))?.id;
-
-    const fetchInstruments = async () => {
-        try {
-            setLoading(true);
-            const response = await fetchProfessorInstruments(professorId, showInactive);
-            console.log('📊 Full response:', response);
-            
-            // Compatibilidade: aceita tanto response.data (axios) quanto response direto (handleRequest)
-            let instrumentsData;
-            if (response && typeof response === 'object') {
-                // Se tem propriedade 'data', usa ela (resposta axios direta)
-                if ('data' in response) {
-                    instrumentsData = response.data;
-                } else {
-                    // Caso contrário, assume que response já é o array
-                    instrumentsData = response;
-                }
-            } else {
-                instrumentsData = [];
-            }
-            
-            console.log('📊 Instruments data:', instrumentsData);
-            console.log('📊 Is array?', Array.isArray(instrumentsData));
-            
-            // Garante que é sempre um array
-            setInstruments(Array.isArray(instrumentsData) ? instrumentsData : []);
-            setError(null);
-        } catch (err) {
-            setError('Error fetching instruments');
-            console.error('Error fetching instruments:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (professorId) {
-            fetchInstruments();
-        } else {
-            setError('Professor ID not found. Please log in.');
-            setLoading(false);
-        }
-    }, [professorId, showInactive]);
-
-    const openCreateModal = () => {
-        setEditingInstrument(null);
-        setIsModalOpen(true);
-    };
-
-    const openEditModal = (instrument) => {
-        setEditingInstrument(instrument);
-        setIsModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setEditingInstrument(null);
-    };
-
-    const handleSaveInstrument = async (instrumentData) => {
-        try {
-            if (editingInstrument) {
-                await updateInstrument(editingInstrument.id, instrumentData);
-            } else {
-                await saveInstrument(instrumentData);
-            }
-            closeModal();
-            fetchInstruments();
-        } catch (err) {
-            console.error('Error saving instrument:', err);
-            alert('Error saving instrument.');
-        }
-    };
-
-    const handleDeleteInstrument = async (instrumentId) => {
-        if (window.confirm('Tem certeza que deseja apagar este instrumento?')) {
-            try {
-                await deleteInstrument(instrumentId);
-                fetchInstruments();
-            } catch (err) {
-                console.error('Error deleting instrument:', err);
-                alert('Error deleting instrument.');
-            }
-        }
-    };
-
-    // Get unique dossiers for filter
-    const getUniqueDossiers = () => {
-        const dossierMap = new Map();
-        
-        if (!instruments || !Array.isArray(instruments)) {
-            return [{ id: 'all', name: 'Todos os Dossiês' }];
-        }
-
-        instruments.forEach(criterion => {
-            if (criterion.dossier_id && !dossierMap.has(criterion.dossier_id)) {
-                dossierMap.set(criterion.dossier_id, {
-                    id: criterion.dossier_id,
-                    name: `${criterion.dossier_name} - ${criterion.subject_name}`
-                });
-            }
-        });
-
-        return [
-            { id: 'all', name: 'Todos os Dossiês' },
-            ...Array.from(dossierMap.values())
-        ];
-    };
-
-    const dossiers = getUniqueDossiers();
+    const {
+        instruments,
+        loading,
+        error,
+        isModalOpen,
+        editingInstrument,
+        showInactive,
+        setShowInactive,
+        searchTerm,
+        setSearchTerm,
+        selectedDossier,
+        setSelectedDossier,
+        fetchInstruments,
+        openCreateModal,
+        openEditModal,
+        closeModal,
+        handleSaveInstrument,
+        handleDeleteInstrument,
+        navigate,
+        professorId,
+        dossiers, // From the hook
+    } = useInstrumentManagement();
 
     // Filter instruments
     const getFilteredInstruments = () => {
         if (!instruments || !Array.isArray(instruments)) {
-            console.log('⚠️ No instruments or not array');
             return [];
         }
-
-        console.log('🔍 Filtering with:', { searchTerm, selectedDossier });
         
         return instruments
             .map(criterionGroup => {
@@ -159,12 +56,6 @@ const InstrumentPage = () => {
                 const matchesDossier = selectedDossier === 'all' || criterionGroup.dossier_id === selectedDossier;
                 const hasInstruments = criterionGroup.instrumentos && criterionGroup.instrumentos.length > 0;
                 
-                console.log('📋 Criterion:', criterionGroup.nome, {
-                    matchesDossier,
-                    hasInstruments,
-                    instrumentCount: criterionGroup.instrumentos?.length || 0
-                });
-                
                 return matchesDossier && hasInstruments;
             });
     };
@@ -177,8 +68,6 @@ const InstrumentPage = () => {
     
     const totalCriteria = (instruments && Array.isArray(instruments) ? instruments : [])
         .filter(c => c.instrumentos && c.instrumentos.length > 0).length;
-
-    console.log('📊 Stats:', { totalInstruments, totalCriteria, filteredCount: filteredInstruments.length });
 
     if (loading) {
         return (

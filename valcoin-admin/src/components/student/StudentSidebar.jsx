@@ -1,8 +1,8 @@
 // src/components/student/StudentSidebar.jsx
 import React from 'react';
-import { LayoutDashboard, ArrowRightLeft, LogOut, Zap, PiggyBank, Shield, KeyRound } from 'lucide-react';
+import { LayoutDashboard, ArrowRightLeft, Zap, PiggyBank, Shield, KeyRound } from 'lucide-react';
 
-const StudentSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePasswordModal }) => {
+const StudentSidebar = ({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'my-house', label: 'A Minha House', icon: Shield },
@@ -14,8 +14,8 @@ const StudentSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePassw
   ];
 
   return (
-    <div className="w-64 h-screen bg-gray-800 text-white flex flex-col">
-      <div className="p-4 text-2xl font-bold">ValTeen</div>
+    <div className="w-64 h-screen bg-indigo-800 text-indigo-100 flex flex-col">
+      <div className="p-4 text-2xl font-bold text-white">ValTeen</div>
       <nav className="mt-6 flex-1">
         <ul>
           {tabs.map((tab) => (
@@ -23,7 +23,7 @@ const StudentSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePassw
               <a
                 href="#"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center px-4 py-3 ${activeTab === tab.id ? 'bg-gray-700' : ''}`}>
+                className={`flex items-center px-4 py-3 transition-colors duration-200 ${activeTab === tab.id ? 'bg-indigo-700 text-white' : 'hover:bg-indigo-700 text-indigo-100'}`}>
                 <tab.icon className="w-5 h-5 mr-3" />
                 {tab.label}
               </a>
@@ -31,21 +31,7 @@ const StudentSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePassw
           ))}
         </ul>
       </nav>
-      <div className="p-4">
-        <button
-          onClick={openChangePasswordModal}
-          className="flex items-center w-full px-4 py-3 text-left text-gray-400 hover:bg-gray-700"
-        >
-          <KeyRound className="w-5 h-5 mr-3" />
-          Alterar Senha
-        </button>
-        <button
-          onClick={handleLogout}
-          className="flex items-center w-full px-4 py-3 text-left text-red-400 hover:bg-gray-700"
-        >
-          <LogOut className="w-5 h-5 mr-3" />
-          Sair
-        </button>
+      <div className="p-4 space-y-2">
       </div>
     </div>
   );

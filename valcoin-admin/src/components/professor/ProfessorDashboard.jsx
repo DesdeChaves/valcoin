@@ -8,8 +8,9 @@ import StudentEvaluation from './StudentEvaluation'; // Import the new component
 import ProfessorHouseManagement from './ProfessorHouseManagement'; // Import the new component
 import ValCoinIcon from '../icons/ValCoinIcon';
 import ChangePasswordModal from '../ChangePasswordModal';
+import ProfessorHeader from './ProfessorHeader'; // Import ProfessorHeader
 
-const ProfessorDashboard = ({ onLogout }) => {
+const ProfessorDashboard = ({ currentUser, onLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dashboardData, setDashboardData] = useState(null);
   const [users, setUsers] = useState([]);
@@ -359,9 +360,12 @@ const ProfessorDashboard = ({ onLogout }) => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <ProfessorSidebar activeTab={activeTab} setActiveTab={setActiveTab} handleLogout={onLogout} openChangePasswordModal={openChangePasswordModal} />
-      <div className="flex-1 p-6 overflow-auto">
-        {renderContent()}
+      <ProfessorSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <ProfessorHeader onLogout={onLogout} openChangePasswordModal={openChangePasswordModal} currentUser={currentUser} />
+        <main className="flex-1 p-6 overflow-auto">
+          {renderContent()}
+        </main>
       </div>
       <ChangePasswordModal showModal={showChangePasswordModal} closeModal={closeChangePasswordModal} />
     </div>

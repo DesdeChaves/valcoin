@@ -272,8 +272,9 @@ const InstrumentForm = ({ isOpen, onClose, onSave, instrument, professorId }) =>
                                         id="dossie_id"
                                         value={selectedDossierId}
                                         onChange={handleDossierChange}
-                                        className="w-full px-4 py-3 bg-white border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all appearance-none"
+                                        className="w-full px-4 py-3 bg-white border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all appearance-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                                         required
+                                        disabled={!!instrument} // Disable when editing
                                     >
                                         <option value="">Selecione um dossiê</option>
                                         {dossiers.map(d => (
@@ -310,8 +311,9 @@ const InstrumentForm = ({ isOpen, onClose, onSave, instrument, professorId }) =>
                                         name="criterio_id"
                                         value={formData.criterio_id}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all appearance-none"
+                                        className="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all appearance-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                                         required
+                                        disabled={!!instrument} // Disable when editing
                                     >
                                         <option value="">Selecione um critério</option>
                                         {criteria.map(c => (

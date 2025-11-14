@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../Layout/Modal';
 import CounterForm from './CounterForm';
 import { fetchProfessorCounters, saveCounter, updateCounter, deleteCounter } from '../../utils/api';
-import { Plus, ArrowLeft, Search, Filter, BarChart3, Settings, Edit3, Trash2, Eye } from 'lucide-react';
+import { Plus, ArrowLeft, Search, Filter, BarChart3, Edit3, Trash2, Eye } from 'lucide-react'; // Removed Settings icon as Calibrar is removed
 
 const CounterPage = () => {
     const [counters, setCounters] = useState([]);
@@ -230,7 +230,7 @@ const CounterPage = () => {
                                 <p className="text-2xl font-semibold text-gray-800 mt-1">{activeDossiersCount}</p>
                             </div>
                             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                <Settings className="w-6 h-6 text-green-600" />
+                                <BarChart3 className="w-6 h-6 text-green-600" />
                             </div>
                         </div>
                     </div>
@@ -354,14 +354,7 @@ const CounterPage = () => {
                                                         <Eye className="w-4 h-4 mr-1" />
                                                         Resultados
                                                     </Link>
-                                                    <button
-                                                        onClick={() => openEditModal(counter)}
-                                                        className="inline-flex items-center px-3 py-1.5 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors"
-                                                        title="Calibrar"
-                                                    >
-                                                        <Settings className="w-4 h-4 mr-1" />
-                                                        Calibrar
-                                                    </button>
+
                                                     <button
                                                         onClick={() => openEditModal(counter)}
                                                         className="inline-flex items-center px-3 py-1.5 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-colors"

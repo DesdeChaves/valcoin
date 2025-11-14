@@ -10,6 +10,7 @@ import MyHouse from './MyHouse';
 import Legado from './Legado';
 import ValCoinIcon from '../icons/ValCoinIcon';
 import ChangePasswordModal from '../ChangePasswordModal';
+import StudentHeader from './StudentHeader'; // Import StudentHeader
 
 const StudentDashboard = ({ onLogout, currentUser }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -160,9 +161,12 @@ const StudentDashboard = ({ onLogout, currentUser }) => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <StudentSidebar activeTab={activeTab} setActiveTab={setActiveTab} handleLogout={onLogout} openChangePasswordModal={openChangePasswordModal} />
-      <div className="flex-1 p-6 overflow-auto">
-        {renderContent()}
+      <StudentSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <StudentHeader onLogout={onLogout} openChangePasswordModal={openChangePasswordModal} currentUser={currentUser} />
+        <main className="flex-1 p-6 overflow-auto">
+          {renderContent()}
+        </main>
       </div>
       <ChangePasswordModal showModal={showChangePasswordModal} closeModal={closeChangePasswordModal} />
     </div>

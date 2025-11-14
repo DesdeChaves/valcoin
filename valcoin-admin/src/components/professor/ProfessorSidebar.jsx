@@ -1,8 +1,8 @@
 // src/components/professor/ProfessorSidebar.jsx
 import React from 'react';
-import { LayoutDashboard, ArrowRightLeft, Zap, LogOut, Award, KeyRound, Settings } from 'lucide-react';
+import { LayoutDashboard, ArrowRightLeft, Zap, Award, KeyRound, Settings } from 'lucide-react';
 
-const ProfessorSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePasswordModal }) => {
+const ProfessorSidebar = ({ activeTab, setActiveTab }) => {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'manage-house', label: 'Gerir a minha Casa', icon: Settings },
@@ -12,8 +12,8 @@ const ProfessorSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePas
   ];
 
   return (
-    <div className="w-64 h-screen bg-gray-800 text-white flex flex-col">
-      <div className="p-4 text-2xl font-bold">ValCoin Professor</div>
+    <div className="w-64 h-screen bg-indigo-800 text-indigo-100 flex flex-col">
+      <div className="p-4 text-2xl font-bold text-white">ValCoin Professor</div>
       <nav className="mt-6 flex-1">
         <ul>
           {tabs.map((tab) => (
@@ -21,7 +21,7 @@ const ProfessorSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePas
               <a
                 href="#"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center px-4 py-3 ${activeTab === tab.id ? 'bg-gray-700' : ''}`}>
+                className={`flex items-center px-4 py-3 transition-colors duration-200 ${activeTab === tab.id ? 'bg-indigo-700 text-white' : 'hover:bg-indigo-700 text-indigo-100'}`}>
                 <tab.icon className="w-5 h-5 mr-3" />
                 {tab.label}
               </a>
@@ -29,21 +29,7 @@ const ProfessorSidebar = ({ activeTab, setActiveTab, handleLogout, openChangePas
           ))}
         </ul>
       </nav>
-      <div className="p-4">
-        <button
-          onClick={openChangePasswordModal}
-          className="flex items-center w-full px-4 py-3 text-left text-gray-400 hover:bg-gray-700"
-        >
-          <KeyRound className="w-5 h-5 mr-3" />
-          Alterar Senha
-        </button>
-        <button
-          onClick={handleLogout}
-          className="flex items-center w-full px-4 py-3 text-left text-red-400 hover:bg-gray-700"
-        >
-          <LogOut className="w-5 h-5 mr-3" />
-          Sair
-        </button>
+      <div className="p-4 space-y-2">
       </div>
     </div>
   );

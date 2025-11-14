@@ -26,6 +26,7 @@ const App = () => {
   };
 
   const handleLogout = () => {
+    console.log('Executing handleLogout...'); // Add this line
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
     setToken(null);

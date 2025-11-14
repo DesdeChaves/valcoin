@@ -1,18 +1,18 @@
 import React from 'react';
-import DefaultSidebar from './Sidebar';
-import Header from './Header';
-import Footer from './Footer';
+import { Outlet } from 'react-router-dom'; // Import Outlet
+import FeedbackSidebar from './FeedbackSidebar'; // Import new sidebar
+import FeedbackHeader from './FeedbackHeader';   // Import new header
 
-const Layout = ({ children, sidebar: Sidebar = DefaultSidebar }) => {
+const Layout = ({ onLogout, currentUser, userType, activeTab, setActiveTab }) => {
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar />
+      <FeedbackSidebar activeTab={activeTab} setActiveTab={setActiveTab} userType={userType} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-6">
-          {children}
+        <FeedbackHeader onLogout={onLogout} currentUser={currentUser} />
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6"> {/* Changed bg-gray-200 to bg-gray-100 */}
+          <Outlet /> {/* Render nested routes here */}
         </main>
-        <Footer />
+        {/* Removed Footer */}
       </div>
     </div>
   );

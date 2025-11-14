@@ -1,129 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { fetchProfessorCriteria, saveCriterion, updateCriterion, deleteCriterion } from '../../utils/api';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '../Layout/Modal';
 import CriterionForm from './CriterionForm';
+import useCriterionManagement from '../../hooks/useCriterionManagement'; // Import the custom hook
 
 const CriterionPage = () => {
-    const [criteria, setCriteria] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingCriterion, setEditingCriterion] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedDossier, setSelectedDossier] = useState('all');
-    const navigate = useNavigate();
-
-    const professorId = JSON.parse(localStorage.getItem('user'))?.id;
-
-    const fetchCriteria = async () => {
-        if (!professorId) {
-            setError('ID do professor não encontrado. Por favor, faça login novamente.');
-            setLoading(false);
-            return;
-        }
-
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await fetchProfessorCriteria(professorId);
-            console.log('fetchProfessorCriteria response:', response); // Debug
-            let data;
-            if (response && typeof response === 'object') {
-                if ('data' in response) {
-                    data = response.data;
-                } else {
-                    data = response;
-                }
-            } else {
-                data = [];
-            }
-            setCriteria(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error('Error fetching criteria:', err);
-            setError('Erro ao carregar critérios. Por favor, tente novamente.');
-            setCriteria([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchCriteria();
-    }, [professorId]);
-
-    const openCreateModal = () => {
-        setEditingCriterion(null);
-        setIsModalOpen(true);
-    };
-
-    const openEditModal = (criterion) => {
-        setEditingCriterion(criterion);
-        setIsModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setEditingCriterion(null);
-    };
-
-    const handleSaveCriterion = async (criterionData) => {
-        try {
-            if (editingCriterion) {
-                await updateCriterion(editingCriterion.id, criterionData);
-            } else {
-                await saveCriterion(criterionData);
-            }
-            closeModal();
-            fetchCriteria();
-        } catch (err) {
-            console.error('Error saving criterion:', err);
-            alert('Erro ao salvar critério.');
-        }
-    };
-
-    const handleDeleteCriterion = async (criterionId) => {
-        if (window.confirm('Tem certeza que deseja apagar este critério?')) {
-            try {
-                await deleteCriterion(criterionId);
-                fetchCriteria();
-            } catch (err) {
-                console.error('Error deleting criterion:', err);
-                alert('Erro ao apagar critério.');
-            }
-        }
-    };
-
-    // Filtrar critérios com segurança
-    const getFilteredCriteria = () => {
-        if (!Array.isArray(criteria)) return [];
-
-        return criteria
-            .map(dossierGroup => ({
-                ...dossierGroup,
-                criterios: Array.isArray(dossierGroup.criterios)
-                    ? dossierGroup.criterios.filter(criterion => {
-                          const matchesSearch =
-                              (criterion.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              (dossierGroup.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                              (dossierGroup.subject_name || '').toLowerCase().includes(searchTerm.toLowerCase());
-                          const matchesDossier =
-                              selectedDossier === 'all' || dossierGroup.id === selectedDossier;
-                          return matchesSearch && matchesDossier;
-                      })
-                    : []
-            }))
-            .filter(dossierGroup => dossierGroup.criterios.length > 0);
-    };
-
-    const filteredCriteria = getFilteredCriteria();
-
-    // Estatísticas seguras
-    const totalCriteria = Array.isArray(criteria)
-        ? criteria.reduce((acc, d) => acc + (Array.isArray(d.criterios) ? d.criterios.length : 0), 0)
-        : 0;
-
-    const totalDossiers = Array.isArray(criteria) ? criteria.length : 0;
+    const {
+        criteria, // Keep criteria for stats calculation if needed, or move stats to hook
+        loading,
+        error,
+        isModalOpen,
+        editingCriterion,
+        searchTerm,
+        setSearchTerm,
+        selectedDossier,
+        setSelectedDossier,
+        fetchCriteria,
+        openCreateModal,
+        openEditModal,
+        closeModal,
+        handleSaveCriterion,
+        handleDeleteCriterion,
+        navigate,
+        professorId,
+        filteredCriteria, // From the hook
+        totalCriteria,    // From the hook
+        totalDossiers,    // From the hook
+        dossiersForFilter, // From the hook
+    } = useCriterionManagement();
 
     // Loading
     if (loading) {
@@ -254,32 +158,17 @@ const CriterionPage = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Dossiê
                             </label>
-                            {(() => {
-                                const uniqueDossiers = Array.isArray(criteria)
-                                    ? [...new Map(
-                                          criteria.map(d => [d.id, { id: d.id, name: `${d.nome} - ${d.subject_name}` }])
-                                      ).values()]
-                                    : [];
-
-                                const dossiers = [
-                                    { id: 'all', name: 'Todos os Dossiês' },
-                                    ...uniqueDossiers
-                                ];
-
-                                return (
-                                    <select
-                                        value={selectedDossier}
-                                        onChange={(e) => setSelectedDossier(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                    >
-                                        {dossiers.map((doss) => (
-                                            <option key={doss.id} value={doss.id}>
-                                                {doss.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                );
-                            })()}
+                            <select
+                                value={selectedDossier}
+                                onChange={(e) => setSelectedDossier(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            >
+                                {dossiersForFilter.map((doss) => (
+                                    <option key={doss.id} value={doss.id}>
+                                        {doss.name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
                 </div>

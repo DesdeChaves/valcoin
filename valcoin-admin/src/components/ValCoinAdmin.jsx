@@ -1023,7 +1023,7 @@ case 'tapTransactions':
     <div className="flex h-screen bg-gray-100">
       <Sidebar tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onLogout={onLogout} openChangePasswordModal={openChangePasswordModal} />
+        <Header currentUser={currentUser} openChangePasswordModal={openChangePasswordModal} onLogout={onLogout} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
           {isLoading && <p>Loading...</p>}
           {error && <p className="text-red-500">{error}</p>}

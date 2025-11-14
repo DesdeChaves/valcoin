@@ -425,10 +425,10 @@ app.patch('/api/admin/student-loans/:id/reject', authenticateAdminOrProfessor, r
 // ============================================================================
 
 // Dashboard route
-app.get('/professor/feedback-dashboard', authenticateJWT, authorizeProfessor, getProfessorFeedbackDashboard);
+app.get('/api/feedback/professor/feedback-dashboard', authenticateJWT, authorizeProfessor, getProfessorFeedbackDashboard);
 
 
-app.get('/studentsprofessor/disciplina/:disciplineId/alunos', 
+app.get('/api/feedback/studentsprofessor/disciplina/:disciplineId/alunos', 
   authenticateJWT, 
   authorizeProfessor,  // <-- PROFESSOR pode acessar
   async (req, res) => {
@@ -470,7 +470,7 @@ app.get('/studentsprofessor/disciplina/:disciplineId/alunos',
 
 
 // Rota 1: Buscar todas as notas de um aluno em todos os dossiês
-app.get('/studentprofessor/:studentId/all-grades', 
+app.get('/api/feedback/studentprofessor/:studentId/all-grades', 
   authenticateJWT,
   authorizeProfessor,
   async (req, res) => {
@@ -520,7 +520,7 @@ app.get('/studentprofessor/:studentId/all-grades',
 );
 
 // Rota 2: Buscar notas de um aluno em um dossiê específico
-app.get('/studentprofessor/:studentId/dossier/:dossierId/grades', 
+app.get('/api/feedback/studentprofessor/:studentId/dossier/:dossierId/grades', 
   authenticateJWT,
   authorizeProfessor,
   async (req, res) => {
@@ -561,12 +561,12 @@ app.get('/studentprofessor/:studentId/dossier/:dossierId/grades',
 
 
 // Mount feedback system routes (all require professor authentication)
-app.use('/contadores', authenticateJWT, authorizeProfessor, contadoresRoutes);
-app.use('/criterios', authenticateJWT, authorizeProfessor, criteriosRoutes);
-app.use('/dossies', authenticateJWT, authorizeProfessor, dossiesRoutes);
-app.use('/instrumentos', authenticateJWT, authorizeProfessor, instrumentosRoutes);
-app.use('/resultados', authenticateJWT, authorizeProfessor, resultadosRoutes);
-app.use('/momentos-avaliacao', authenticateJWT, authorizeProfessor, momentosAvaliacaoRoutes);
+app.use('/api/feedback/contadores', authenticateJWT, authorizeProfessor, contadoresRoutes);
+app.use('/api/feedback/criterios', authenticateJWT, authorizeProfessor, criteriosRoutes);
+app.use('/api/feedback/dossies', authenticateJWT, authorizeProfessor, dossiesRoutes);
+app.use('/api/feedback/instrumentos', authenticateJWT, authorizeProfessor, instrumentosRoutes);
+app.use('/api/feedback/resultados', authenticateJWT, authorizeProfessor, resultadosRoutes);
+app.use('/api/feedback/momentos-avaliacao', authenticateJWT, authorizeProfessor, momentosAvaliacaoRoutes);
 
 // Professor-specific user routes (disciplines, dossiers, criteria, instruments, counters)
 // These routes are defined in users.js router and include:
@@ -575,7 +575,7 @@ app.use('/momentos-avaliacao', authenticateJWT, authorizeProfessor, momentosAval
 // - GET /:userId/criteria/all
 // - GET /:userId/instruments/all
 // - GET /:userId/counters/all
-app.use('/users', authenticateJWT, authorizeProfessor, usersRouter);
+app.use('/api/feedback/users', authenticateJWT, authorizeProfessor, usersRouter);
 
 // ============================================================================
 // FEEDBACK ROUTES - Student Assessment View
@@ -589,7 +589,7 @@ app.get('/api/student/feedback-dashboard', authenticateJWT, authorizeStudent, (r
   });
 });
 
-app.use('/students', authenticateJWT, authorizeStudent, feedbackStudentsRoutes);
+app.use('/api/feedback/students', authenticateJWT, authorizeStudent, feedbackStudentsRoutes);
 
 // ============================================================================
 // ADMIN ROUTES - Dashboard

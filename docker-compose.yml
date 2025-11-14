@@ -92,7 +92,7 @@ services:
     build:
       context: ./valcoin-store/server
       dockerfile: Dockerfile
-    image: desdechaves/valcoin-store-server
+    #image: desdechaves/valcoin-store-server
     container_name: valcoin_store_server
     environment:
       NODE_ENV: production
@@ -121,7 +121,7 @@ services:
       dockerfile: Dockerfile.client
       args:
         PUBLIC_URL: /store
-    image: desdechaves/valcoin-store-client
+    #image: desdechaves/valcoin-store-client
     container_name: valcoin_store_client
     networks:
       - valcoin-network
@@ -141,7 +141,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./inicio.html:/etc/nginx/html/inicio.html:ro
+      - ./portal/build:/usr/share/nginx/html
     networks:
       - valcoin-network
     depends_on:
