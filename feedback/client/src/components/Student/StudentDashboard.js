@@ -209,7 +209,7 @@ const StudentDashboard = () => {
                                         </div>
 
                                         <Link
-                                            to={`discipline/${discipline.id}`}
+                                            to={`../discipline/${discipline.id}`}
                                             className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium group-hover:shadow-md"
                                         >
                                             <span className="flex items-center justify-center">
