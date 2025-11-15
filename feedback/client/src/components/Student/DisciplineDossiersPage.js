@@ -286,9 +286,8 @@ const DisciplineDossiersPage = () => {
                                     {/* Card Body */}
                                     <div className="p-4">
                                         {dossier.ativo ? (
-                                            <Link 
-                                                to={`/student/dossier/${dossier.id}/grades`}
-                                                className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium group-hover:shadow-md"
+                                                                                        <Link
+                                                                                            to={`../dossier/${dossier.id}/grades`}                                                className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium group-hover:shadow-md"
                                             >
                                                 <span className="flex items-center justify-center">
                                                     Ver Notas

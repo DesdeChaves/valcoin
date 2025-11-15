@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db.js');
+const { _createTransaction } = require('../transactions'); // Import the internal transaction creation function
 
 // ==================== CONTADORES CRUD ====================
 
@@ -210,21 +211,30 @@ router.get('/contadore/:contadorId/delete', async (req, res) => {
  * Regista um tap/contagem para um aluno
  */
 router.post('/contador/regista', async (req, res) => {
+  const client = await db.getClient();
   try {
-    const { aluno_id, contador_id } = req.body;
-    const userId = req.user.id;
+    await client.query('BEGIN');
+    console.log('[REGISTA] Starting transaction for tap registration.');
+
+    const { aluno_id, contador_id, incremento, counterName } = req.body;
+    const professorId = req.user.id;
+
+    console.log(`[REGISTA] Received tap for Aluno: ${aluno_id}, Contador: ${contador_id}, Incremento: ${incremento}, CounterName: ${counterName}`);
 
     // Validação
-    if (!aluno_id || !contador_id) {
+    if (!aluno_id || !contador_id || incremento === undefined || !counterName) {
+      await client.query('ROLLBACK');
+      console.error('[REGISTA] Validation error: Missing required fields.');
       return res.status(400).json({
         error: 'Validation error',
-        details: 'aluno_id and contador_id are required'
+        details: 'aluno_id, contador_id, incremento, and counterName are required'
       });
     }
 
     // Verificar se aluno existe e pertence à turma do contador
-    const alunoCheck = await db.query(`
-      SELECT u.id
+    console.log('[REGISTA] Checking student and counter access...');
+    const alunoCheck = await client.query(`
+      SELECT u.id, u.saldo
       FROM users u
       JOIN aluno_disciplina ad ON u.id = ad.aluno_id
       JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id
@@ -232,38 +242,122 @@ router.post('/contador/regista', async (req, res) => {
       JOIN dossie d ON pdt.id = d.professor_disciplina_turma_id
       JOIN contador c ON d.id = c.dossie_id
       WHERE u.id = $1 AND c.id = $2 AND pdt.professor_id = $3 AND u.tipo_utilizador = 'ALUNO'
-    `, [aluno_id, contador_id, userId]);
+    `, [aluno_id, contador_id, professorId]);
 
     if (alunoCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      console.error('[REGISTA] Access denied: Aluno not found or not in counter\'s discipline.');
       return res.status(403).json({ error: 'Access denied or Aluno not found in counter\'s discipline' });
     }
+    const alunoSaldo = parseFloat(alunoCheck.rows[0].saldo);
+    console.log(`[REGISTA] Aluno ${aluno_id} found with saldo: ${alunoSaldo}`);
 
     // Verificar se contador existe e pertence ao professor
-    const contadorCheck = await db.query(`
-      SELECT c.* 
+    const contadorCheck = await client.query(`
+      SELECT c.*, d.professor_disciplina_turma_id
       FROM contador c
       JOIN dossie d ON d.id = c.dossie_id
       JOIN professor_disciplina_turma pdt ON pdt.id = d.professor_disciplina_turma_id
       WHERE c.id = $1 AND pdt.professor_id = $2 AND d.ativo = true
-    `, [contador_id, userId]);
+    `, [contador_id, professorId]);
 
     if (contadorCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      console.error('[REGISTA] Access denied: Contador not found or not active.');
       return res.status(403).json({ error: 'Access denied or Contador not found' });
     }
+    const contadorDetails = contadorCheck.rows[0];
+    console.log(`[REGISTA] Contador ${contador_id} found. Details: ${JSON.stringify(contadorDetails)}`);
+
+    // Fetch disciplina_id
+    console.log('[REGISTA] Fetching disciplina_id...');
+    const disciplinaResult = await client.query(`
+      SELECT dt.disciplina_id
+      FROM disciplina_turma dt
+      JOIN professor_disciplina_turma pdt ON dt.id = pdt.disciplina_turma_id
+      WHERE pdt.id = $1
+    `, [contadorDetails.professor_disciplina_turma_id]);
+    const disciplinaId = disciplinaResult.rows[0]?.disciplina_id;
+
+    if (!disciplinaId) {
+      await client.query('ROLLBACK');
+      console.error('[REGISTA] Error: Could not determine discipline ID for the counter.');
+      return res.status(500).json({ error: 'Could not determine discipline ID for the counter.' });
+    }
+    console.log(`[REGISTA] Disciplina ID: ${disciplinaId}`);
 
     // Registar tap
-    const result = await db.query(
+    console.log('[REGISTA] Inserting tap record...');
+    const tapResult = await client.query(
       'INSERT INTO contador_registo (aluno_id, contador_id, professor_id, created_at) VALUES ($1, $2, $3, NOW()) RETURNING *',
-      [aluno_id, contador_id, userId]
+      [aluno_id, contador_id, professorId]
     );
+    console.log('[REGISTA] Tap record inserted.');
+
+    // =================================================================
+    // Valcoin Transaction Logic
+    // =================================================================
+    const transactionAmount = Math.abs(parseFloat(incremento));
+    let transactionData = {};
+    let valcoinTransaction = null;
+
+    if (parseFloat(incremento) > 0) {
+      console.log('[REGISTA] Positive increment: Professor to Student transaction.');
+      transactionData = {
+        utilizador_origem_id: professorId,
+        utilizador_destino_id: aluno_id,
+        montante: transactionAmount,
+        descricao: `[TAP] ${counterName}`,
+        tipo: 'DEBITO', // From professor's perspective
+        status: 'APROVADA',
+        taxa_iva_ref: 'tipo 1', // As per request
+        disciplina_id: disciplinaId,
+        icon: contadorDetails.icone || null,
+      };
+      valcoinTransaction = await _createTransaction(transactionData, client);
+      console.log('[REGISTA] Valcoin transaction (Professor to Student) created.');
+    } else if (parseFloat(incremento) < 0) {
+      console.log('[REGISTA] Negative increment: Student to Professor transaction.');
+      // Check student balance
+      if (alunoSaldo < transactionAmount) {
+        await client.query('ROLLBACK');
+        console.error(`[REGISTA] Student ${aluno_id} has insufficient balance (${alunoSaldo}) for transaction amount (${transactionAmount}).`);
+        return res.status(400).json({ error: 'Saldo insuficiente do aluno para esta transação.' });
+      }
+
+      transactionData = {
+        utilizador_origem_id: aluno_id,
+        utilizador_destino_id: professorId,
+        montante: transactionAmount,
+        descricao: `[TAP] ${counterName}`,
+        tipo: 'DEBITO', // From student's perspective
+        status: 'APROVADA',
+        taxa_iva_ref: 'tipo 1', // As per request: "iva do professor para o user do iva"
+        disciplina_id: disciplinaId,
+        icon: contadorDetails.icone || null,
+      };
+      valcoinTransaction = await _createTransaction(transactionData, client);
+      console.log('[REGISTA] Valcoin transaction (Student to Professor) created.');
+    } else {
+      // Incremento is 0, no Valcoin transaction needed
+      console.log('[REGISTA] Zero increment: No Valcoin transaction needed.');
+    }
+
+    await client.query('COMMIT');
+    console.log('[REGISTA] Transaction committed successfully.');
 
     res.status(201).json({
-      notaTap: result.rows[0],
-      contador: contadorCheck.rows[0]
+      notaTap: tapResult.rows[0],
+      contador: contadorDetails,
+      valcoinTransaction: valcoinTransaction
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Internal server error' });
+    await client.query('ROLLBACK');
+    console.error('Error in /contador/regista, transaction rolled back:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  } finally {
+    client.release();
+    console.log('[REGISTA] Database client released.');
   }
 });
 /**

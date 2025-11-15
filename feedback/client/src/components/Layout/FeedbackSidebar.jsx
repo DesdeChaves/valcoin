@@ -13,7 +13,7 @@ const FeedbackSidebar = ({ activeTab, setActiveTab, userType }) => {
 
   const studentTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { id: 'disciplines', label: 'Disciplinas', icon: BookOpen, path: '/discipline' }, // Generic path for now
+    { id: 'disciplines', label: 'Disciplinas', icon: BookOpen, path: '/disciplines' }, // Generic path for now
     { id: 'counters', label: 'Contadores', icon: Hash, path: '/counters' },
   ];
 

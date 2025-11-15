@@ -39,14 +39,14 @@ const DossierCountersPage = () => {
         }
     }, [professorId, dossieId]);
 
-    const handleRegisterTap = async (alunoId, contadorId) => {
+    const handleRegisterTap = async (alunoId, contadorId, incremento, counterName) => {
         try {
-            await registerTap(alunoId, contadorId);
+            await registerTap(alunoId, contadorId, incremento, counterName);
             // Refresh data after successful tap
             fetchStudentsAndCounters();
         } catch (err) {
             console.error('Error registering tap:', err);
-            alert('Error registering tap.');
+            alert(`Error registering tap: ${err.response?.data?.error || err.message}`);
         }
     };
 
@@ -292,7 +292,7 @@ const DossierCountersPage = () => {
                                         contagem={momento.contagem}
                                         incremento={momento.incremento}
                                         tipinho={momento.tipo === tipoP}
-                                        onRegisterTap={handleRegisterTap}
+                                        onRegisterTap={(alunoId, contadorId) => handleRegisterTap(alunoId, contadorId, momento.incremento, momento.slogan)}
                                         onNotAllowed={() => console.log('Tap not allowed')}
                                         periodoInativacaoSegundos={momento.periodo_inativacao_segundos}
                                         tempoInativacaoRestante={momento.tempoInativacaoRestante}

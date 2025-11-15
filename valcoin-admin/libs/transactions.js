@@ -180,39 +180,41 @@ const getTransactionsByGroupId = async (req, res) => {
     }
 };
 
-const createTransaction = async (req, res) => {
+const _createTransaction = async (transactionData, client) => {
+    const errors = await validateTransaction(transactionData, client);
+    if (errors.length > 0) {
+        throw new Error(errors.join(', '));
+    }
+
+    const transactionGroupId = uuidv4();
+    const { rows } = await client.query(
+        'INSERT INTO transactions (transaction_group_id, utilizador_origem_id, utilizador_destino_id, montante, tipo, status, descricao, taxa_iva_ref, icon, disciplina_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+        [transactionGroupId, transactionData.utilizador_origem_id, transactionData.utilizador_destino_id, parseFloat(transactionData.montante), transactionData.tipo, transactionData.status || 'PENDENTE', transactionData.descricao, transactionData.taxa_iva_ref || 'isento', transactionData.icon || null, transactionData.disciplina_id || null]
+    );
+    const newTransaction = rows[0];
+
+    // Update last activity date for student
+    const originUser = await getUserById(newTransaction.utilizador_origem_id, client);
+    const excludedTransactionTypes = ['JUROS_POUPANCA', 'JUROS_EMPRESTIMO', 'PAGAMENTO_EMPRESTIMO'];
+    if (originUser.tipo_utilizador === 'ALUNO' && !excludedTransactionTypes.includes(newTransaction.tipo) && newTransaction.descricao !== 'Taxa de inatividade') {
+        await client.query('UPDATE users SET last_activity_date = NOW() WHERE id = $1', [newTransaction.utilizador_origem_id]);
+    }
+
+    if (newTransaction.status === 'APROVADA') {
+        await updateUserBalancesOnApproval(newTransaction, client);
+    }
+
+    await invalidateCachesForTransaction(newTransaction.utilizador_origem_id, newTransaction.utilizador_destino_id);
+
+    return newTransaction;
+};
+
+const createTransactionApiHandler = async (req, res) => {
     const client = await db.getClient();
     try {
         await client.query('BEGIN');
-
-        const transactionData = req.body;
-        const errors = await validateTransaction(transactionData, client);
-        if (errors.length > 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ error: errors.join(', ') });
-        }
-
-        const transactionGroupId = uuidv4();
-        const { rows } = await client.query(
-            'INSERT INTO transactions (transaction_group_id, utilizador_origem_id, utilizador_destino_id, montante, tipo, status, descricao, taxa_iva_ref, icon) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-            [transactionGroupId, transactionData.utilizador_origem_id, transactionData.utilizador_destino_id, parseFloat(transactionData.montante), 'DEBITO', transactionData.status || 'PENDENTE', transactionData.descricao, transactionData.taxa_iva_ref || 'isento', transactionData.icon || null]
-        );
-        const newTransaction = rows[0];
-
-        // Update last activity date for student
-        const originUser = await getUserById(newTransaction.utilizador_origem_id, client);
-        const excludedTransactionTypes = ['JUROS_POUPANCA', 'JUROS_EMPRESTIMO', 'PAGAMENTO_EMPRESTIMO'];
-        if (originUser.tipo_utilizador === 'ALUNO' && !excludedTransactionTypes.includes(newTransaction.tipo) && newTransaction.descricao !== 'Taxa de inatividade') {
-            await client.query('UPDATE users SET last_activity_date = NOW() WHERE id = $1', [newTransaction.utilizador_origem_id]);
-        }
-
-        if (newTransaction.status === 'APROVADA') {
-            await updateUserBalancesOnApproval(newTransaction, client);
-        }
-
+        const newTransaction = await _createTransaction(req.body, client);
         await client.query('COMMIT');
-        await invalidateCachesForTransaction(newTransaction.utilizador_origem_id, newTransaction.utilizador_destino_id);
-
         const enrichedTransaction = await enrichTransactions([newTransaction]);
         res.status(201).json(enrichedTransaction[0]);
     } catch (err) {
@@ -359,7 +361,8 @@ module.exports = {
     getTransactions,
     getTransactionById,
     getTransactionsByGroupId,
-    createTransaction,
+    createTransaction: createTransactionApiHandler, // Export the API handler
+    _createTransaction, // Export the internal function
     updateTransaction,
     deleteTransaction,
     approveTransaction,

@@ -10,6 +10,7 @@ import InstrumentDetailsPage from './components/Professor/InstrumentDetailsPage'
 import CounterPage from './components/Professor/CounterPage';
 import StudentDashboard from './components/Student/StudentDashboard';
 import DisciplineDossiersPage from './components/Student/DisciplineDossiersPage';
+import StudentDisciplinesPage from './components/Student/StudentDisciplinesPage';
 import DossierGradeDetailsPage from './components/Student/DossierGradeDetailsPage';
 import StudentCountersPage from './components/Student/StudentCountersPage';
 import DossierManagementPage from './components/Professor/DossierManagementPage';
@@ -100,6 +101,7 @@ function App() {
             <>
               <Route index element={<StudentDashboard />} /> {/* Default route for student */}
               <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="disciplines" element={<StudentDisciplinesPage />} />
               <Route path="discipline/:disciplineId" element={<DisciplineDossiersPage />} />
               <Route path="dossier/:dossierId/grades" element={<DossierGradeDetailsPage />} />
               <Route path="counters" element={<StudentCountersPage />} />

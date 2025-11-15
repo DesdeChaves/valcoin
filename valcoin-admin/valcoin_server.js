@@ -34,11 +34,12 @@ const {
   getTransactions,
   getTransactionById,
   getTransactionsByGroupId,
-  createTransaction,
+  createTransaction: createTransactionApiHandler, // Renamed import
   updateTransaction,
   deleteTransaction,
   approveTransaction,
   rejectTransaction,
+  _createTransaction, // Import the internal function
 } = require('./libs/transactions');
 
 const {
@@ -616,7 +617,7 @@ app.delete('/api/users/:id', authenticateAdminOrProfessor, deleteUser);
 app.get('/api/transactions', authenticateAdminOrProfessor, getTransactions);
 app.get('/api/transactions/:id', authenticateAdminOrProfessor, getTransactionById);
 app.get('/api/transactions/group/:groupId', authenticateAdminOrProfessor, getTransactionsByGroupId);
-app.post('/api/transactions', authenticateAdminOrProfessor, createTransaction);
+app.post('/api/transactions', authenticateAdminOrProfessor, createTransactionApiHandler);
 app.put('/api/transactions/:id', authenticateAdminOrProfessor, updateTransaction);
 app.delete('/api/transactions/:id', authenticateAdminOrProfessor, deleteTransaction);
 app.patch('/api/transactions/:id/approve', authenticateAdminOrProfessor, approveTransaction);

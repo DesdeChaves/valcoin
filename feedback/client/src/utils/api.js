@@ -285,7 +285,7 @@ export const fetchCounterDetails = (counterId) => handleRequest(() => feedbackCl
 export const saveCounter = (counterData) => handleRequest(() => feedbackClient.post(`/contadores/contador/save`, counterData), 'saveCounter');
 export const updateCounter = (counterId, counterData) => handleRequest(() => feedbackClient.post(`/contadores/contadore/${counterId}/atualiza`, counterData), 'updateCounter');
 export const deleteCounter = (counterId) => handleRequest(() => feedbackClient.get(`/contadores/contador/${counterId}/delete?hard=true`), 'deleteCounter');
-export const registerTap = (alunoId, contadorId) => handleRequest(() => feedbackClient.post(`/contadores/contador/regista`, { aluno_id: alunoId, contador_id: contadorId }), 'registerTap');
+export const registerTap = (alunoId, contadorId, incremento, counterName) => handleRequest(() => feedbackClient.post(`/contadores/contador/regista`, { aluno_id: alunoId, contador_id: contadorId, incremento, counterName }), 'registerTap');
 export const fetchDossierCounters = (dossieId) => handleRequest(() => feedbackClient.get(`/contadores/dossie/${dossieId}/contadores`), 'fetchDossierCounters');
 export const fetchCountersByType = (dossieId, tipo) => handleRequest(() => feedbackClient.get(`/contadores/dossie/${dossieId}/contadores/tipo/${tipo}`), 'fetchCountersByType');
 
