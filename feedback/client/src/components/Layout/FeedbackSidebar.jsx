@@ -9,11 +9,13 @@ const FeedbackSidebar = ({ activeTab, setActiveTab, userType }) => {
     { id: 'criteria', label: 'Critérios', icon: List, path: '/criteria' },
     { id: 'instruments', label: 'Instrumentos', icon: Settings, path: '/instruments' },
     { id: 'counters', label: 'Contadores', icon: Hash, path: '/counters' },
+    { id: 'competencies', label: 'Competências', icon: GraduationCap, path: '/competencies' },
   ];
 
   const studentTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-    { id: 'disciplines', label: 'Disciplinas', icon: BookOpen, path: '/disciplines' }, // Generic path for now
+    { id: 'disciplines', label: 'Disciplinas', icon: BookOpen, path: '/disciplines' },
+    { id: 'competencies', label: 'Competências', icon: GraduationCap, path: '/competencies' },
     { id: 'counters', label: 'Contadores', icon: Hash, path: '/counters' },
   ];
 

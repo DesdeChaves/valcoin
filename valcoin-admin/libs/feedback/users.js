@@ -188,6 +188,7 @@ router.get('/:id/disciplines', async (req, res) => {
     const { rows } = await db.query(`
       SELECT
           pdt.id AS professor_disciplina_turma_id,
+          pdt.disciplina_turma_id,
           s.id AS subject_id,
           s.nome AS subject_name,
           s.codigo AS subject_code,

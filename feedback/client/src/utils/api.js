@@ -64,7 +64,7 @@ setupInterceptors(feedbackClient);
 // HELPER FUNCTIONS
 // ============================================================================
 
-const handleRequest = async (request, endpointName) => {
+export const handleRequest = async (request, endpointName) => {
   console.log(`Making API request to ${endpointName}`);
   try {
     const response = await request();

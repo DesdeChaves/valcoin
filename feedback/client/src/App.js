@@ -13,6 +13,7 @@ import DisciplineDossiersPage from './components/Student/DisciplineDossiersPage'
 import StudentDisciplinesPage from './components/Student/StudentDisciplinesPage';
 import DossierGradeDetailsPage from './components/Student/DossierGradeDetailsPage';
 import StudentCountersPage from './components/Student/StudentCountersPage';
+import StudentCompetenciesPage from './components/Student/StudentCompetenciesPage';
 import DossierManagementPage from './components/Professor/DossierManagementPage';
 
 import CriteriaManagementPage from './components/Professor/CriteriaManagementPage';
@@ -20,6 +21,7 @@ import CriteriaManagementPage from './components/Professor/CriteriaManagementPag
 import InstrumentManagementPage from './components/Professor/InstrumentManagementPage';
 
 import CounterManagementPage from './components/Professor/CounterManagementPage';
+import CompetenciesPage from './components/Professor/CompetenciesPage';
 
 import GradesPage from './components/Professor/GradesPage';
 import AllDossiersPage from './components/Professor/AllDossiersPage';
@@ -78,6 +80,7 @@ function App() {
               <Route path="instruments" element={<InstrumentPage />} />
               <Route path="details" element={<InstrumentDetailsPage />} />
               <Route path="counters" element={<CounterPage />} />
+              <Route path="competencies" element={<CompetenciesPage />} />
               <Route path="dossiers/all" element={<AllDossiersPage />} />
               <Route path="criteria/all" element={<AllCriteriaPage />} />
               <Route path="instruments/all" element={<AllInstrumentsPage />} />
@@ -105,6 +108,7 @@ function App() {
               <Route path="discipline/:disciplineId" element={<DisciplineDossiersPage />} />
               <Route path="dossier/:dossierId/grades" element={<DossierGradeDetailsPage />} />
               <Route path="counters" element={<StudentCountersPage />} />
+              <Route path="competencies" element={<StudentCompetenciesPage />} />
             </>
           )}
           <Route path="*" element={<Navigate to="/feedback/dashboard" replace />} /> {/* Redirect to dashboard if route not found */}

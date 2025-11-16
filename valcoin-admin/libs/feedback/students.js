@@ -258,4 +258,63 @@ router.get('/:studentId/all-grades', async (req, res) => {
     }
 });
 
+// GET all competency evaluations for a student
+router.get('/:studentId/competencies/evaluations', async (req, res) => {
+    const { studentId } = req.params;
+    try {
+        const result = await db.query(`
+            SELECT
+                vpa.aluno_id,
+                vpa.aluno_nome,
+                vpa.competencia_id,
+                vpa.competencia_codigo,
+                vpa.competencia_nome,
+                vpa.dominio,
+                vpa.disciplina_nome,
+                vpa.nivel_atual,
+                vpa.ultima_avaliacao,
+                vpa.observacoes,
+                vpa.medida_educativa,
+                vpa.aluno_tem_medida_educativa
+            FROM
+                v_progresso_aluno_atual vpa
+            WHERE
+                vpa.aluno_id = $1
+            ORDER BY
+                nivel_proficiencia_to_number(vpa.nivel_atual) ASC, vpa.disciplina_nome, vpa.competencia_nome;
+        `, [studentId]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error fetching student competency evaluations:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// GET historical proficiency levels for a specific student, competency, and discipline
+router.get('/:studentId/disciplines/:disciplinaTurmaId/competencies/:competencyId/history', async (req, res) => {
+    const { studentId, disciplinaTurmaId, competencyId } = req.params;
+    try {
+        const result = await db.query(`
+            SELECT
+                ac.nivel,
+                ac.momento_avaliacao,
+                ac.data_avaliacao,
+                ac.observacoes,
+                u_prof.nome AS professor_nome
+            FROM
+                avaliacao_competencia ac
+            JOIN
+                users u_prof ON ac.professor_id = u_prof.id
+            WHERE
+                ac.aluno_id = $1 AND ac.competencia_id = $2 AND ac.disciplina_turma_id = $3
+            ORDER BY
+                ac.data_avaliacao DESC;
+        `, [studentId, competencyId, disciplinaTurmaId]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error fetching competency history:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;

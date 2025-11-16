@@ -141,6 +141,7 @@ const instrumentosRoutes = require('./libs/feedback/instrumentos');
 const resultadosRoutes = require('./libs/feedback/resultados');
 const momentosAvaliacaoRoutes = require('./libs/feedback/momentos_avaliacao');
 const feedbackStudentsRoutes = require('./libs/feedback/students');
+const competenciasRoutes = require('./libs/competencias/competencias.js');
 
 const { getProfessorFeedbackDashboard } = require('./libs/feedback/dashboard.js');
 
@@ -568,6 +569,7 @@ app.use('/api/feedback/dossies', authenticateJWT, authorizeProfessor, dossiesRou
 app.use('/api/feedback/instrumentos', authenticateJWT, authorizeProfessor, instrumentosRoutes);
 app.use('/api/feedback/resultados', authenticateJWT, authorizeProfessor, resultadosRoutes);
 app.use('/api/feedback/momentos-avaliacao', authenticateJWT, authorizeProfessor, momentosAvaliacaoRoutes);
+app.use('/api/feedback/competencias', authenticateJWT, authorizeProfessor, competenciasRoutes);
 
 // Professor-specific user routes (disciplines, dossiers, criteria, instruments, counters)
 // These routes are defined in users.js router and include:
