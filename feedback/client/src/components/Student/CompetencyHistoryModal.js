@@ -35,10 +35,10 @@ const CompetencyHistoryModal = ({ isOpen, onClose, competency, studentId, discip
 
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
-            <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-sky-100">
                 <div className="mt-3">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 text-center">
-                        Histórico de Proficiência: {competency.competencia_nome} ({competency.disciplina_nome})
+                    <h3 className="text-lg leading-6 font-medium text-sky-800 text-center">
+                        {competency.competencia_nome} ({competency.disciplina_nome})
                     </h3>
                     <div className="mt-4">
                         {loading && <p>A carregar histórico...</p>}
@@ -67,7 +67,7 @@ const CompetencyHistoryModal = ({ isOpen, onClose, competency, studentId, discip
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{proficiencyLevelMap[item.nivel]}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(item.data_avaliacao).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.professor_nome}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.observacoes || 'N/A'}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.observacoes || ''}</td>
                                             </tr>
                                         ))}
                                     </tbody>

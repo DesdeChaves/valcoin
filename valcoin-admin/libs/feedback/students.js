@@ -270,6 +270,7 @@ router.get('/:studentId/competencies/evaluations', async (req, res) => {
                 vpa.competencia_codigo,
                 vpa.competencia_nome,
                 vpa.dominio,
+                vpa.disciplina_turma_id,
                 vpa.disciplina_nome,
                 vpa.nivel_atual,
                 vpa.ultima_avaliacao,
