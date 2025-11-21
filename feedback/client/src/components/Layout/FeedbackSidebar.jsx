@@ -1,8 +1,8 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Folder, List, Settings, Hash, GraduationCap } from 'lucide-react'; // Using lucide-react for consistency
+import { BookOpen, LayoutDashboard, Folder, List, Settings, Hash, GraduationCap, Star } from 'lucide-react'; // Using lucide-react for consistency
 
-const FeedbackSidebar = ({ activeTab, setActiveTab, userType }) => {
+const FeedbackSidebar = ({ activeTab, setActiveTab, userType, currentUser, departments }) => {
   const professorTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { id: 'dossiers', label: 'Dossiês', icon: Folder, path: '/dossiers' },
@@ -10,6 +10,8 @@ const FeedbackSidebar = ({ activeTab, setActiveTab, userType }) => {
     { id: 'instruments', label: 'Instrumentos', icon: Settings, path: '/instruments' },
     { id: 'counters', label: 'Contadores', icon: Hash, path: '/counters' },
     { id: 'competencies', label: 'Competências', icon: GraduationCap, path: '/competencies' },
+    { id: 'medidas', label: 'Medidas Educativas', icon: BookOpen, path: '/medidas' },
+    ...(currentUser && currentUser.isCoordinator ? [{ id: 'crisucessoFeedback', label: 'Crit. Sucesso (Coord.)', icon: Star, path: '/crisucessofeedback' }] : []),
   ];
 
   const studentTabs = [
@@ -24,8 +26,7 @@ const FeedbackSidebar = ({ activeTab, setActiveTab, userType }) => {
   return (
     <div className="w-64 h-screen bg-indigo-800 text-indigo-100 flex flex-col">
       <div className="p-4 text-2xl font-bold text-white flex items-center space-x-2">
-        <BookOpen className="w-8 h-8" />
-        <span>Feedback</span>
+        <span>Aurora Feedback</span>
       </div>
       <nav className="mt-6 flex-1">
         <ul>
