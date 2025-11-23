@@ -263,6 +263,28 @@ export const fetchProfessorCriteria = (professorId) => handleRequest(() => feedb
 export const fetchProfessorInstruments = (professorId, showInactive) => handleRequest(() => feedbackClient.get(`/users/${professorId}/instruments/all`, { params: { showInactive } }), 'fetchProfessorInstruments');
 export const fetchProfessorCounters = (professorId, showInactive) => handleRequest(() => feedbackClient.get(`/users/${professorId}/counters/all`, { params: { showInactive } }), 'fetchProfessorCounters');
 
+// CrisucessoFeedback Evaluation (for Professors)
+export const getProfessorApplicableCriteria = () =>
+  handleRequest(() => feedbackClient.get('/crisucessofeedback/professor/criteria'), 'getProfessorApplicableCriteria');
+
+export const getStudentsForCriterion = (criterionId) =>
+  handleRequest(() => feedbackClient.get(`/crisucessofeedback/criteria/${criterionId}/students`), 'getStudentsForCriterion');
+
+export const getApplicableCrisucessoFeedbackEvaluation = (studentId) =>
+  handleRequest(() => feedbackClient.get(`/crisucessofeedback-evaluation/applicable/${studentId}`), 'getApplicableCrisucessoFeedbackEvaluation');
+
+export const submitCrisucessoFeedbackEvaluation = (evaluationData) =>
+  handleRequest(() => feedbackClient.post('/crisucessofeedback-evaluation', evaluationData), 'submitCrisucessoFeedbackEvaluation');
+
+export const updateCrisucessoFeedbackEvaluation = (evaluationId, evaluationData) =>
+  handleRequest(() => feedbackClient.put(`/crisucessofeedback-evaluation/${evaluationId}`, evaluationData), 'updateCrisucessoFeedbackEvaluation');
+
+export const getStudentCrisucessoFeedbackEvaluations = (studentId, criterionId) =>
+  handleRequest(() => feedbackClient.get(`/crisucessofeedback-evaluation/history/${studentId}/${criterionId}`), 'getStudentCrisucessoFeedbackEvaluations');
+
+export const fetchProfessorStudentsForCrisucessoEvaluation = () =>
+  handleRequest(() => feedbackClient.get(`/users/professor/my-students`), 'fetchProfessorStudentsForCrisucessoEvaluation');
+
 // Students by Discipline (Professor view)
 export const fetchStudentsProfessorByDiscipline = (disciplineId) => handleRequest(() => feedbackClient.get(`/studentsprofessor/disciplina/${disciplineId}/alunos`), 'fetchStudentsProfessorByDiscipline');
 export const fetchAllStudentProfessorGrades = (studentId) => handleRequest(() => feedbackClient.get(`/studentprofessor/${studentId}/all-grades`), 'fetchAllStudentProfessorGrades');
@@ -328,6 +350,7 @@ export const fetchStudentDossierGrades = (studentId, dossierId) => handleRequest
 export const fetchAllStudentGrades = (studentId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/all-grades`), 'fetchAllStudentGrades');
 export const fetchStudentCounters = (studentId, disciplineId, counterId, sortBy, sortOrder) => handleRequest(() => feedbackClient.get(`/students/${studentId}/counters`, { params: { disciplineId, counterId, sortBy, sortOrder } }), 'fetchStudentCounters');
 export const fetchStudentCountersList = (studentId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/counters/all`), 'fetchStudentCountersList');
+export const getStudentCrisucessoFeedback = () => handleRequest(() => feedbackClient.get('/students/crisucessofeedback'), 'getStudentCrisucessoFeedback');
 
 // ============================================================================
 // UTILITY FUNCTIONS

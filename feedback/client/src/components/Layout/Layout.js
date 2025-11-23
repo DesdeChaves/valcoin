@@ -17,8 +17,10 @@ const Layout = ({ onLogout, currentUser, userType, activeTab, setActiveTab }) =>
       }
     };
 
-    fetchDepartments();
-  }, []); // Empty dependency array means this runs once on mount
+    if (userType === 'PROFESSOR' || userType === 'ADMIN') {
+      fetchDepartments();
+    }
+  }, [userType]); // Add userType to dependency array
 
   return (
     <div className="flex h-screen bg-gray-100">

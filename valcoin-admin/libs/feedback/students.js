@@ -318,4 +318,103 @@ router.get('/:studentId/disciplines/:disciplinaTurmaId/competencies/:competencyI
     }
 });
 
+
+// GET all success criteria feedback for the logged-in student
+router.get('/crisucessofeedback', async (req, res) => {
+    // A student can only see their own feedback
+    const studentId = req.user.id;
+    try {
+        // 1. Get the student's current school year
+        const studentQuery = await db.query('SELECT ano_escolar FROM users WHERE id = $1', [studentId]);
+        if (studentQuery.rows.length === 0) {
+            return res.status(404).json({ error: 'Student not found.' });
+        }
+        const studentAnoEscolar = studentQuery.rows[0].ano_escolar;
+
+        // 2. Get all criteria applicable to the student's grade level
+        const criteriaQuery = await db.query(
+            `SELECT
+                cs.id,
+                cs.codigo,
+                cs.nome,
+                cs.descricao,
+                cs.tipo_criterio,
+                cs.ano_escolaridade_inicial,
+                cs.nivel_aceitavel,
+                (SELECT STRING_AGG(d.nome, ', ') FROM departamento d JOIN criterio_sucesso_departamento csd ON csd.departamento_id = d.id WHERE csd.criterio_sucesso_id = cs.id) as departamentos,
+                (SELECT COUNT(d.id) FROM departamento d JOIN criterio_sucesso_departamento csd ON csd.departamento_id = d.id WHERE csd.criterio_sucesso_id = cs.id) as total_departamentos
+             FROM criterio_sucesso cs
+             WHERE cs.ativo = true
+               AND cs.ano_escolaridade_inicial <= $1
+               AND (cs.ano_escolaridade_limite IS NULL OR cs.ano_escolaridade_limite >= $1)
+            `,
+            [studentAnoEscolar]
+        );
+
+        const applicableCriteria = criteriaQuery.rows;
+        const criteriaMap = new Map(applicableCriteria.map(c => [c.id, { ...c, historico: [], anos_desde_introducao: studentAnoEscolar - c.ano_escolaridade_inicial }]));
+
+        // 3. Get all historical evaluations for this student
+        const historyQuery = await db.query(
+            `SELECT
+                aval.criterio_sucesso_id,
+                aval.created_at as data,
+                aval.pontuacao,
+                aval.periodo,
+                s.nome as disciplina,
+                p.nome as professor
+             FROM avaliacao_criterio_sucesso aval
+             JOIN users p ON p.id = aval.professor_id
+             JOIN subjects s ON s.id = aval.disciplina_id
+             WHERE aval.aluno_id = $1
+             ORDER BY aval.criterio_sucesso_id, aval.created_at ASC`,
+            [studentId]
+        );
+
+        // 4. Populate history for each criterion
+        for (const evaluation of historyQuery.rows) {
+            if (criteriaMap.has(evaluation.criterio_sucesso_id)) {
+                criteriaMap.get(evaluation.criterio_sucesso_id).historico.push(evaluation);
+            }
+        }
+
+        // 5. Calculate summary fields from history
+        const finalResults = Array.from(criteriaMap.values()).map(criterio => {
+            const total_avaliacoes = criterio.historico.length;
+            let ultima_pontuacao = 0;
+            let data_conclusao = null;
+
+            if (total_avaliacoes > 0) {
+                // history is already sorted by date ASC
+                const lastEval = criterio.historico[total_avaliacoes - 1];
+                ultima_pontuacao = parseFloat(lastEval.pontuacao);
+            }
+            
+            const atingiu_sucesso = ultima_pontuacao >= parseFloat(criterio.nivel_aceitavel);
+            if(atingiu_sucesso) {
+                 const firstSuccess = criterio.historico.find(h => parseFloat(h.pontuacao) >= parseFloat(criterio.nivel_aceitavel));
+                 if(firstSuccess) {
+                     data_conclusao = firstSuccess.data;
+                 }
+            }
+
+
+            return {
+                ...criterio,
+                total_avaliacoes,
+                ultima_pontuacao,
+                atingiu_sucesso,
+                data_conclusao,
+            };
+        });
+
+        res.json(finalResults);
+
+    } catch (error) {
+        console.error('Error fetching student crisucesso feedback:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
 module.exports = router;

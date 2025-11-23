@@ -7,7 +7,7 @@ const db = require('./libs/db');
 const { connect, redisClient } = require('./libs/redis');
 
 // ============================================================================
-// IMPORTS - ValCoin (Admin/Finance System)
+// IMPORTS - Aurora (Admin/Finance System)
 // ============================================================================
 const {
   getUsers,
@@ -48,6 +48,20 @@ const {
   updateSubject,
   softDeleteSubject,
 } = require('./libs/subjects');
+
+const {
+  getDepartments,
+  createDepartment,
+  updateDepartment,
+  softDeleteDepartment,
+} = require('./libs/departments');
+
+const {
+  getCriterios: getCriteriosSucesso,
+  createCriterio: createCriterioSucesso,
+  updateCriterio: updateCriterioSucesso,
+  softDeleteCriterio: softDeleteCriterioSucesso,
+} = require('./libs/criteriossucesso');
 
 const {
   getEnrollments,
@@ -142,11 +156,21 @@ const resultadosRoutes = require('./libs/feedback/resultados');
 const momentosAvaliacaoRoutes = require('./libs/feedback/momentos_avaliacao');
 const feedbackStudentsRoutes = require('./libs/feedback/students');
 const competenciasRoutes = require('./libs/competencias/competencias.js');
+const medidasEducativasRouter = require('./libs/feedback/medidasEducativasRouter.js');
 
 const { getProfessorFeedbackDashboard } = require('./libs/feedback/dashboard.js');
 
 // Users router for feedback-specific routes (includes professor assessment routes)
 const usersRouter = require('./libs/feedback/users');
+
+const {
+  getApplicableCrisucessoFeedback,
+  submitCrisucessoFeedbackEvaluation,
+  updateCrisucessoFeedbackEvaluation,
+  getStudentCrisucessoFeedbackEvaluations,
+  getProfessorApplicableCriteria,
+  getStudentsForCriterion,
+} = require('./libs/feedback/crisucessofeedback_evaluation');
 
 // ============================================================================
 // APP SETUP
@@ -172,7 +196,7 @@ app.use((req, res, next) => {
 // ============================================================================
 // INITIALIZE SERVICES
 // ============================================================================
-console.log('Starting Unified Server (ValCoin + Feedback)...');
+console.log('Starting Unified Server (Aurora + Feedback)...');
 initializeAdminUser();
 startInterestPaymentCron();
 startLoanRepaymentCron();
@@ -262,6 +286,17 @@ const authenticateAdminOrProfessor = (req, res, next) => {
   }
 };
 
+// Student or Professor
+const authorizeStudentOrProfessor = (req, res, next) => {
+  if (!req.user) {
+    return res.sendStatus(401);
+  }
+  if (req.user.tipo_utilizador !== 'ALUNO' && req.user.tipo_utilizador !== 'PROFESSOR') {
+    return res.sendStatus(403);
+  }
+  next();
+};
+
 // Professor only
 const authorizeProfessor = (req, res, next) => {
   if (!req.user) {
@@ -284,6 +319,28 @@ const authorizeStudent = (req, res, next) => {
   next();
 };
 
+// Admin or Coordinator
+const authorizeAdminOrCoordinator = async (req, res, next) => {
+  if (!req.user) {
+    return res.sendStatus(401);
+  }
+
+  if (req.user.tipo_utilizador === 'ADMIN') {
+    return next();
+  }
+
+  try {
+    const { rows } = await db.query('SELECT id FROM departamento WHERE coordenador_id = $1', [req.user.id]);
+    if (rows.length > 0) {
+      return next();
+    }
+    return res.sendStatus(403);
+  } catch (error) {
+    console.error('Authorization error:', error);
+    return res.status(500).json({ error: 'Internal server error during authorization' });
+  }
+};
+
 // ============================================================================
 // AUTHENTICATION ROUTES (Unified Login)
 // ============================================================================
@@ -295,17 +352,26 @@ app.post('/api/login', async (req, res) => {
     if (rows.length > 0) {
       const user = rows[0];
       if (bcrypt.compareSync(password, user.password_hash)) {
+        let isCoordinator = false;
+        if (user.tipo_utilizador === 'PROFESSOR') {
+          const { rows: coordinatorRows } = await db.query('SELECT id FROM departamento WHERE coordenador_id = $1', [user.id]);
+          if (coordinatorRows.length > 0) {
+            isCoordinator = true;
+          }
+        }
+
         const accessToken = jwt.sign(
-          { 
-            id: user.id, 
-            numero_mecanografico: user.numero_mecanografico, 
-            tipo_utilizador: user.tipo_utilizador 
-          }, 
-          JWT_SECRET, 
+          {
+            id: user.id,
+            numero_mecanografico: user.numero_mecanografico,
+            tipo_utilizador: user.tipo_utilizador,
+            isCoordinator: isCoordinator
+          },
+          JWT_SECRET,
           { expiresIn: '8h' }
         );
         const { password_hash, ...userWithoutPassword } = user;
-        res.json({ accessToken, user: userWithoutPassword });
+        res.json({ accessToken, user: { ...userWithoutPassword, isCoordinator } });
       } else {
         res.status(401).json({ error: 'Invalid credentials' });
       }
@@ -325,30 +391,30 @@ app.get('/api/user', authenticateAnyUserJWT, (req, res) => {
 app.post('/api/user/change-password', authenticateAnyUserJWT, changeUserPassword);
 
 // ============================================================================
-// VALCOIN ROUTES - Store
+// AURORA ROUTES - Store
 // ============================================================================
 
 app.post('/api/store/buy', authenticateStoreJWT, createStoreTransaction);
 
 // ============================================================================
-// VALCOIN ROUTES - Professor
+// AURORA ROUTES - Professor
 // ============================================================================
 
 // Unified Professor Dashboard
 app.get('/api/professor/dashboard', authenticateProfessorJWT, async (req, res) => {
   try {
     // Create mock request/response objects to call the existing functions
-    const valcoinReq = { user: req.user };
+    const auroraReq = { user: req.user };
     const feedbackReq = { user: req.user };
-    let valcoinData = {};
+    let auroraData = {};
     let feedbackData = {};
     let errorOccurred = false;
 
     // Create a mock response object to capture the JSON data
-    const valcoinRes = {
-      json: (data) => { valcoinData = data; },
+    const auroraRes = {
+      json: (data) => { auroraData = data; },
       status: (code) => {
-        console.error(`ValCoin dashboard function failed with status ${code}`);
+        console.error(`Aurora dashboard function failed with status ${code}`);
         errorOccurred = true;
         return { json: (err) => console.error(err) };
       }
@@ -374,7 +440,7 @@ app.get('/api/professor/dashboard', authenticateProfessorJWT, async (req, res) =
 
     // Combine the results
     const unifiedDashboardData = {
-      valcoin: valcoinData,
+      aurora: auroraData,
       feedback: feedbackData,
     };
 
@@ -386,7 +452,7 @@ app.get('/api/professor/dashboard', authenticateProfessorJWT, async (req, res) =
 });
 
 
-app.get('/api/professor/valcoin-dashboard', authenticateProfessorJWT, getProfessorDashboard);
+app.get('/api/professor/aurora-dashboard', authenticateProfessorJWT, getProfessorDashboard);
 app.post('/api/professor/transactions', authenticateProfessorJWT, createProfessorTransaction);
 app.get('/api/professor/tap-rules', authenticateProfessorJWT, getProfessorTapRules);
 app.post('/api/professor/tap-transactions', authenticateProfessorJWT, createProfessorTapTransaction);
@@ -394,7 +460,7 @@ app.get('/api/professor/student-transaction-history', authenticateProfessorJWT, 
 app.post('/api/professor/check-rule-applicability', authenticateProfessorJWT, checkProfessorRuleApplicability);
 
 // ============================================================================
-// VALCOIN ROUTES - Student
+// AURORA ROUTES - Student
 // ============================================================================
 
 app.get('/api/student/dashboard', authenticateStudentJWT, getStudentDashboard);
@@ -570,6 +636,7 @@ app.use('/api/feedback/instrumentos', authenticateJWT, authorizeProfessor, instr
 app.use('/api/feedback/resultados', authenticateJWT, authorizeProfessor, resultadosRoutes);
 app.use('/api/feedback/momentos-avaliacao', authenticateJWT, authorizeProfessor, momentosAvaliacaoRoutes);
 app.use('/api/feedback/competencias', authenticateJWT, authorizeProfessor, competenciasRoutes);
+app.use('/api/feedback/medidas', authenticateJWT, authorizeProfessor, medidasEducativasRouter);
 
 // Professor-specific user routes (disciplines, dossiers, criteria, instruments, counters)
 // These routes are defined in users.js router and include:
@@ -579,6 +646,106 @@ app.use('/api/feedback/competencias', authenticateJWT, authorizeProfessor, compe
 // - GET /:userId/instruments/all
 // - GET /:userId/counters/all
 app.use('/api/feedback/users', authenticateJWT, authorizeProfessor, usersRouter);
+
+// ============================================================================
+// FEEDBACK ROUTES - CrisucessoFeedback Evaluation (for Professors)
+// ============================================================================
+
+// NEW: Get all applicable criteria for the logged-in professor
+app.get('/api/feedback/crisucessofeedback/professor/criteria', authenticateJWT, authorizeProfessor, async (req, res) => {
+  try {
+    const professorId = req.user.id;
+    const criteria = await getProfessorApplicableCriteria(professorId);
+    res.json(criteria);
+  } catch (error) {
+    console.error('Error in get professor applicable criteria route:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// NEW: Get students who can be evaluated for a specific criterion by the logged-in professor
+app.get('/api/feedback/crisucessofeedback/criteria/:criterionId/students', authenticateJWT, authorizeProfessor, async (req, res) => {
+  try {
+    const professorId = req.user.id;
+    const { criterionId } = req.params;
+    const students = await getStudentsForCriterion(professorId, criterionId);
+    res.json(students);
+  } catch (error) {
+    console.error('Error in get students for criterion route:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// Get applicable success criteria for a professor and student
+app.get('/api/feedback/crisucessofeedback-evaluation/applicable/:studentId', authenticateJWT, authorizeProfessor, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const professorId = req.user.id;
+    const applicableCriteria = await getApplicableCrisucessoFeedback(professorId, studentId);
+    res.json(applicableCriteria);
+  } catch (error) {
+    console.error('Error in get applicable crisucessofeedback evaluation route:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// Submit a new evaluation for a success criterion
+app.post('/api/feedback/crisucessofeedback-evaluation', authenticateJWT, authorizeProfessor, async (req, res) => {
+  try {
+    const {
+      criterio_sucesso_id, aluno_id, disciplina_id, pontuacao,
+      ano_letivo, ano_escolaridade_aluno, periodo, observacoes, evidencias
+    } = req.body;
+    const professorId = req.user.id; // Get professor ID from authenticated user
+
+    const newEvaluation = await submitCrisucessoFeedbackEvaluation(
+      criterio_sucesso_id, aluno_id, professorId, disciplina_id, pontuacao,
+      ano_letivo, ano_escolaridade_aluno, periodo, observacoes, evidencias
+    );
+    res.status(201).json(newEvaluation);
+  } catch (error) {
+    console.error('Error in submit crisucessofeedback evaluation route:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// Update an existing evaluation (within amendment window)
+app.put('/api/feedback/crisucessofeedback-evaluation/:evaluationId', authenticateJWT, authorizeProfessor, async (req, res) => {
+  try {
+    const { evaluationId } = req.params;
+    const { pontuacao, observacoes, evidencias } = req.body;
+    const professorId = req.user.id; // Get professor ID from authenticated user
+
+    const updatedEvaluation = await updateCrisucessoFeedbackEvaluation(
+      evaluationId, professorId, pontuacao, observacoes, evidencias
+    );
+    res.json(updatedEvaluation);
+  } catch (error) {
+    console.error('Error in update crisucessofeedback evaluation route:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// Get a student's evaluation history for a criterion
+app.get('/api/feedback/crisucessofeedback-evaluation/history/:studentId/:criterionId', authenticateJWT, authorizeProfessor, async (req, res) => {
+  try {
+    const { studentId, criterionId } = req.params;
+    const history = await getStudentCrisucessoFeedbackEvaluations(studentId, criterionId);
+    res.json(history);
+  } catch (error) {
+    console.error('Error in get crisucessofeedback evaluation history route:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// ============================================================================
+// FEEDBACK ROUTES - Criterios de Sucesso (para Coordenadores de Departamento)
+// ============================================================================
+
+app.get('/api/feedback/crisucessofeedback', authenticateJWT, authorizeAdminOrCoordinator, getCriteriosSucesso);
+app.post('/api/feedback/crisucessofeedback', authenticateJWT, authorizeAdminOrCoordinator, createCriterioSucesso);
+app.put('/api/feedback/crisucessofeedback/:id', authenticateJWT, authorizeAdminOrCoordinator, updateCriterioSucesso);
+app.delete('/api/feedback/crisucessofeedback/:id', authenticateJWT, authorizeAdminOrCoordinator, softDeleteCriterioSucesso);
 
 // ============================================================================
 // FEEDBACK ROUTES - Student Assessment View
@@ -592,7 +759,7 @@ app.get('/api/student/feedback-dashboard', authenticateJWT, authorizeStudent, (r
   });
 });
 
-app.use('/api/feedback/students', authenticateJWT, authorizeStudent, feedbackStudentsRoutes);
+app.use('/api/feedback/students', authenticateJWT, authorizeStudentOrProfessor, feedbackStudentsRoutes);
 
 // ============================================================================
 // ADMIN ROUTES - Dashboard
@@ -633,6 +800,24 @@ app.get('/api/subjects', authenticateAdminOrProfessor, getSubjects);
 app.post('/api/subjects', authenticateAdminOrProfessor, createSubject);
 app.put('/api/subjects/:id', authenticateAdminOrProfessor, updateSubject);
 app.delete('/api/subjects/:id', authenticateAdminOrProfessor, softDeleteSubject);
+
+// ============================================================================
+// ADMIN ROUTES - Departments
+// ============================================================================
+
+app.get('/api/departments', authenticateAdminOrProfessor, getDepartments);
+app.post('/api/departments', authenticateAdminOrProfessor, createDepartment);
+app.put('/api/departments/:id', authenticateAdminOrProfessor, updateDepartment);
+app.delete('/api/departments/:id', authenticateAdminOrProfessor, softDeleteDepartment);
+
+// ============================================================================
+// ADMIN ROUTES - Criterios de Sucesso
+// ============================================================================
+
+app.get('/api/criteriossucesso', authenticateJWT, authorizeAdminOrCoordinator, getCriteriosSucesso);
+app.post('/api/criteriossucesso', authenticateJWT, authorizeAdminOrCoordinator, createCriterioSucesso);
+app.put('/api/criteriossucesso/:id', authenticateJWT, authorizeAdminOrCoordinator, updateCriterioSucesso);
+app.delete('/api/criteriossucesso/:id', authenticateJWT, authorizeAdminOrCoordinator, softDeleteCriterioSucesso);
 
 // ============================================================================
 // ADMIN ROUTES - Enrollments
@@ -772,7 +957,7 @@ app.get('/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     service: 'unified-server',
-    systems: ['valcoin', 'feedback']
+    systems: ['aurora', 'feedback']
   });
 });
 
@@ -780,7 +965,7 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK',
     systems: {
-      valcoin: 'active',
+      aurora: 'active',
       feedback: 'active'
     }
   });
@@ -807,7 +992,7 @@ connect().then(() => {
   app.listen(port, () => {
     console.log('=====================================');
     console.log(`✓ Unified Server running on port ${port}`);
-    console.log(`✓ ValCoin System: Active`);
+    console.log(`✓ Aurora System: Active`);
     console.log(`✓ Feedback System: Active`);
     console.log(`✓ Health check: http://localhost:${port}/health`);
     console.log('=====================================');

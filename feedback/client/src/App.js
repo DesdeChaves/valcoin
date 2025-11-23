@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
-import Layout from './components/Layout/Layout'; // Import the main Layout component
+import Layout from './components/Layout/Layout';
 import ProfessorDashboard from './components/Professor/ProfessorDashboard';
 import DossierPage from './components/Professor/DossierPage';
 import CriterionPage from './components/Professor/CriterionPage';
@@ -15,14 +15,10 @@ import DossierGradeDetailsPage from './components/Student/DossierGradeDetailsPag
 import StudentCountersPage from './components/Student/StudentCountersPage';
 import StudentCompetenciesPage from './components/Student/StudentCompetenciesPage';
 import DossierManagementPage from './components/Professor/DossierManagementPage';
-
 import CriteriaManagementPage from './components/Professor/CriteriaManagementPage';
-
 import InstrumentManagementPage from './components/Professor/InstrumentManagementPage';
-
 import CounterManagementPage from './components/Professor/CounterManagementPage';
 import CompetenciesPage from './components/Professor/CompetenciesPage';
-
 import GradesPage from './components/Professor/GradesPage';
 import AllDossiersPage from './components/Professor/AllDossiersPage';
 import AllCriteriaPage from './components/Professor/AllCriteriaPage';
@@ -35,13 +31,40 @@ import MomentoAvaliacaoManagementPage from './components/Professor/MomentoAvalia
 import MomentoAvaliacaoNotasFinaisPage from './components/Professor/MomentoAvaliacaoNotasFinaisPage';
 import StudentViewPage from './components/Professor/StudentViewPage';
 import StudentGradesPage from './components/Professor/StudentGradesPage';
-import useAuth from './hooks/useAuth'; // Import the useAuth hook
+import MedidasEducativas from './components/Professor/MedidasEducativas';
+import CrisucessoFeedback from './components/Professor/CrisucessoFeedback';
+import EvaluateCrisucessoFeedback from './components/Professor/EvaluateCrisucessoFeedback'; // NEW IMPORT
+import CriSucessoFeedbackPage from './components/Student/CriSucessoFeedbackPage';
+import useAuth from './hooks/useAuth';
+import { getDepartments } from './utils/api';
 
 function App() {
   const { user, loading, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState(user?.tipo_utilizador === 'PROFESSOR' ? 'dashboard' : 'dashboard'); // Initialize activeTab
+  const [activeTab, setActiveTab] = useState(
+    user?.tipo_utilizador === 'PROFESSOR' ? 'dashboard' : 'dashboard'
+  );
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
 
-  if (loading) {
+  useEffect(() => {
+    if (user && (user.tipo_utilizador === 'PROFESSOR' || user.tipo_utilizador === 'ADMIN')) {
+      const fetchDepartments = async () => {
+        try {
+          const data = await getDepartments();
+          setDepartments(data);
+        } catch (err) {
+          console.error('Failed to fetch departments:', err);
+        } finally {
+          setDepartmentsLoading(false);
+        }
+      };
+      fetchDepartments();
+    } else {
+      setDepartmentsLoading(false);
+    }
+  }, [user]);
+
+  if (loading || departmentsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <p>A carregar...</p>
@@ -50,15 +73,15 @@ function App() {
   }
 
   if (!user) {
-    // If not authenticated, redirect to the main portal for login
     window.location.replace('http://localhost/');
-    return null; // Or render a simple message
+    return null;
   }
 
   return (
     <Router basename="/feedback">
       <Routes>
-        <Route path="/login" element={<Login />} /> {/* Login route, though user should be redirected by useAuth */}
+        <Route path="/login" element={<Login />} />
+
         <Route
           path="/"
           element={
@@ -68,12 +91,14 @@ function App() {
               userType={user.tipo_utilizador}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
+              departments={departments}
             />
           }
         >
+          {/* Rotas comuns / condicionais */}
           {user.tipo_utilizador === 'PROFESSOR' && (
             <>
-              <Route index element={<ProfessorDashboard />} /> {/* Default route for professor */}
+              <Route index element={<ProfessorDashboard />} />
               <Route path="dashboard" element={<ProfessorDashboard />} />
               <Route path="dossiers" element={<DossierPage />} />
               <Route path="criteria" element={<CriterionPage />} />
@@ -81,6 +106,7 @@ function App() {
               <Route path="details" element={<InstrumentDetailsPage />} />
               <Route path="counters" element={<CounterPage />} />
               <Route path="competencies" element={<CompetenciesPage />} />
+              <Route path="medidas" element={<MedidasEducativas />} />
               <Route path="dossiers/all" element={<AllDossiersPage />} />
               <Route path="criteria/all" element={<AllCriteriaPage />} />
               <Route path="instruments/all" element={<AllInstrumentsPage />} />
@@ -92,26 +118,39 @@ function App() {
               <Route path="dossier/:dossieId/counters" element={<CounterManagementPage />} />
               <Route path="dossier/:dossieId/contadores" element={<DossierCountersPage />} />
               <Route path="professor/counter/:counterId/results" element={<CounterResultsPage />} />
-              <Route path="professor/dossier/:dossieId/type/:tipo/results" element={<CounterTypeResultsPage />} />
+              <Route path="professor/dossie/:dossieId/type/:tipo/results" element={<CounterTypeResultsPage />} />
               <Route path="dossier/:dossieId/grades" element={<DossierGradesPage />} />
               <Route path="dossier/:dossieId/momentos-avaliacao" element={<MomentoAvaliacaoManagementPage />} />
               <Route path="professor/momento-avaliacao/:momentoId/notas-finais" element={<MomentoAvaliacaoNotasFinaisPage />} />
               <Route path="student-view" element={<StudentViewPage />} />
               <Route path="student-grades/:studentId" element={<StudentGradesPage />} />
+              <Route path="crisucessofeedback-evaluation" element={<EvaluateCrisucessoFeedback />} /> {/* NEW ROUTE */}
+
+              {/* Rota exclusiva para coordenadores */}
+              {user.isCoordinator && (
+                <Route
+                  path="crisucessofeedback"
+                  element={<CrisucessoFeedback departments={departments} />}
+                />
+              )}
             </>
           )}
+
           {user.tipo_utilizador === 'ALUNO' && (
             <>
-              <Route index element={<StudentDashboard />} /> {/* Default route for student */}
+              <Route index element={<StudentDashboard />} />
               <Route path="dashboard" element={<StudentDashboard />} />
               <Route path="disciplines" element={<StudentDisciplinesPage />} />
               <Route path="discipline/:disciplineId" element={<DisciplineDossiersPage />} />
               <Route path="dossier/:dossierId/grades" element={<DossierGradeDetailsPage />} />
               <Route path="counters" element={<StudentCountersPage />} />
               <Route path="competencies" element={<StudentCompetenciesPage />} />
+              <Route path="crisucesso" element={<CriSucessoFeedbackPage />} />
             </>
           )}
-          <Route path="*" element={<Navigate to="/feedback/dashboard" replace />} /> {/* Redirect to dashboard if route not found */}
+
+          {/* Catch-all redirect */}
+          <Route path="*" element={<Navigate to="/feedback/dashboard" replace />} />
         </Route>
       </Routes>
     </Router>

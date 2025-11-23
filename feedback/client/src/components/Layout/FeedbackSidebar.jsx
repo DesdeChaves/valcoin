@@ -11,12 +11,14 @@ const FeedbackSidebar = ({ activeTab, setActiveTab, userType, currentUser, depar
     { id: 'counters', label: 'Contadores', icon: Hash, path: '/counters' },
     { id: 'competencies', label: 'Competências', icon: GraduationCap, path: '/competencies' },
     { id: 'medidas', label: 'Medidas Educativas', icon: BookOpen, path: '/medidas' },
+    { id: 'evaluate-crisucesso', label: 'Avaliar Crit. Sucesso', icon: Star, path: '/crisucessoFeedback-evaluation' },
     ...(currentUser && currentUser.isCoordinator ? [{ id: 'crisucessoFeedback', label: 'Crit. Sucesso (Coord.)', icon: Star, path: '/crisucessofeedback' }] : []),
   ];
 
   const studentTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { id: 'disciplines', label: 'Disciplinas', icon: BookOpen, path: '/disciplines' },
+    { id: 'crisucesso', label: 'Critérios de Sucesso', icon: Star, path: '/crisucesso' },
     { id: 'competencies', label: 'Competências', icon: GraduationCap, path: '/competencies' },
     { id: 'counters', label: 'Contadores', icon: Hash, path: '/counters' },
   ];
