@@ -13,9 +13,12 @@ function StudentGradesPage() {
     useEffect(() => {
         const loadGrades = async () => {
             try {
+                console.log(`Fetching grades for studentId: ${studentId}`);
                 const response = await fetchAllStudentProfessorGrades(studentId);
+                console.log('API response received:', response);
                 setGrades(response);
             } catch (err) {
+                console.error('Error in loadGrades:', err);
                 setError('Failed to load grades.');
             } finally {
                 setLoading(false);
@@ -24,6 +27,10 @@ function StudentGradesPage() {
 
         loadGrades();
     }, [studentId]);
+
+    useEffect(() => {
+        console.log('Grades state updated:', grades);
+    }, [grades]);
 
     const handleSortChange = (e) => {
         setSortBy(e.target.value);
@@ -40,23 +47,45 @@ function StudentGradesPage() {
 
     // Group by discipline first, then by dossier
     const gradesByDiscipline = sortedGrades.reduce((acc, grade) => {
-        const { disciplina_nome, dossier_nome } = grade;
-        if (!acc[disciplina_nome]) {
-            acc[disciplina_nome] = {};
+        const disciplineKey = grade.disciplina_nome || '(Disciplina Desconhecida)';
+        const dossier_nome = grade.dossier_nome || '(Dossier Desconhecido)';
+        if (!acc[disciplineKey]) {
+            acc[disciplineKey] = {};
         }
-        if (!acc[disciplina_nome][dossier_nome]) {
-            acc[disciplina_nome][dossier_nome] = [];
+        if (!acc[disciplineKey][dossier_nome]) {
+            acc[disciplineKey][dossier_nome] = [];
         }
-        acc[disciplina_nome][dossier_nome].push(grade);
+        acc[disciplineKey][dossier_nome].push(grade);
         return acc;
     }, {});
 
-    // Calculate statistics
+    // Calculate statistics based on the new logic
     const totalGrades = grades.length;
-    const averageGrade = grades.length > 0 
-        ? (grades.reduce((sum, g) => sum + (g.nota || 0), 0) / grades.length).toFixed(1)
+    const passedGrades = grades.filter(g => parseFloat(g.nota) >= 10).length;
+
+    const disciplineAverages = Object.keys(gradesByDiscipline).reduce((acc, disciplineName) => {
+        const dossiers = gradesByDiscipline[disciplineName];
+        const mostRecentDossierGrades = Object.values(dossiers).map(dossierGrades => {
+            if (dossierGrades.length === 0) return null;
+            const mostRecent = dossierGrades.reduce((latest, current) => 
+                new Date(current.data_avaliacao) > new Date(latest.data_avaliacao) ? current : latest
+            );
+            return mostRecent.nota;
+        }).filter(nota => nota !== null);
+
+        if (mostRecentDossierGrades.length > 0) {
+            const sum = mostRecentDossierGrades.reduce((total, nota) => total + parseFloat(nota), 0);
+            acc[disciplineName] = sum / mostRecentDossierGrades.length;
+        } else {
+            acc[disciplineName] = 0;
+        }
+        return acc;
+    }, {});
+
+    const studentAverage = Object.values(disciplineAverages).length > 0 
+        ? (Object.values(disciplineAverages).reduce((sum, avg) => sum + avg, 0) / Object.values(disciplineAverages).length)
         : 0;
-    const passedGrades = grades.filter(g => g.nota >= 10).length;
+
 
     if (loading) {
         return (
@@ -175,8 +204,8 @@ function StudentGradesPage() {
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600 font-medium">Média Geral</p>
-                                    <p className="text-2xl font-bold text-gray-900">{averageGrade}</p>
+                                    <p className="text-sm text-gray-600 font-medium">Média Global do Aluno</p>
+                                    <p className="text-2xl font-bold text-gray-900">{studentAverage.toFixed(2)}</p>
                                 </div>
                             </div>
                         </div>
@@ -213,7 +242,7 @@ function StudentGradesPage() {
                         {Object.keys(gradesByDiscipline).map(disciplineName => {
                             const dossiers = gradesByDiscipline[disciplineName];
                             const allDisciplineGrades = Object.values(dossiers).flat();
-                            const disciplineAvg = (allDisciplineGrades.reduce((sum, g) => sum + (g.nota || 0), 0) / allDisciplineGrades.length).toFixed(1);
+                            const disciplineAverage = disciplineAverages[disciplineName] || 0;
                             
                             return (
                                 <div key={disciplineName} className="space-y-4">
@@ -229,13 +258,13 @@ function StudentGradesPage() {
                                                 <div>
                                                     <h2 className="text-2xl font-bold text-white">{disciplineName}</h2>
                                                     <p className="text-sm text-blue-100 mt-1">
-                                                        {Object.keys(dossiers).length} dossiê{Object.keys(dossiers).length !== 1 ? 's' : ''} · {allDisciplineGrades.length} avaliação{allDisciplineGrades.length !== 1 ? 'ões' : ''}
+                                                        {Object.keys(dossiers).length} dossiê{Object.keys(dossiers).length !== 1 ? 's' : ''} · {allDisciplineGrades.length} avaliaç{allDisciplineGrades.length !== 1 ? 'ões' : 'ão'}
                                                     </p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-xs text-blue-100 font-medium uppercase tracking-wide">Média Disciplina</p>
-                                                <p className="text-3xl font-bold text-white">{disciplineAvg}</p>
+                                                <p className="text-xs text-blue-100 font-medium uppercase tracking-wide">Média da Disciplina</p>
+                                                <p className="text-3xl font-bold text-white">{disciplineAverage.toFixed(2)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -244,8 +273,11 @@ function StudentGradesPage() {
                                     <div className="space-y-4 pl-4">
                                         {Object.keys(dossiers).map(dossierName => {
                                             const dossierGrades = dossiers[dossierName];
-                                            const dossierAvg = (dossierGrades.reduce((sum, g) => sum + (g.nota || 0), 0) / dossierGrades.length).toFixed(1);
-                                            
+                                            const mostRecentDossierGrade = dossierGrades.length > 0 ?
+                                                dossierGrades.reduce((latest, current) => {
+                                                    return new Date(current.data_avaliacao) > new Date(latest.data_avaliacao) ? current : latest;
+                                                }) : null;
+
                                             return (
                                                 <div key={dossierName} className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
                                                     {/* Dossier Subheader */}
@@ -260,13 +292,13 @@ function StudentGradesPage() {
                                                                 <div>
                                                                     <h3 className="text-lg font-semibold text-gray-800">{dossierName}</h3>
                                                                     <p className="text-xs text-gray-500">
-                                                                        {dossierGrades.length} avaliação{dossierGrades.length !== 1 ? 'ões' : ''}
+                                                                        {dossierGrades.length} avaliaç{dossierGrades.length !== 1 ? 'ões' : 'ão'}
                                                                     </p>
                                                                 </div>
                                                             </div>
                                                             <div className="text-right">
-                                                                <p className="text-xs text-gray-500 font-medium">Média</p>
-                                                                <p className="text-xl font-bold text-gray-800">{dossierAvg}</p>
+                                                                <p className="text-xs text-gray-500 font-medium">Nota Mais Recente</p>
+                                                                <p className="text-xl font-bold text-gray-800">{mostRecentDossierGrade ? mostRecentDossierGrade.nota : 'N/A'}</p>
                                                             </div>
                                                         </div>
                                                     </div>

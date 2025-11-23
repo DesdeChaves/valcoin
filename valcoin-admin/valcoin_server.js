@@ -550,22 +550,22 @@ app.get('/api/feedback/studentprofessor/:studentId/all-grades',
         SELECT
           d.id as dossier_id,
           d.nome as dossier_nome,
-          s.nome as discipline_nome,
+          s.nome as disciplina_nome,
           ma.id as momento_id,
           ma.nome as momento_nome,
           nfm.nota,
           ma.created_at as data_avaliacao
         FROM
           nota_final_momento nfm
-        JOIN
+        LEFT JOIN
           momento_avaliacao ma ON nfm.momento_avaliacao_id = ma.id
-        JOIN
+        LEFT JOIN
           dossie d ON ma.dossie_id = d.id
-        JOIN
+        LEFT JOIN
           professor_disciplina_turma pdt ON d.professor_disciplina_turma_id = pdt.id
-        JOIN
+        LEFT JOIN
           disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
-        JOIN
+        LEFT JOIN
           subjects s ON dt.disciplina_id = s.id
         WHERE
           nfm.aluno_id = $1
