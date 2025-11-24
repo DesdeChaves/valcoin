@@ -751,6 +751,8 @@ CREATE TABLE public.nota_final_momento (
     momento_avaliacao_id uuid NOT NULL,
     aluno_id uuid NOT NULL,
     nota numeric(5,2) NOT NULL,
+    nota_calculada numeric(5,2),
+    observacoes text,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone DEFAULT now()
 );

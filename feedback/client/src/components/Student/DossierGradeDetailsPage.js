@@ -96,20 +96,41 @@ const DossierGradeDetailsPage = () => {
         );
     }
 
-    const { disciplineName, dossierName, criteria } = gradeDetails;
+    const { disciplineName, dossierName, escala_avaliacao, criteria, finalMomentoNota } = gradeDetails;
     
-    // CRITICAL: Preserve exact calculation logic
-    const total = criteria.reduce((acc, criterion) => {
-        const sumOfInstrumentWeights = criterion.instrumentos.reduce((sum, inst) => sum + parseFloat(inst.peso), 0);
-        return acc + criterion.instrumentos.reduce((instAcc, inst) => {
-            const effectiveWeight = sumOfInstrumentWeights > 0 ? parseFloat(inst.peso) / sumOfInstrumentWeights : 0;
-            return instAcc + (parseFloat(criterion.ponderacao) / 100 * effectiveWeight * parseFloat(inst.classificacao));
-        }, 0);
-    }, 0);
+    let finalGrade = 0;
+    criteria.forEach(criterion => {
+        let criterionTotalPonderacaoReal = 0;
+        let criterionScore = 0;
+
+        const instrumentsInCriterion = criterion.instrumentos.filter(el => el.ativo !== false); // Assuming true if undefined
+        const sumPonderacaoInstrumentos = instrumentsInCriterion.reduce((sum, el) => sum + parseFloat(el.peso), 0);
+
+        instrumentsInCriterion.forEach(instrument => {
+            const studentNote = instrument.classificacao; 
+
+            if (studentNote !== undefined && studentNote !== null) {
+                const normalizedInstrumentPonderacao = sumPonderacaoInstrumentos > 0 ? (parseFloat(instrument.peso) / sumPonderacaoInstrumentos) * 100 : 0;
+                const instrumentScore = (parseFloat(studentNote) / parseFloat(instrument.cotacao_maxima)) * normalizedInstrumentPonderacao;
+                criterionScore += instrumentScore;
+                criterionTotalPonderacaoReal += normalizedInstrumentPonderacao;
+            }
+        });
+
+        if (criterionTotalPonderacaoReal > 0) {
+            const criterionWeightedScore = (criterionScore / criterionTotalPonderacaoReal) * parseFloat(criterion.ponderacao);
+            finalGrade += criterionWeightedScore;
+        }
+    });
+
+    const finalCalculatedGradeNormalized = (finalGrade / 100) * escala_avaliacao;
+    
+    // Determine the grade to display to the student based on finalMomentoNota
+    const studentDisplayGrade = finalMomentoNota?.nota !== undefined ? parseFloat(finalMomentoNota.nota) : finalCalculatedGradeNormalized;
+    const isGradeAdjusted = finalMomentoNota?.nota !== undefined && parseFloat(finalMomentoNota.nota).toFixed(2) !== finalCalculatedGradeNormalized.toFixed(2);
 
     // Calculate statistics
     const totalInstruments = criteria.reduce((acc, c) => acc + c.instrumentos.length, 0);
-    const maxPossibleGrade = criteria.reduce((acc, c) => acc + parseFloat(c.ponderacao), 0);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -128,7 +149,7 @@ const DossierGradeDetailsPage = () => {
                             </button>
                             <div>
                                 <h1 className="text-2xl font-semibold text-gray-800">{disciplineName}</h1>
-                                <p className="text-sm text-gray-500 mt-1">{dossierName}</p>
+                                <p className="text-sm text-gray-500 mt-1">{dossierName} · Escala 0-{escala_avaliacao}</p>
                             </div>
                         </div>
                     </div>
@@ -141,8 +162,8 @@ const DossierGradeDetailsPage = () => {
                     <div className="bg-white rounded-lg p-4 border border-gray-200">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-gray-500 font-medium">Total</p>
-                                <p className="text-2xl font-semibold text-gray-800 mt-1">{total.toFixed(2)}</p>
+                                <p className="text-sm text-gray-500 font-medium">Nota Calculada</p>
+                                <p className="text-2xl font-semibold text-gray-800 mt-1">{finalCalculatedGradeNormalized.toFixed(2)}</p>
                             </div>
                             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,14 +176,16 @@ const DossierGradeDetailsPage = () => {
                     <div className="bg-white rounded-lg p-4 border border-gray-200">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm text-gray-500 font-medium">Percentagem</p>
-                                <p className="text-2xl font-semibold text-gray-800 mt-1">
-                                    {maxPossibleGrade > 0 ? ((total / maxPossibleGrade) * 100).toFixed(1) : 0}%
+                                <p className="text-sm text-gray-500 font-medium">Sua Nota Final</p>
+                                <p className={`text-2xl font-semibold mt-1 ${
+                                    studentDisplayGrade >= (escala_avaliacao * 0.5) ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                    {studentDisplayGrade.toFixed(2)}
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                             </div>
                         </div>
@@ -197,6 +220,70 @@ const DossierGradeDetailsPage = () => {
                     </div>
                 </div>
 
+                {/* Teacher's Final Grade and Observations */}
+                {finalMomentoNota && (
+                    <div className={`bg-white rounded-lg border p-6 mb-6 ${
+                        isGradeAdjusted ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'
+                    }`}>
+                        <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                            {isGradeAdjusted && (
+                                <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            )}
+                            Nota Final Atribuída pelo Professor
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-sm text-gray-600">Nota Final:</p>
+                                <p className={`text-xl font-bold ${
+                                    parseFloat(finalMomentoNota.nota) >= (escala_avaliacao * 0.5) ? 'text-green-700' : 'text-red-700'
+                                }`}>
+                                    {parseFloat(finalMomentoNota.nota).toFixed(2)} / {escala_avaliacao}
+                                </p>
+                                {isGradeAdjusted && (
+                                    <p className="text-xs text-yellow-700 mt-1">
+                                        (Originalmente calculada: {parseFloat(finalMomentoNota.nota_calculada).toFixed(2)})
+                                    </p>
+                                )}
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-600">Momento de Avaliação:</p>
+                                <p className="text-xl font-bold text-gray-800">{finalMomentoNota.momento_nome}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Atribuída em: {new Date(finalMomentoNota.data_atribuicao).toLocaleDateString('pt-PT')}
+                                </p>
+                            </div>
+                        </div>
+                        {finalMomentoNota.observacoes && (
+                            <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+                                <p className="text-sm font-semibold text-gray-700 mb-1">Observações do Professor:</p>
+                                <p className="text-sm text-gray-600 italic">{finalMomentoNota.observacoes}</p>
+                            </div>
+                        )}
+                        {!finalMomentoNota.observacoes && isGradeAdjusted && (
+                            <div className="mt-4 p-3 bg-yellow-100 rounded-md border border-yellow-300">
+                                <p className="text-sm text-yellow-800 italic">
+                                    A nota final foi ajustada pelo professor mas não foram fornecidas observações.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {!finalMomentoNota && (
+                    <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
+                        <div className="flex items-start">
+                            <svg className="w-5 h-5 text-blue-500 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="text-sm text-blue-700">
+                                <p className="font-semibold mb-1">Informação</p>
+                                <p>Aguardando a atribuição da nota final do professor para este dossiê.</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Info Box */}
                 <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg mb-6">
                     <div className="flex items-start">
@@ -216,7 +303,8 @@ const DossierGradeDetailsPage = () => {
                         const sumOfInstrumentWeights = criterion.instrumentos.reduce((sum, inst) => sum + parseFloat(inst.peso), 0);
                         const criterionTotal = criterion.instrumentos.reduce((instAcc, inst) => {
                             const effectiveWeight = sumOfInstrumentWeights > 0 ? parseFloat(inst.peso) / sumOfInstrumentWeights : 0;
-                            return instAcc + (parseFloat(criterion.ponderacao) / 100 * effectiveWeight * parseFloat(inst.classificacao));
+                            const instrumentScore = (parseFloat(inst.classificacao) / parseFloat(inst.cotacao_maxima)) * 100;
+                            return instAcc + (parseFloat(criterion.ponderacao) / 100 * effectiveWeight * instrumentScore);
                         }, 0);
                         const isExpanded = expandedCriteria.includes(criterion.id);
                         
@@ -236,7 +324,7 @@ const DossierGradeDetailsPage = () => {
                                         <div>
                                             <h3 className="text-lg font-semibold">{criterion.nome}</h3>
                                             <p className="text-sm text-blue-100">
-                                                Ponderação: {criterion.ponderacao}% · Contribuição: {criterionTotal.toFixed(2)}
+                                                Ponderação: {criterion.ponderacao}% · Contribuição: {(criterionTotal / 100 * escala_avaliacao).toFixed(2)}
                                             </p>
                                         </div>
                                     </div>
@@ -276,7 +364,8 @@ const DossierGradeDetailsPage = () => {
                                             <tbody className="bg-white divide-y divide-gray-200">
                                                 {criterion.instrumentos.map((instrumento) => {
                                                     const effectiveWeight = sumOfInstrumentWeights > 0 ? parseFloat(instrumento.peso) / sumOfInstrumentWeights : 0;
-                                                    const result = parseFloat(criterion.ponderacao) / 100 * effectiveWeight * parseFloat(instrumento.classificacao);
+                                                    const instrumentScore = (parseFloat(instrumento.classificacao) / parseFloat(instrumento.cotacao_maxima)) * 100;
+                                                    const result = parseFloat(criterion.ponderacao) / 100 * effectiveWeight * instrumentScore;
                                                     
                                                     return (
                                                         <tr key={instrumento.id} className="hover:bg-gray-50">
@@ -298,12 +387,12 @@ const DossierGradeDetailsPage = () => {
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap">
                                                                 <span className="text-sm font-semibold text-gray-900">
-                                                                    {instrumento.classificacao}
+                                                                    {instrumento.classificacao} / {instrumento.cotacao_maxima}
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap">
                                                                 <span className="text-sm font-bold text-blue-600">
-                                                                    {result.toFixed(2)}
+                                                                    {(result / 100 * escala_avaliacao).toFixed(2)}
                                                                 </span>
                                                             </td>
                                                         </tr>
@@ -316,7 +405,7 @@ const DossierGradeDetailsPage = () => {
                                                         Subtotal do Critério ({criterion.ponderacao}%)
                                                     </td>
                                                     <td className="px-6 py-3 text-sm font-bold text-blue-600">
-                                                        {criterionTotal.toFixed(2)}
+                                                        {(criterionTotal / 100 * escala_avaliacao).toFixed(2)}
                                                     </td>
                                                 </tr>
                                             </tfoot>
@@ -338,14 +427,14 @@ const DossierGradeDetailsPage = () => {
                                 </svg>
                             </div>
                             <div>
-                                <p className="text-sm text-blue-100 font-medium">Classificação Final</p>
+                                <p className="text-sm text-blue-100 font-medium">Classificação Final Calculada</p>
                                 <p className="text-lg text-blue-50">Soma ponderada com pesos efetivos</p>
                             </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-5xl font-bold">{total.toFixed(2)}</p>
+                            <p className="text-5xl font-bold">{finalCalculatedGradeNormalized.toFixed(2)}</p>
                             <p className="text-sm text-blue-100 mt-1">
-                                {maxPossibleGrade > 0 ? `${((total / maxPossibleGrade) * 100).toFixed(1)}%` : '0%'} da ponderação total
+                                / {escala_avaliacao}
                             </p>
                         </div>
                     </div>

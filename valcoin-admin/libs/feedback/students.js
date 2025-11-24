@@ -169,7 +169,7 @@ router.get('/:studentId/dossier/:dossierId/grades', async (req, res) => {
     try {
         // 1. Get Dossier and Discipline Info
         const dossierInfoQuery = await db.query(`
-            SELECT d.nome as dossier_name, s.nome as discipline_name
+            SELECT d.nome as dossier_name, s.nome as discipline_name, d.escala_avaliacao
             FROM dossie d
             JOIN professor_disciplina_turma pdt ON d.professor_disciplina_turma_id = pdt.id
             JOIN disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
@@ -180,7 +180,7 @@ router.get('/:studentId/dossier/:dossierId/grades', async (req, res) => {
         if (dossierInfoQuery.rows.length === 0) {
             return res.status(404).json({ error: 'Dossier not found' });
         }
-        const { dossier_name, discipline_name } = dossierInfoQuery.rows[0];
+        const { dossier_name, discipline_name, escala_avaliacao } = dossierInfoQuery.rows[0];
 
         // 2. Get Criteria for the Dossier
         const criteriaQuery = await db.query(`
@@ -197,6 +197,7 @@ router.get('/:studentId/dossier/:dossierId/grades', async (req, res) => {
                     ea.id, 
                     ea.nome, 
                     ea.ponderacao as peso,
+                    ea.cotacao_maxima,
                     COALESCE(n.nota, 0) as classificacao
                 FROM elemento_avaliacao ea
                 LEFT JOIN nota_elemento n ON n.elemento_avaliacao_id = ea.id AND n.aluno_id = $1
@@ -209,10 +210,30 @@ router.get('/:studentId/dossier/:dossierId/grades', async (req, res) => {
             };
         }));
 
+        // 4. Get the most recent nota_final_momento for this student and dossier
+        const finalMomentoNotaQuery = await db.query(`
+            SELECT 
+                nfm.nota,
+                nfm.nota_calculada,
+                nfm.observacoes,
+                ma.nome as momento_nome,
+                nfm.created_at as data_atribuicao
+            FROM nota_final_momento nfm
+            JOIN momento_avaliacao ma ON nfm.momento_avaliacao_id = ma.id
+            JOIN dossie d ON ma.dossie_id = d.id
+            WHERE nfm.aluno_id = $1 AND d.id = $2
+            ORDER BY nfm.created_at DESC
+            LIMIT 1
+        `, [studentId, dossierId]);
+
+        const finalMomentoNota = finalMomentoNotaQuery.rows[0] || null;
+
         res.status(200).json({
             disciplineName: discipline_name,
             dossierName: dossier_name,
-            criteria: criteriaWithInstruments
+            escala_avaliacao: escala_avaliacao,
+            criteria: criteriaWithInstruments,
+            finalMomentoNota: finalMomentoNota
         });
 
     } catch (error) {

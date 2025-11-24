@@ -176,7 +176,7 @@ router.get('/momento-avaliacao/:momentoId/delete', async (req, res, next) => {
 router.post('/momento-avaliacao/:momentoId/notas-finais/save-batch', async (req, res, next) => {
   try {
     const { momentoId } = req.params;
-    const { notas } = req.body; // Array de { aluno_id, nota }
+    const { notas } = req.body; // Array de { aluno_id, nota, nota_calculada, observacoes }
     const userId = req.user.id;
 
     if (!Array.isArray(notas) || notas.length === 0) {
@@ -199,18 +199,23 @@ router.post('/momento-avaliacao/:momentoId/notas-finais/save-batch', async (req,
     const updatedNotas = await db.withTransaction(async (client) => {
       const results = [];
       for (const notaData of notas) {
-        const { aluno_id, nota } = notaData;
+        const { aluno_id, nota, nota_calculada, observacoes } = notaData;
         if (!aluno_id || nota === undefined) {
           throw new Error('Each note must have aluno_id and nota');
         }
 
         // Upsert (INSERT or UPDATE) the final note
         const result = await client.query(
-          `INSERT INTO nota_final_momento (momento_avaliacao_id, aluno_id, nota, updated_at)
-           VALUES ($1, $2, $3, NOW())
-           ON CONFLICT (momento_avaliacao_id, aluno_id) DO UPDATE SET nota = EXCLUDED.nota, updated_at = NOW()
+          `INSERT INTO nota_final_momento (momento_avaliacao_id, aluno_id, nota, nota_calculada, observacoes, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())
+           ON CONFLICT (momento_avaliacao_id, aluno_id) 
+           DO UPDATE SET 
+             nota = EXCLUDED.nota, 
+             nota_calculada = EXCLUDED.nota_calculada,
+             observacoes = EXCLUDED.observacoes,
+             updated_at = NOW()
            RETURNING *`,
-          [momentoId, aluno_id, nota]
+          [momentoId, aluno_id, nota, nota_calculada, observacoes]
         );
         results.push(result.rows[0]);
       }
