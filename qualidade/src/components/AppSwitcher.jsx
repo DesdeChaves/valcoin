@@ -1,0 +1,98 @@
+import React, { useState } from 'react';
+import { Menu, DollarSign, Store, BookOpen, Settings, User, LogOut } from 'lucide-react';
+
+const AppSwitcher = ({ currentApp, user, onLogout }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const apps = [
+    { id: 'portal', name: 'Portal', icon: Menu, color: 'text-gray-500', path: 'http://localhost/' },
+    { id: 'admin', name: 'Aurora Admin', icon: DollarSign, color: 'text-blue-500', path: 'http://localhost/admin' },
+    { id: 'store', name: 'Aurora Store', icon: Store, color: 'text-green-500', path: 'http://localhost/store' },
+    { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, color: 'text-purple-500', path: 'http://localhost/feedback' },
+    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, color: 'text-orange-500', path: 'http://localhost/qualidade' }
+  ];
+
+  const handleSwitchApp = (app) => {
+    window.location.href = app.path;
+  };
+
+  const currentAppName = apps.find(app => app.id === currentApp)?.name || 'Current App';
+
+  return (
+    <div className="relative z-50">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg shadow-md hover:bg-orange-700 transition-colors duration-200"
+      >
+        <Menu className="w-5 h-5" />
+        <span className="font-semibold hidden md:block">{currentAppName}</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-lg shadow-xl z-50 overflow-hidden">
+            <div className="p-4 bg-gray-50 border-b">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">{user.nome}</p>
+                  <p className="text-sm text-gray-600">{user.tipo_utilizador}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2">
+              <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">
+                Mudar de Aplicação
+              </p>
+              {apps.map((app) => {
+                const Icon = app.icon;
+                const isActive = app.id === currentApp;
+                return (
+                  <button
+                    key={app.id}
+                    onClick={() => {
+                      handleSwitchApp(app);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                      isActive 
+                        ? 'bg-orange-50 text-orange-600' 
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 ${isActive ? 'text-orange-600' : app.color}`} />
+                    <span className="font-medium">{app.name}</span>
+                    {isActive && (
+                      <span className="ml-auto text-xs bg-orange-600 text-white px-2 py-1 rounded">
+                        Atual
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="border-t p-2">
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center gap-3 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Terminar Sessão</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default AppSwitcher;
