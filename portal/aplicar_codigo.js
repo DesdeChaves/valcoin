@@ -66,16 +66,6 @@ const LandingPage = ({ onSelectApp }) => {
       hoverGradient: 'from-purple-700 to-purple-800',
       path: '/feedback',
       features: ['Avaliações detalhadas', 'Analytics de performance', 'Feedback contínuo']
-    },
-    {
-      id: 'qualidade',
-      name: 'Gestão da Qualidade',
-      description: 'Gerencie processos e métricas de qualidade',
-      icon: Settings, // Using Settings icon as planned
-      gradient: 'from-orange-500 to-orange-600', // Orange tones
-      hoverGradient: 'from-orange-600 to-orange-700',
-      path: '/qualidade',
-      features: ['Controlo de processos', 'Auditorias internas', 'Indicadores de desempenho']
     }
   ];
 
@@ -170,7 +160,7 @@ const LandingPage = ({ onSelectApp }) => {
         </div>
 
         {/* Apps Grid */}
-        <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-6">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-6">
           {apps.map((app, index) => {
             const Icon = app.icon;
             return (
@@ -241,6 +231,8 @@ const LoginPage = ({ app, onLogin, onBack }) => {
     setError('');
 
     try {
+      // Chamada real à API (descomentar quando o backend estiver disponível)
+      /*
       const response = await fetch('http://localhost:3001/api/login', {
         method: 'POST',
         headers: {
@@ -259,12 +251,27 @@ const LoginPage = ({ app, onLogin, onBack }) => {
       const { accessToken, user } = await response.json();
       AuthService.setAuth(accessToken, user);
       onLogin(user);
-      // Redirect to the selected application after successful login
-      window.location.href = app.path;
+      */
+
+      // Simulação temporária (remover quando API estiver ativa)
+      setTimeout(() => {
+        if (credentials.numero_mecanografico && credentials.password) {
+          const user = {
+            nome: 'João Silva',
+            numero_mecanografico: credentials.numero_mecanografico,
+            tipo_utilizador: 'Professor'
+          };
+          AuthService.setAuth('token_exemplo', user);
+          onLogin(user);
+        } else {
+          setError('Por favor, preencha todos os campos.');
+        }
+        setLoading(false);
+      }, 1000);
 
     } catch (err) {
       console.error('Login failed:', err);
-      setError(err.response?.data?.error || err.message || 'Credenciais inválidas ou erro no servidor.');
+      setError(err.message || 'Credenciais inválidas ou erro no servidor.');
       setLoading(false);
     }
   };
@@ -380,8 +387,7 @@ const AppSwitcher = ({ currentApp, user, onSwitchApp, onLogout }) => {
   const apps = [
     { id: 'admin', name: 'Aurora Admin', icon: DollarSign, gradient: 'from-blue-600 to-blue-700', path: '/admin' },
     { id: 'store', name: 'Aurora Store', icon: Store, gradient: 'from-emerald-600 to-emerald-700', path: '/store' },
-    { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, gradient: 'from-purple-600 to-purple-700', path: '/feedback' },
-    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, gradient: 'from-orange-500 to-orange-600', path: '/qualidade' }
+    { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, gradient: 'from-purple-600 to-purple-700', path: '/feedback' }
   ];
 
   return (
@@ -427,7 +433,6 @@ const AppSwitcher = ({ currentApp, user, onSwitchApp, onLogout }) => {
                     key={app.id}
                     onClick={() => {
                       onSwitchApp(app);
-                      window.location.href = app.path; // Redireciona para a aplicação selecionada
                       setIsOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-300 ${
@@ -581,17 +586,15 @@ export default function AuroraSSO() {
     setSelectedApp(app);
     
     if (AuthService.isAuthenticated()) {
-      // Já está autenticado - redireciona direto para a app
-      window.location.href = app.path;
+      setView('app');
     } else {
-      // Não está autenticado - mostra login
       setView('login');
     }
   };
 
   const handleLogin = (userData) => {
     setUser(userData);
-    // Redirecionamento será feito pelo handleLogin do LoginPage
+    setView('app');
   };
 
   const handleSwitchApp = (app) => {
@@ -603,7 +606,6 @@ export default function AuroraSSO() {
     setUser(null);
     setView('landing');
     setSelectedApp(null);
-    window.location.href = '/'; // Redireciona para a landing page após logout
   };
 
   const handleBack = () => {
