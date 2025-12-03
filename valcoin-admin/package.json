@@ -1,7 +1,7 @@
 {
   "name": "valcoin-admin",
   "version": "0.1.0",
-   "homepage": "/admin",
+  "homepage": "/admin",
   "private": true,
   "dependencies": {
     "@babel/preset-react": "^7.27.1",
@@ -14,8 +14,8 @@
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
     "joi": "^17.13.1",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.525.0",
     "node-cron": "^4.2.1",
     "pg": "^8.16.3",

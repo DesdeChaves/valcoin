@@ -395,4 +395,66 @@ router.get('/:userId/counters/all', async (req, res, next) => {
   }
 });
 
+// Get all students for the logged-in professor, grouped by class
+router.get('/professor/my-students', async (req, res) => {
+    if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+    if (req.user.tipo_utilizador !== 'PROFESSOR') {
+        return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const professorId = req.user.id;
+
+    try {
+        const { rows } = await db.query(`
+            SELECT DISTINCT
+                u.id,
+                u.nome,
+                u.numero_mecanografico,
+                c.id as turma_id,
+                c.nome as turma_nome
+            FROM
+                users u
+            JOIN
+                aluno_disciplina ad ON u.id = ad.aluno_id
+            JOIN
+                disciplina_turma dt ON ad.disciplina_turma_id = dt.id
+            JOIN
+                classes c ON dt.turma_id = c.id
+            JOIN
+                professor_disciplina_turma pdt ON dt.id = pdt.disciplina_turma_id
+            WHERE
+                pdt.professor_id = $1
+                AND u.tipo_utilizador = 'ALUNO'
+                AND u.ativo = true
+            ORDER BY
+                c.nome, u.nome;
+        `, [professorId]);
+
+        // Group students by class
+        const groupedByClass = rows.reduce((acc, student) => {
+            const { turma_id, turma_nome } = student;
+            if (!acc[turma_id]) {
+                acc[turma_id] = {
+                    turma_id,
+                    turma_nome,
+                    students: [],
+                };
+            }
+            acc[turma_id].students.push({
+                id: student.id,
+                nome: student.nome,
+                numero_mecanografico: student.numero_mecanografico,
+            });
+            return acc;
+        }, {});
+
+        res.json(Object.values(groupedByClass));
+    } catch (err) {
+        console.error('Error fetching professor students:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;

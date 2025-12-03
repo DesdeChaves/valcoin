@@ -7,12 +7,12 @@ import {
 } from '../services';
 
 const SubjectModal = ({
-  showModal, closeModal, modalType, selectedItem, setSubjects, users, classes, 
+  showModal, closeModal, modalType, selectedItem, setSubjects, users, classes, departments,
   disciplinaTurma, alunoDisciplina, alunoTurma,
   setDisciplinaTurma, setAlunoDisciplina
 }) => {
   // Core subject data
-  const [formData, setFormData] = useState({ nome: '', codigo: '', ativo: true });
+  const [formData, setFormData] = useState({ nome: '', codigo: '', ativo: true, departamento_id: null });
   
   // State for associations
   const [associatedTurmas, setAssociatedTurmas] = useState([]);
@@ -78,7 +78,8 @@ const SubjectModal = ({
       setFormData({ 
         nome: selectedItem.nome, 
         codigo: selectedItem.codigo, 
-        ativo: selectedItem.ativo 
+        ativo: selectedItem.ativo,
+        departamento_id: selectedItem.departamento_id || null
       });
 
       const currentDt = disciplinaTurma.filter(dt => dt.disciplina_id === selectedItem.id && dt.ativo);
@@ -96,7 +97,7 @@ const SubjectModal = ({
       setProfessorByTurma(professors);
       setEnrolledStudentsByTurma(studentsByTurma);
     } else {
-      setFormData({ nome: '', codigo: '', ativo: true });
+      setFormData({ nome: '', codigo: '', ativo: true, departamento_id: null });
       setAssociatedTurmas([]);
       setProfessorByTurma({});
       setEnrolledStudentsByTurma({});
@@ -259,6 +260,7 @@ const SubjectModal = ({
         <div className="bg-gray-50 p-4 rounded-lg space-y-2">
           <div><strong>Nome:</strong> {selectedItem.nome}</div>
           <div><strong>Código:</strong> {selectedItem.codigo}</div>
+          <div><strong>Departamento:</strong> {departments.find(d => d.id === selectedItem.departamento_id)?.nome || 'Nenhum'}</div>
           <div><strong>Status:</strong> 
             <span className={`ml-2 px-2 py-1 rounded text-sm ${
               selectedItem.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -358,6 +360,21 @@ const SubjectModal = ({
             /> 
             Ativo
           </label>
+        </div>
+        <div className="md:col-span-3">
+            <label htmlFor="departamento" className="block text-sm font-medium text-gray-700">Departamento</label>
+            <select
+                id="departamento"
+                name="departamento_id"
+                value={formData.departamento_id || ''}
+                onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value ? e.target.value : null })}
+                className="mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            >
+                <option value="">Sem departamento</option>
+                {departments.map(dep => (
+                    <option key={dep.id} value={dep.id}>{dep.nome}</option>
+                ))}
+            </select>
         </div>
       </div>
 
@@ -543,6 +560,21 @@ const SubjectModal = ({
           /> 
           Ativo
         </label>
+      </div>
+      <div className="mt-4">
+        <label htmlFor="departamento" className="block text-sm font-medium text-gray-700">Departamento</label>
+        <select
+            id="departamento"
+            name="departamento_id"
+            value={formData.departamento_id || ''}
+            onChange={(e) => setFormData({ ...formData, departamento_id: e.target.value ? e.target.value : null })}
+            className="mt-1 block w-full p-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+        >
+            <option value="">Sem departamento</option>
+            {departments.map(dep => (
+                <option key={dep.id} value={dep.id}>{dep.nome}</option>
+            ))}
+        </select>
       </div>
       <p className="text-sm text-gray-600 mt-2">
         Após criar a disciplina, você poderá atribuir turmas, professores e inscrever alunos.

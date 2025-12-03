@@ -153,7 +153,7 @@ const Dashboard = ({ metrics = null, isLoading = false, error = null }) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">Dashboard ValCoin</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Dashboard Aurora</h2>
         <div className="text-sm text-gray-500">
           Sistema: {safeMetrics.settings.sistemaAtivo ? '🟢 Ativo' : '🔴 Inativo'} | 
           Fase: {safeMetrics.settings.fasePiloto ? '🧪 Piloto' : '🚀 Produção'}

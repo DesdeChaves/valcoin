@@ -1,12 +1,11 @@
-const connectRedisPromise = require('./redis'); // Changed import
+const { redisClient } = require('./redis');
 
 const USERS_CACHE_KEY = 'users:all';
 const ADMIN_DASHBOARD_CACHE_KEY = 'dashboard:admin';
 
 const clearCache = async (key) => {
     try {
-        const redis = await connectRedisPromise; // Await the promise
-        await redis.del(key);
+        await redisClient.del(key);
         console.log(`[CACHE CLEARED] Key: ${key}`);
     } catch (err) {
         console.error(`[CACHE DEL ERROR] Key: ${key}`, err);

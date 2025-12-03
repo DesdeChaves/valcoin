@@ -1,25 +1,46 @@
 import React, { useState } from 'react';
-import { Plus, Search, UserPlus, UserCheck } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import Table from './Table';
+import DepartmentCell from './DepartmentCell';
+import { getSubjects } from '../services';
 
-const Subjects = ({ subjects, setSubjects, openModal, openStudentEnrollmentModal, openTeacherAssignmentModal }) => {
+const Subjects = ({ subjects, setSubjects, openModal, departments }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  console.log('Subjects component received:', subjects); // Debug
+  const handleUpdate = async () => {
+    const updatedSubjects = await getSubjects();
+    setSubjects(updatedSubjects);
+  };
 
   const filteredSubjects = subjects.filter(
     (subject) =>
       subject.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      subject.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+      subject.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (subject.departamento_nome && subject.departamento_nome.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const columns = [
     { key: 'nome', label: 'Nome' },
     { key: 'codigo', label: 'Código' },
+    { 
+      key: 'departamento_nome', 
+      label: 'Departamento',
+      render: (value, subject) => (
+        <DepartmentCell 
+          subject={subject} 
+          departments={departments} 
+          onUpdate={handleUpdate} 
+        />
+      )
+    },
     {
       key: 'ativo',
       label: 'Estado',
-      render: (value) => (value ? 'Ativo' : 'Inativo'),
+      render: (value) => (
+        <span className={`px-2 py-1 rounded text-sm ${value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          {value ? 'Ativo' : 'Inativo'}
+        </span>
+      ),
     },
   ];
 
@@ -51,24 +72,6 @@ const Subjects = ({ subjects, setSubjects, openModal, openStudentEnrollmentModal
         data={filteredSubjects}
         columns={columns}
         openModal={openModal}
-        additionalActions={(item) => (
-          <>
-            <button
-              onClick={() => openStudentEnrollmentModal(item)}
-              className="text-green-600 hover:text-green-800 mr-4"
-              title="Inscrever Alunos"
-            >
-              <UserPlus className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => openTeacherAssignmentModal(item)}
-              className="text-purple-600 hover:text-purple-800 mr-4"
-              title="Atribuir Professores"
-            >
-              <UserCheck className="w-5 h-5" />
-            </button>
-          </>
-        )}
       />
     </div>
   );

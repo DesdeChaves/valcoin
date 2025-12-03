@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import ValCoinAdmin from './components/ValCoinAdmin';
+import AuroraAdmin from './components/AuroraAdmin';
 import Login from './components/Login';
 import ProfessorDashboard from './components/professor/ProfessorDashboard';
 import StudentDashboard from './components/student/StudentDashboard';
@@ -41,7 +41,7 @@ const App = () => {
 
   switch (user.tipo_utilizador) {
     case 'ADMIN':
-      return <ValCoinAdmin onLogout={handleLogout} currentUser={user} />;
+      return <AuroraAdmin onLogout={handleLogout} currentUser={user} />;
     case 'PROFESSOR':
       return <ProfessorDashboard onLogout={handleLogout} currentUser={user} />;
     case 'ALUNO':

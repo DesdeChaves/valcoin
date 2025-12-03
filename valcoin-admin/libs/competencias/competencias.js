@@ -115,6 +115,38 @@ router.get('/disciplina_turma/:id/students', async (req, res) => {
     }
 });
 
+// GET eligible students for a competency evaluation
+router.get('/:competenciaId/eligible-students', async (req, res) => {
+    const { competenciaId } = req.params;
+    const { disciplina_turma_id } = req.query;
+
+    if (!disciplina_turma_id) {
+        return res.status(400).json({ error: 'disciplina_turma_id query parameter is required.' });
+    }
+
+    try {
+        const { rows } = await db.query(
+            `SELECT
+                aluno_id as id,
+                aluno_nome as nome,
+                numero_mecanografico
+             FROM obter_alunos_elegiveis_competencia($1, $2)`,
+            [competenciaId, disciplina_turma_id]
+        );
+        res.status(200).json({
+            competenciaId: competenciaId,
+            disciplinaTurmaId: disciplina_turma_id,
+            students: rows
+        });
+    } catch (error) {
+        console.error('Error calling obter_alunos_elegiveis_competencia:', error);
+        if (error.code === '42883') { // undefined_function
+            return res.status(500).json({ error: 'Database function obter_alunos_elegiveis_competencia not found. Please ensure it has been created.' });
+        }
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // POST to save competency assessments
 router.post('/:id/avaliacoes', async (req, res) => {
     const { id } = req.params; // competency id

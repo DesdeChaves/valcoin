@@ -6,9 +6,9 @@ const AppSwitcher = ({ currentApp, user, onLogout }) => {
 
   const apps = [
     { id: 'portal', name: 'Portal', icon: Menu, color: 'text-gray-500', path: 'http://localhost/' },
-    { id: 'valcoin', name: 'ValCoin Admin', icon: DollarSign, color: 'text-blue-500', path: 'http://localhost/admin' },
-    { id: 'store', name: 'ValCoin Store', icon: Store, color: 'text-green-500', path: 'http://localhost/store' },
-    { id: 'feedback', name: 'Sistema Avaliação', icon: BookOpen, color: 'text-purple-500', path: 'http://localhost/feedback' }
+    { id: 'admin', name: 'Aurora Admin', icon: DollarSign, color: 'text-blue-500', path: 'http://localhost/admin' },
+    { id: 'store', name: 'Aurora Store', icon: Store, color: 'text-green-500', path: 'http://localhost/store' },
+    { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, color: 'text-purple-500', path: 'http://localhost/feedback' }
   ];
 
   const handleSwitchApp = (app) => {

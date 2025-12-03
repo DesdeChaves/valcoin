@@ -22,7 +22,19 @@ const getSubjects = async (req, res) => {
         }
 
         console.log(`[CACHE MISS] Fetching subjects from DB.`);
-        const { rows } = await db.query('SELECT * FROM subjects WHERE ativo = true');
+        const { rows } = await db.query(`
+            SELECT 
+                s.*, 
+                d.nome as departamento_nome 
+            FROM 
+                subjects s
+            LEFT JOIN 
+                departamento d ON s.departamento_id = d.id
+            WHERE 
+                s.ativo = true 
+            ORDER BY 
+                s.nome
+        `);
         
         await redisClient.set(SUBJECTS_CACHE_KEY, JSON.stringify(rows), { EX: 3600 }); // Cache for 1 hour
         console.log(`[CACHE SET] Subjects stored in cache.`);
@@ -35,15 +47,15 @@ const getSubjects = async (req, res) => {
 };
 
 const createSubject = async (req, res) => {
-    const { nome, codigo, ativo } = req.body;
+    const { nome, codigo, ativo, departamento_id } = req.body;
     if (!nome || !codigo) {
         return res.status(400).json({ error: 'nome and codigo are required' });
     }
 
     try {
         const { rows } = await db.query(
-            'INSERT INTO subjects (nome, codigo, ativo) VALUES ($1, $2, $3) RETURNING *',
-            [nome, codigo, ativo ?? true]
+            'INSERT INTO subjects (nome, codigo, ativo, departamento_id) VALUES ($1, $2, $3, $4) RETURNING *',
+            [nome, codigo, ativo ?? true, departamento_id]
         );
         await clearSubjectsCache();
         await clearAdminDashboardCache();
@@ -59,15 +71,15 @@ const createSubject = async (req, res) => {
 
 const updateSubject = async (req, res) => {
     const { id } = req.params;
-    const { nome, codigo, ativo } = req.body;
+    const { nome, codigo, ativo, departamento_id } = req.body;
     if (!nome || !codigo) {
         return res.status(400).json({ error: 'nome and codigo are required' });
     }
 
     try {
         const { rows } = await db.query(
-            'UPDATE subjects SET nome = $1, codigo = $2, ativo = $3 WHERE id = $4 RETURNING *',
-            [nome, codigo, ativo, id]
+            'UPDATE subjects SET nome = $1, codigo = $2, ativo = $3, departamento_id = $4 WHERE id = $5 RETURNING *',
+            [nome, codigo, ativo, departamento_id, id]
         );
         if (rows.length > 0) {
             await clearSubjectsCache();

@@ -93,6 +93,7 @@ const {
   getDisciplinaTurma,
   createDisciplinaTurma,
   updateDisciplinaTurma,
+  getProfessorDisciplinaTurma,
 } = require('./libs/disciplina_turma');
 
 const {
@@ -157,6 +158,9 @@ const momentosAvaliacaoRoutes = require('./libs/feedback/momentos_avaliacao');
 const feedbackStudentsRoutes = require('./libs/feedback/students');
 const competenciasRoutes = require('./libs/competencias/competencias.js');
 const medidasEducativasRouter = require('./libs/feedback/medidasEducativasRouter.js');
+const { publicRouter: qualidadePublicRouter, protectedRouter: qualidadeProtectedRouter, studentRouter: qualidadeStudentRouter } = require('./libs/qualidade/routes');
+
+
 
 const { getProfessorFeedbackDashboard } = require('./libs/feedback/dashboard.js');
 
@@ -187,6 +191,12 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 
+// Global request logger for debugging
+app.use((req, res, next) => {
+  console.log(`[DEBUG] Incoming Request: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Request logging
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
@@ -205,19 +215,27 @@ startInactivityFeeCron();
 testProfessorSalaryManually();
 
 // ============================================================================
+// PUBLIC ROUTES - Must be mounted BEFORE authentication middleware
+// ============================================================================
+
+// Public qualidade routes (no authentication required)
+app.use('/api/qualidade/public', qualidadePublicRouter);
+
+// ============================================================================
 // AUTHENTICATION MIDDLEWARE
 // ============================================================================
 
+
 // Generic JWT authentication - sets req.user if valid token
 const authenticateJWT = (req, res, next) => {
-  console.log('authenticateJWT called for:', req.path);
+  console.log(`[DEBUG] authenticateJWT: Starting for ${req.method} ${req.path}`);
   const authHeader = req.headers.authorization;
   if (authHeader) {
     const token = authHeader.split(' ')[1];
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
         console.error('JWT verification failed for:', req.path, err.message);
-        return res.sendStatus(403);
+        return res.status(403).json({ message: 'Forbidden: ' + err.message });
       }
       req.user = user;
       console.log('JWT authenticated user:', user.tipo_utilizador, 'for:', req.path);
@@ -225,7 +243,7 @@ const authenticateJWT = (req, res, next) => {
     });
   } else {
     console.error('No authorization header provided for:', req.path);
-    res.sendStatus(401);
+    res.status(401).json({ message: 'Unauthorized' });
   }
 };
 
@@ -267,22 +285,35 @@ const authenticateAdminJWT = (req, res, next) => {
 };
 
 // Admin or Professor
+
+// No ficheiro empresas.js, corrigir a função authenticateAdminOrProfessor
+// que está sendo passada como parâmetro mas tem um bug
+
+// A correção deve ser feita no valcoin_server.js onde está definida
+// Encontrar esta função (linha ~356):
+
 const authenticateAdminOrProfessor = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  console.log(`[DEBUG] authenticateAdminOrProfessor: Starting for ${req.method} ${req.path}`);
+  const authHeader = req.headers.authorization; // ✅ ADICIONAR ESTA LINHA
   if (authHeader) {
     const token = authHeader.split(' ')[1];
     jwt.verify(token, JWT_SECRET, (err, user) => {
       if (err) {
-        return res.sendStatus(403);
+        console.error('JWT verification error:', err);
+        return res.status(403).json({ message: 'Forbidden' });
       }
-      if (user.tipo_utilizador !== 'ADMIN' && user.tipo_utilizador !== 'PROFESSOR') {
-        return res.sendStatus(403);
+      console.log('User from token:', user);
+      const userType = user.tipo_utilizador ? user.tipo_utilizador.toUpperCase() : '';
+      if (userType !== 'ADMIN' && userType !== 'PROFESSOR') {
+        console.log(`Authorization failed. User type is: ${user.tipo_utilizador}`);
+        return res.status(403).json({ message: 'Forbidden' });
       }
       req.user = user;
       next();
     });
   } else {
-    res.sendStatus(401);
+    console.log('No authorization header found.');
+    res.status(401).json({ message: 'Unauthorized' });
   }
 };
 
@@ -450,8 +481,14 @@ app.get('/api/professor/dashboard', authenticateProfessorJWT, async (req, res) =
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// New Empresas (Companies) routes for Qualidade module
+console.log('[DEBUG] Mounting /api/qualidade/empresas router.');
+const empresasRouter = require('./libs/qualidade/empresas')(authenticateJWT, authenticateAdminOrProfessor);
+app.use('/api/qualidade/empresas', empresasRouter);
 
-
+// Protected qualidade routes (require professor authentication)
+app.use('/api/qualidade/professor', authenticateJWT, authorizeProfessor, qualidadeProtectedRouter);
+app.use('/api/qualidade/student', authenticateJWT, authorizeStudent, qualidadeStudentRouter);
 app.get('/api/professor/aurora-dashboard', authenticateProfessorJWT, getProfessorDashboard);
 app.post('/api/professor/transactions', authenticateProfessorJWT, createProfessorTransaction);
 app.get('/api/professor/tap-rules', authenticateProfessorJWT, getProfessorTapRules);
@@ -859,6 +896,7 @@ app.post('/api/transaction-rules/check-applicability', authenticateAdminOrProfes
 app.get('/api/disciplina_turma', authenticateAdminOrProfessor, getDisciplinaTurma);
 app.post('/api/disciplina_turma', authenticateAdminOrProfessor, createDisciplinaTurma);
 app.put('/api/disciplina_turma/:id', authenticateAdminOrProfessor, updateDisciplinaTurma);
+app.get('/api/disciplina_turma/professor/:professorId', authenticateAdminOrProfessor, getProfessorDisciplinaTurma);
 
 // ============================================================================
 // ADMIN ROUTES - Ciclos

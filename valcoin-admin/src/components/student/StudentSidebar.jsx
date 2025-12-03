@@ -15,7 +15,7 @@ const StudentSidebar = ({ activeTab, setActiveTab }) => {
 
   return (
     <div className="w-64 h-screen bg-indigo-800 text-indigo-100 flex flex-col">
-      <div className="p-4 text-2xl font-bold text-white">ValTeen</div>
+      <div className="p-4 text-2xl font-bold text-white">Aurora Aluno</div>
       <nav className="mt-6 flex-1">
         <ul>
           {tabs.map((tab) => (

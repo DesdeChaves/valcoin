@@ -10,6 +10,47 @@ const getDisciplinaTurma = async (req, res) => {
     }
 };
 
+const getProfessorDisciplinaTurma = async (req, res) => {
+    try {
+        // O ID do professor vem dos parâmetros da rota
+        const { professorId } = req.params;
+
+        if (!professorId) {
+            return res.status(400).json({ error: 'O ID do professor é obrigatório.' });
+        }
+
+        // Query para buscar as disciplinas do professor
+        const query = `
+            SELECT 
+                dt.id, 
+                d.nome AS disciplina_nome, 
+                c.nome AS turma_nome,
+                dt.ano_letivo,
+                dt.turma_id,
+                dt.disciplina_id
+            FROM 
+                disciplina_turma dt
+            JOIN 
+                subjects d ON dt.disciplina_id = d.id
+            JOIN 
+                classes c ON dt.turma_id = c.id
+            WHERE 
+                dt.professor_id = $1 AND dt.ativo = true
+            ORDER BY
+                d.nome, c.nome;
+        `;
+
+        const { rows } = await db.query(query, [professorId]);
+        
+        res.json(rows);
+
+    } catch (err) {
+        console.error('Erro ao buscar disciplinas do professor:', err);
+        res.status(500).json({ error: 'Erro interno do servidor.' });
+    }
+};
+
+
 const createDisciplinaTurma = async (req, res) => {
     const { disciplina_id, turma_id, professor_id } = req.body;
     if (!disciplina_id || !turma_id || !professor_id) {
@@ -86,5 +127,6 @@ const updateDisciplinaTurma = async (req, res) => {
 module.exports = {
     getDisciplinaTurma,
     createDisciplinaTurma,
-    updateDisciplinaTurma
+    updateDisciplinaTurma,
+    getProfessorDisciplinaTurma,
 };

@@ -295,7 +295,7 @@ router.post('/contador/regista', async (req, res) => {
     console.log('[REGISTA] Tap record inserted.');
 
     // =================================================================
-    // Valcoin Transaction Logic
+    // Aurora Transaction Logic
     // =================================================================
     const transactionAmount = Math.abs(parseFloat(incremento));
     let transactionData = {};
@@ -315,7 +315,7 @@ router.post('/contador/regista', async (req, res) => {
         icon: contadorDetails.icone || null,
       };
       valcoinTransaction = await _createTransaction(transactionData, client);
-      console.log('[REGISTA] Valcoin transaction (Professor to Student) created.');
+      console.log('[REGISTA] Aurora transaction (Professor to Student) created.');
     } else if (parseFloat(incremento) < 0) {
       console.log('[REGISTA] Negative increment: Student to Professor transaction.');
       // Check student balance
@@ -337,10 +337,10 @@ router.post('/contador/regista', async (req, res) => {
         icon: contadorDetails.icone || null,
       };
       valcoinTransaction = await _createTransaction(transactionData, client);
-      console.log('[REGISTA] Valcoin transaction (Student to Professor) created.');
+      console.log('[REGISTA] Aurora transaction (Student to Professor) created.');
     } else {
       // Incremento is 0, no Valcoin transaction needed
-      console.log('[REGISTA] Zero increment: No Valcoin transaction needed.');
+      console.log('[REGISTA] Zero increment: No Aurora transaction needed.');
     }
 
     await client.query('COMMIT');
@@ -349,7 +349,7 @@ router.post('/contador/regista', async (req, res) => {
     res.status(201).json({
       notaTap: tapResult.rows[0],
       contador: contadorDetails,
-      valcoinTransaction: valcoinTransaction
+      auroraTransaction: valcoinTransaction
     });
   } catch (error) {
     await client.query('ROLLBACK');

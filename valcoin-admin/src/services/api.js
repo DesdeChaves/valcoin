@@ -4,7 +4,7 @@ import axios from 'axios';
 // AXIOS CLIENTS - Separate instances for different base URLs
 // ============================================================================
 
-// Main API client for ValCoin system
+// Main API client for Aurora system
 const apiClient = axios.create({
   baseURL: process.env.REACT_APP_API_URL || '/api',
   headers: {
@@ -89,9 +89,9 @@ export const login = (credentials) => handleRequest(() => apiClient.post('/login
 export const changePassword = (data) => handleRequest(() => apiClient.post('/user/change-password', data), 'changePassword');
 
 // ============================================================================
-// VALCOIN - PROFESSOR Routes
+// AURORA - PROFESSOR Routes
 // ============================================================================
-export const getProfessorValcoinDashboard = () => handleRequest(() => apiClient.get('/professor/valcoin-dashboard'), 'getProfessorValcoinDashboard');
+export const getProfessorAuroraDashboard = () => handleRequest(() => apiClient.get('/professor/aurora-dashboard'), 'getProfessorAuroraDashboard');
 export const createProfessorTransaction = (data) => handleRequest(() => apiClient.post('/professor/transactions', data), 'createProfessorTransaction');
 export const getProfessorTapRules = () => handleRequest(() => apiClient.get('/professor/tap-rules'), 'getProfessorTapRules');
 export const createProfessorTapTransaction = (data) => handleRequest(() => apiClient.post('/professor/tap-transactions', data), 'createProfessorTapTransaction');
@@ -106,9 +106,9 @@ export const getProfessorStudentTransactionHistory = (professorId, studentId, di
 export const checkProfessorRuleApplicability = (data) => handleRequest(() => apiClient.post('/professor/check-rule-applicability', data), 'checkProfessorRuleApplicability');
 
 // ============================================================================
-// VALCOIN - STUDENT Routes
+// AURORA - STUDENT Routes
 // ============================================================================
-export const getStudentValcoinDashboard = () => handleRequest(() => apiClient.get('/student/dashboard'), 'getStudentValcoinDashboard');
+export const getStudentAuroraDashboard = () => handleRequest(() => apiClient.get('/student/dashboard'), 'getStudentAuroraDashboard');
 export const createStudentManualPayment = (data) => handleRequest(() => apiClient.post('/student/manual-payment', data), 'createStudentManualPayment');
 export const getStudentPayableUsers = () => handleRequest(() => apiClient.get('/student/payable-users'), 'getStudentPayableUsers');
 export const getStudentSettings = () => handleRequest(() => apiClient.get('/student/settings'), 'getStudentSettings');
@@ -138,7 +138,7 @@ export const getMyStudentLoans = () => handleRequest(() => apiClient.get('/stude
 export const repayStudentLoan = (id, data) => handleRequest(() => apiClient.post(`/student/loans/${id}/repay`, data), 'repayStudentLoan');
 
 // ============================================================================
-// VALCOIN - ADMIN Routes
+// AURORA - ADMIN Routes
 // ============================================================================
 export const getDashboardMetrics = () => handleRequest(() => apiClient.get('/dashboard'), 'getDashboardMetrics');
 export const getUsers = () => handleRequest(() => apiClient.get('/users'), 'getUsers');
@@ -167,6 +167,16 @@ export const getSubjects = () => handleRequest(() => apiClient.get('/subjects'),
 export const createSubject = (data) => handleRequest(() => apiClient.post('/subjects', data), 'createSubject');
 export const updateSubject = (id, data) => handleRequest(() => apiClient.put(`/subjects/${id}`, data), 'updateSubject');
 export const softDeleteSubject = (id) => handleRequest(() => apiClient.delete(`/subjects/${id}`), 'softDeleteSubject');
+
+export const getDepartments = () => handleRequest(() => apiClient.get('/departments'), 'getDepartments');
+export const createDepartment = (data) => handleRequest(() => apiClient.post('/departments', data), 'createDepartment');
+export const updateDepartment = (id, data) => handleRequest(() => apiClient.put(`/departments/${id}`, data), 'updateDepartment');
+export const softDeleteDepartment = (id) => handleRequest(() => apiClient.delete(`/departments/${id}`), 'softDeleteDepartment');
+
+export const getCriteriosSucesso = () => handleRequest(() => apiClient.get('/criteriossucesso'), 'getCriteriosSucesso');
+export const createCriterioSucesso = (data) => handleRequest(() => apiClient.post('/criteriossucesso', data), 'createCriterioSucesso');
+export const updateCriterioSucesso = (id, data) => handleRequest(() => apiClient.put(`/criteriossucesso/${id}`, data), 'updateCriterioSucesso');
+export const softDeleteCriterioSucesso = (id) => handleRequest(() => apiClient.delete(`/criteriossucesso/${id}`), 'softDeleteCriterioSucesso');
 
 export const getEnrollments = () => handleRequest(() => apiClient.get('/enrollments'), 'getEnrollments');
 export const getEnrollment = (id) => handleRequest(() => apiClient.get(`/enrollments/${id}`), 'getEnrollment');
@@ -279,6 +289,12 @@ export const fetchCriterionDetails = (criterionId) => handleRequest(() => feedba
 export const saveCriterion = (criterionData) => handleRequest(() => feedbackClient.post(`/criterios/save`, criterionData), 'saveCriterion');
 export const updateCriterion = (criterionId, criterionData) => handleRequest(() => feedbackClient.post(`/criterios/${criterionId}/atualiza`, criterionData), 'updateCriterion');
 export const deleteCriterion = (criterionId) => handleRequest(() => feedbackClient.get(`/criterios/${criterionId}/delete?hard=true`), 'deleteCriterion');
+
+// Success Criteria for Feedback (CrisucessoFeedback)
+export const fetchCrisucessoFeedback = () => handleRequest(() => feedbackClient.get('/crisucessofeedback'), 'fetchCrisucessoFeedback');
+export const createCrisucessoFeedback = (data) => handleRequest(() => feedbackClient.post('/crisucessofeedback', data), 'createCrisucessoFeedback');
+export const updateCrisucessoFeedback = (id, data) => handleRequest(() => feedbackClient.put(`/crisucessofeedback/${id}`, data), 'updateCrisucessoFeedback');
+export const softDeleteCrisucessoFeedback = (id) => handleRequest(() => feedbackClient.delete(`/crisucessofeedback/${id}`), 'softDeleteCrisucessoFeedback');
 
 // Counter Management
 export const fetchCounterDetails = (counterId) => handleRequest(() => feedbackClient.get(`/contadores/contadore/${counterId}/search`), 'fetchCounterDetails');
@@ -415,9 +431,9 @@ export { apiClient, feedbackClient };
 /*
  * NOME DAS FUNÇÕES ALTERADO PARA EVITAR COLISÕES:
  * 
- * === ValCoin System ===
- * getProfessorDashboard → getProfessorValcoinDashboard
- * getStudentDashboard → getStudentValcoinDashboard
+ * === Aurora System ===
+ * getProfessorDashboard → getProfessorAuroraDashboard
+ * getStudentDashboard → getStudentAuroraDashboard
  * 
  * === Student Loans ===
  * getStudentLoans → getAllStudentLoans (admin)
@@ -432,9 +448,9 @@ export { apiClient, feedbackClient };
  * 
  * EXEMPLO DE USO:
  * 
- * // ValCoin Dashboard
- * import { getProfessorValcoinDashboard } from './api';
- * const data = await getProfessorValcoinDashboard();
+ * // Aurora Dashboard
+ * import { getProfessorAuroraDashboard } from './api';
+ * const data = await getProfessorAuroraDashboard();
  * 
  * // Feedback Dashboard
  * import { getProfessorFeedbackDashboard } from './api';

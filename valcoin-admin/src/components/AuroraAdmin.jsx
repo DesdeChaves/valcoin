@@ -14,6 +14,14 @@ import {
   createSubject,
   updateSubject,
   softDeleteSubject, // Replaced deleteSubject
+  getDepartments,
+  createDepartment,
+  updateDepartment,
+  softDeleteDepartment,
+  getCriteriosSucesso,
+  createCriterioSucesso,
+  updateCriterioSucesso,
+  softDeleteCriterioSucesso,
   getClasses,
   createClass,
   updateClass,
@@ -44,6 +52,8 @@ import {
   Classes,
   Transactions,
   Subjects,
+  Departments,
+  Criterios,
   TransactionRules,
   Dashboard,
   Settings,
@@ -55,12 +65,14 @@ import {
   StudentLoans,
   Houses,
 } from './';
+import CrisucessoFeedback from './CrisucessoFeedback';
 import ProfessorHouse from './ProfessorHouse';
 import {
   UserModal,
   ClassModal,
   TransactionModal,
   SubjectModal,
+  CriterioModal,
   TransactionRuleModal,
   EnrollmentModal,
   StudentEnrollmentModal,
@@ -84,6 +96,9 @@ const tabs = [
     { id: 'users', label: 'Utilizadores', icon: UsersIcon, roles: ['ADMIN'] },
     { id: 'transactions', label: 'Transações', icon: Coins, roles: ['ADMIN', 'PROFESSOR'] },
     { id: 'subjects', label: 'Disciplinas', icon: BookOpen, roles: ['ADMIN'] },
+    { id: 'departments', label: 'Departamentos', icon: BookOpen, roles: ['ADMIN'] },
+    { id: 'criterios', label: 'Critérios de Sucesso', icon: BookOpen, roles: ['ADMIN'] },
+    { id: 'crisucessoFeedback', label: 'Critérios de Sucesso (Feedback)', icon: BookOpen, roles: ['ADMIN', 'PROFESSOR'] },
     { id: 'classes', label: 'Turmas', icon: GraduationCap, roles: ['ADMIN'] },
     { id: 'enrollments', label: 'Matrículas', icon: UserPlus, roles: ['ADMIN'] },
     { id: 'tapTransactions', label: 'TAP Rápido', icon: Zap, roles: ['ADMIN', 'PROFESSOR'] },
@@ -97,13 +112,15 @@ const tabs = [
     { id: 'settings', label: 'Definições', icon: SettingsIcon, roles: ['ADMIN'] },
 ];
 
-const ValCoinAdmin = ({ onLogout, currentUser }) => {
+const AuroraAdmin = ({ onLogout, currentUser }) => {
   const [alunoTurma, setAlunoTurma] = useState([]);
   const [activeTab, setActiveTab] = useState(currentUser.tipo_utilizador === 'ADMIN' ? 'dashboard' : 'my-house');
   const [users, setUsers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [criterios, setCriterios] = useState([]);
   const [transactionRules, setTransactionRules] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [ciclos, setCiclos] = useState([]);
@@ -131,17 +148,22 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
   const [isReloading, setIsReloading] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
-  const visibleTabs = tabs.filter(tab => tab.roles.includes(currentUser.tipo_utilizador));
+  const visibleTabs = tabs.filter(tab => {
+    if (tab.id === 'crisucessoFeedback') {
+      return currentUser.tipo_utilizador === 'ADMIN' || currentUser.isCoordinator;
+    }
+    return tab.roles.includes(currentUser.tipo_utilizador);
+  });
 
   // Add fetchHouses function
   const fetchHouses = useCallback(async () => {
     try {
-      console.log('🔄 ValCoinAdmin: Fetching houses...');
+      console.log('🔄 AuroraAdmin: Fetching houses...');
       const housesData = await getHouses(); // Using api.js
       setHouses(housesData || []);
-      console.log('✅ ValCoinAdmin: Houses state updated:', housesData?.length || 0);
+      console.log('✅ AuroraAdmin: Houses state updated:', housesData?.length || 0);
     } catch (err) {
-      console.error('❌ ValCoinAdmin: Error fetching houses:', err);
+      console.error('❌ AuroraAdmin: Error fetching houses:', err);
       setHouses([]);
     }
   }, []);
@@ -149,13 +171,13 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
   const fetchUsers = useCallback(async (force = false) => {
     setIsLoadingUsers(true);
     try {
-      console.log('🔄 ValCoinAdmin: Fetching users...', { force });
+      console.log('🔄 AuroraAdmin: Fetching users...', { force });
       const usersData = await getUsers(force ? `?_=${Date.now()}` : '');
-      console.log('📡 ValCoinAdmin: getUsers response:', usersData);
+      console.log('📡 AuroraAdmin: getUsers response:', usersData);
       setUsers([...(usersData || [])]);
-      console.log('✅ ValCoinAdmin: Users state updated:', usersData?.length || 0);
+      console.log('✅ AuroraAdmin: Users state updated:', usersData?.length || 0);
     } catch (err) {
-      console.error('❌ ValCoinAdmin: Error fetching users:', err);
+      console.error('❌ AuroraAdmin: Error fetching users:', err);
       toast.error('Erro ao atualizar utilizadores.');
     } finally {
       setIsLoadingUsers(false);
@@ -166,13 +188,13 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
     const filter = newTimeFilter || timeFilter;
     setIsLoading(true);
     try {
-      console.log(`🔄 ValCoinAdmin: Fetching transactions with time filter: ${filter}...`);
+      console.log(`🔄 AuroraAdmin: Fetching transactions with time filter: ${filter}...`);
       const transactionsData = await getTransactions(filter, startDate, endDate);
       setTransactions(transactionsData || []);
-      console.log('✅ ValCoinAdmin: Transactions state updated.');
+      console.log('✅ AuroraAdmin: Transactions state updated.');
       toast.success('Lista de transações atualizada!');
     } catch (err) {
-      console.error('❌ ValCoinAdmin: Error fetching transactions:', err);
+      console.error('❌ AuroraAdmin: Error fetching transactions:', err);
       toast.error('Erro ao atualizar transações.');
     } finally {
       setIsLoading(false);
@@ -181,7 +203,7 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
 
   const fetchDashboardMetrics = useCallback(
     async (retryCount = 3, delay = 1000) => {
-      console.log('🔄 ValCoinAdmin: Starting fetchDashboardMetrics...');
+      console.log('🔄 AuroraAdmin: Starting fetchDashboardMetrics...');
       setIsReloading(true);
       setIsLoading(true);
       setError(null);
@@ -189,11 +211,11 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
       let attempts = 0;
       while (attempts < retryCount) {
         try {
-          console.log(`🔄 ValCoinAdmin: Fetching dashboard metrics (attempt ${attempts + 1}/${retryCount})...`);
+          console.log(`🔄 AuroraAdmin: Fetching dashboard metrics (attempt ${attempts + 1}/${retryCount})...`);
           const data = await getDashboardMetrics();
           console.log('📡 ValCoinAdmin: Dashboard metrics response:', {
             rawData: data,
-            valCoinDynamicEuroRate: data?.valCoinDynamicEuroRate,
+            auroraDynamicEuroRate: data?.auroraDynamicEuroRate,
             totalSchoolRevenues: data?.totalSchoolRevenues,
             totalVC: data?.totalVC,
           });
@@ -210,18 +232,18 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
           }
 
           if (data.valCoinDynamicEuroRate === 0 || data.totalSchoolRevenues === 0) {
-            console.warn('⚠️ ValCoinAdmin: Critical fields have zero values:', {
-              valCoinDynamicEuroRate: data.valCoinDynamicEuroRate,
+            console.warn('⚠️ AuroraAdmin: Critical fields have zero values:', {
+              auroraDynamicEuroRate: data.auroraDynamicEuroRate,
               totalSchoolRevenues: data.totalSchoolRevenues,
             });
           }
 
           setDashboardMetrics(data);
-          console.log('✅ ValCoinAdmin: Dashboard metrics updated successfully');
+          console.log('✅ AuroraAdmin: Dashboard metrics updated successfully');
           break;
         } catch (err) {
           attempts++;
-          console.error(`❌ ValCoinAdmin: Error fetching dashboard metrics (attempt ${attempts}/${retryCount}):`, err.message);
+          console.error(`❌ AuroraAdmin: Error fetching dashboard metrics (attempt ${attempts}/${retryCount}):`, err.message);
           if (attempts === retryCount) {
             setError(`Falha ao carregar métricas do dashboard: ${err.message}`);
             toast.error('Erro ao carregar métricas do dashboard. Verifique o servidor.');
@@ -248,7 +270,7 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
   );
 
   useEffect(() => {
-    console.log('🔄 ValCoinAdmin: isReloading state changed:', isReloading);
+    console.log('🔄 AuroraAdmin: isReloading state changed:', isReloading);
   }, [isReloading]);
 
   useEffect(() => {
@@ -256,10 +278,12 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
       setIsLoading(true);
       setError(null);
       try {
-        console.log('🔄 ValCoinAdmin: Fetching all data...');
+        console.log('🔄 AuroraAdmin: Fetching all data...');
         const [
           usersData,
           subjectsData,
+          departmentsData,
+          criteriosData,
           classesData,
           enrollmentsData,
           transactionRulesData,
@@ -276,6 +300,14 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
           }),
           getSubjects().catch((e) => {
             console.error('❌ getSubjects failed:', e);
+            return [];
+          }),
+          getDepartments().catch((e) => {
+            console.error('❌ getDepartments failed:', e);
+            return [];
+          }),
+          getCriteriosSucesso().catch((e) => {
+            console.error('❌ getCriteriosSucesso failed:', e);
             return [];
           }),
           getClasses().catch((e) => {
@@ -317,9 +349,11 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
         ]);
 
         console.log('Ciclos data from API:', ciclosData);
-        console.log('📊 ValCoinAdmin: Data lengths:', {
+        console.log('📊 AuroraAdmin: Data lengths:', {
           users: usersData?.length || 0,
           subjects: subjectsData?.length || 0,
+          departments: departmentsData?.length || 0,
+          criterios: criteriosData?.length || 0,
           classes: classesData?.length || 0,
           enrollments: enrollmentsData?.length || 0,
           transactionRules: transactionRulesData?.length || 0,
@@ -333,6 +367,8 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
 
         setUsers([...(usersData || [])]);
         setSubjects(subjectsData || []);
+        setDepartments(departmentsData || []);
+        setCriterios(criteriosData || []);
         setClasses(classesData || []);
         setEnrollments(enrollmentsData || []);
         setTransactionRules(transactionRulesData || []);
@@ -369,10 +405,10 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
           }
         }
 
-        console.log('✅ ValCoinAdmin: State updated with data');
+        console.log('✅ AuroraAdmin: State updated with data');
       } catch (err) {
         setError('Failed to load data');
-        console.error('❌ ValCoinAdmin: Fetch error:', err);
+        console.error('❌ AuroraAdmin: Fetch error:', err);
         toast.error('Failed to load data');
       } finally {
         setIsLoading(false);
@@ -382,17 +418,17 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
   }, [timeFilter, fetchHouses]);
 
   useEffect(() => {
-    console.log('🔄 ValCoinAdmin: activeTab changed:', activeTab);
+    console.log('🔄 AuroraAdmin: activeTab changed:', activeTab);
     if (activeTab === 'users') {
-      console.log('🔄 ValCoinAdmin: Triggering fetchUsers for Users tab');
+      console.log('🔄 AuroraAdmin: Triggering fetchUsers for Users tab');
       fetchUsers(true);
     }
     if (activeTab === 'dashboard') {
-      console.log('🔄 ValCoinAdmin: Triggering fetchDashboardMetrics for Dashboard tab');
+      console.log('🔄 AuroraAdmin: Triggering fetchDashboardMetrics for Dashboard tab');
       fetchDashboardMetrics();
     }
     if (activeTab === 'houses') {
-      console.log('🔄 ValCoinAdmin: Triggering fetchHouses for Houses tab');
+      console.log('🔄 AuroraAdmin: Triggering fetchHouses for Houses tab');
       fetchHouses();
     }
   }, [activeTab, fetchUsers, fetchDashboardMetrics, fetchHouses]);
@@ -479,10 +515,10 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
 
   const handleSaveTransaction = async (formData) => {
     try {
-      console.log('🔄 ValCoinAdmin: Saving transaction:', formData);
+      console.log('🔄 AuroraAdmin: Saving transaction:', formData);
       const newTransaction = await createTransaction(formData);
       setTransactions((prev) => [...prev, newTransaction]);
-      console.log('✅ ValCoinAdmin: Transaction created:', newTransaction);
+      console.log('✅ AuroraAdmin: Transaction created:', newTransaction);
       await fetchUsers(true);
       toast.success('Transação criada com sucesso!');
       closeModal();
@@ -490,14 +526,14 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
         debouncedFetchDashboardMetrics();
       }
     } catch (error) {
-      console.error('❌ ValCoinAdmin: Error saving transaction:', error);
+      console.error('❌ AuroraAdmin: Error saving transaction:', error);
       toast.error('Erro ao salvar transação.');
     }
   };
 
   const handleApproveTransaction = async (transactionId) => {
     try {
-      console.log('🔄 ValCoinAdmin: Approving transaction:', transactionId);
+      console.log('🔄 AuroraAdmin: Approving transaction:', transactionId);
       await approveTransaction(transactionId);
       const [updatedTransactions, updatedUsers] = await Promise.all([
         getTransactions(),
@@ -505,13 +541,13 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
       ]);
       setTransactions(updatedTransactions);
       setUsers([...updatedUsers]);
-      console.log('✅ ValCoinAdmin: Transaction approved, users updated:', updatedUsers?.length || 0);
+      console.log('✅ AuroraAdmin: Transaction approved, users updated:', updatedUsers?.length || 0);
       toast.success('Transação aprovada com sucesso!');
       if (activeTab === 'dashboard') {
         debouncedFetchDashboardMetrics();
       }
     } catch (error) {
-      console.error('❌ ValCoinAdmin: Error approving transaction:', error);
+      console.error('❌ AuroraAdmin: Error approving transaction:', error);
       toast.error('Erro ao aprovar transação.');
     }
   };
@@ -694,7 +730,7 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
   const closeChangePasswordModal = () => setShowChangePasswordModal(false);
 
   const renderContent = () => {
-    console.log('🔄 ValCoinAdmin: renderContent called', {
+    console.log('🔄 AuroraAdmin: renderContent called', {
       activeTab,
       dashboardMetrics: !!dashboardMetrics,
       dashboardMetricsType: typeof dashboardMetrics,
@@ -756,9 +792,9 @@ const ValCoinAdmin = ({ onLogout, currentUser }) => {
             refreshTransactions={fetchTransactions}
           />
         );
-// In ValCoinAdmin.jsx, update the 'tapTransactions' case in renderContent
+// In AuroraAdmin.jsx, update the 'tapTransactions' case in renderContent
 case 'tapTransactions':
-  console.log('🔄 ValCoinAdmin: Rendering TapTransactions with props:', {
+  console.log('🔄 AuroraAdmin: Rendering TapTransactions with props:', {
     users: users?.length || 0,
     subjects: subjects?.length || 0,
     enrollments: enrollments?.length || 0,
@@ -792,7 +828,28 @@ case 'tapTransactions':
             subjects={subjects}
             setSubjects={setSubjects}
             openModal={openModal}
-            openStudentEnrollmentModal={openStudentEnrollmentModal}
+            departments={departments}
+          />
+        );
+      case 'departments':
+        return (
+          <Departments
+            departments={departments}
+            setDepartments={setDepartments}
+            openModal={openModal}
+            users={users}
+          />
+        );
+      case 'criterios':
+        return (
+          <Criterios
+            departments={departments}
+          />
+        );
+      case 'crisucessoFeedback':
+        return (
+          <CrisucessoFeedback
+            departments={departments}
           />
         );
       case 'classes':
@@ -958,6 +1015,7 @@ case 'tapTransactions':
             setSubjects={setSubjects}
             users={users}
             classes={classes}
+            departments={departments}
             setAlunoDisciplina={setAlunoDisciplina}
             setDisciplinaTurma={setDisciplinaTurma}
             alunoDisciplina={alunoDisciplina}
@@ -1036,4 +1094,4 @@ case 'tapTransactions':
   );
 };
 
-export default ValCoinAdmin;
+export default AuroraAdmin;
