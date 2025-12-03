@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchStudentsForCompetencyAssessment, saveCompetencyAssessments, fetchEvaluationMoments, fetchAssessmentsForMoment, fetchRecentAssessments } from '../../utils/api_competencias';
+import { fetchEligibleStudentsForCompetency, saveCompetencyAssessments, fetchEvaluationMoments, fetchAssessmentsForMoment, fetchRecentAssessments } from '../../utils/api_competencias';
 
 const proficiencyLevels = [
     { value: 'fraco', label: 'Fraco' },
@@ -16,90 +16,109 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
     const [error, setError] = useState(null);
     const [momentoAvaliacao, setMomentoAvaliacao] = useState('');
     const [evaluationMoments, setEvaluationMoments] = useState([]);
-        const [selectedMoment, setSelectedMoment] = useState('');
-    
-        useEffect(() => {
-            const loadInitialData = async () => {
-                if (disciplineTurmaId) {
-                    try {
-                        setLoading(true);
-                        const [studentList, moments] = await Promise.all([
-                            fetchStudentsForCompetencyAssessment(disciplineTurmaId),
-                            fetchEvaluationMoments(competency.id)
-                        ]);
-                        
-                        setStudents(studentList);
-                        setEvaluationMoments(moments);
-    
-                        // Initialize assessments state
-                        const initialAssessments = studentList.reduce((acc, student) => {
-                            acc[student.id] = { level: null, observacoes: '' };
-                            return acc;
-                        }, {});
-                        setAssessments(initialAssessments);
-                    } catch (err) {
-                        setError('Erro ao carregar os dados iniciais');
-                    } finally {
-                        setLoading(false);
+    const [selectedMoment, setSelectedMoment] = useState('');
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            if (disciplineTurmaId) {
+                try {
+                    setLoading(true);
+                    setError(null); // Reset error on new load
+                    const [response, moments] = await Promise.all([
+                        fetchEligibleStudentsForCompetency(competency.id, disciplineTurmaId),
+                        fetchEvaluationMoments(competency.id)
+                    ]);
+                    
+                    // Log the parameters received from the backend for verification
+                    console.log("Backend received parameters for eligible students:", {
+                        competenciaId: response.competenciaId,
+                        disciplinaTurmaId: response.disciplinaTurmaId
+                    });
+
+                    const studentList = response.students || [];
+
+                    if (studentList.length === 0 && (competency.medida_educativa === 'seletiva' || competency.medida_educativa === 'adicional')) {
+                        setError("Nenhum aluno elegível encontrado. Verifique se as medidas educativas ('seletiva' ou 'adicional') estão configuradas corretamente para os alunos desta turma e disciplina.");
+                    } else if (studentList.length === 0) {
+                        setError("Nenhum aluno encontrado para esta turma/disciplina.");
+                    } else {
+                        setError(null); // Clear error if students are found
                     }
+
+                    setStudents(studentList);
+                    setEvaluationMoments(moments);
+
+                    // Initialize assessments state
+                    const initialAssessments = studentList.reduce((acc, student) => {
+                        acc[student.id] = { level: null, observacoes: '', notApplicable: false };
+                        return acc;
+                    }, {});
+                    setAssessments(initialAssessments);
+                } catch (err) {
+                    setError('Erro ao carregar os dados iniciais');
+                } finally {
+                    setLoading(false);
                 }
-            };
-            loadInitialData();
-        }, [disciplineTurmaId, competency.id]);
-    
-        useEffect(() => {
-            const loadAssessmentsForMoment = async () => {
-                if (selectedMoment) {
-                    try {
-                        setLoading(true);
-                        const momentAssessments = await fetchAssessmentsForMoment(competency.id, selectedMoment);
-                        const newAssessments = { ...assessments };
-                        momentAssessments.forEach(assessment => {
-                            if (newAssessments[assessment.aluno_id]) {
-                                newAssessments[assessment.aluno_id] = {
-                                    level: assessment.nivel,
-                                    observacoes: assessment.observacoes,
-                                };
-                            }
-                        });
-                        setAssessments(newAssessments);
-                    } catch (err) {
-                        setError('Erro ao carregar as avaliações do momento');
-                    } finally {
-                        setLoading(false);
-                    }
-                }
-            };
-            loadAssessmentsForMoment();
-        }, [selectedMoment, competency.id]);
-    
-        const handleCreateFromRecent = async () => {
-            try {
-                setLoading(true);
-                const recentAssessments = await fetchRecentAssessments(competency.id);
-                const newAssessments = { ...assessments };
-                recentAssessments.forEach(assessment => {
-                    if (newAssessments[assessment.aluno_id]) {
-                        newAssessments[assessment.aluno_id] = {
-                            level: assessment.nivel,
-                            observacoes: assessment.observacoes,
-                        };
-                    }
-                });
-                setAssessments(newAssessments);
-            } catch (err) {
-                setError('Erro ao carregar as avaliações mais recentes');
-            } finally {
-                setLoading(false);
             }
         };
-    
-        const handleAssessmentChange = (studentId, level) => {
-            setAssessments(prev => ({
-                ...prev,
-                [studentId]: { ...prev[studentId], level }
-            }));
+        loadInitialData();
+    }, [disciplineTurmaId, competency.id]);
+
+    useEffect(() => {
+        const loadAssessmentsForMoment = async () => {
+            if (selectedMoment) {
+                try {
+                    setLoading(true);
+                    const momentAssessments = await fetchAssessmentsForMoment(competency.id, selectedMoment);
+                    const newAssessments = { ...assessments };
+                    momentAssessments.forEach(assessment => {
+                        if (newAssessments[assessment.aluno_id]) {
+                            newAssessments[assessment.aluno_id] = {
+                                level: assessment.nivel,
+                                observacoes: assessment.observacoes,
+                                notApplicable: false, // Assume loaded assessments are applicable
+                            };
+                        }
+                    });
+                    setAssessments(newAssessments);
+                } catch (err) {
+                    setError('Erro ao carregar as avaliações do momento');
+                } finally {
+                    setLoading(false);
+                }
+            }
         };
+        loadAssessmentsForMoment();
+    }, [selectedMoment, competency.id]);
+
+    const handleCreateFromRecent = async () => {
+        try {
+            setLoading(true);
+            const recentAssessments = await fetchRecentAssessments(competency.id);
+            const newAssessments = { ...assessments };
+            recentAssessments.forEach(assessment => {
+                if (newAssessments[assessment.aluno_id]) {
+                    newAssessments[assessment.aluno_id] = {
+                        level: assessment.nivel,
+                        observacoes: assessment.observacoes,
+                        notApplicable: false,
+                    };
+                }
+            });
+            setAssessments(newAssessments);
+        } catch (err) {
+            setError('Erro ao carregar as avaliações mais recentes');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAssessmentChange = (studentId, level) => {
+        setAssessments(prev => ({
+            ...prev,
+            [studentId]: { ...prev[studentId], level, notApplicable: false }
+        }));
+    };
 
     const handleObservacaoChange = (studentId, observacoes) => {
         setAssessments(prev => ({
@@ -108,12 +127,19 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
         }));
     };
 
+    const handleNotApplicableChange = (studentId, isChecked) => {
+        setAssessments(prev => ({
+            ...prev,
+            [studentId]: { ...prev[studentId], notApplicable: isChecked, level: isChecked ? null : prev[studentId].level }
+        }));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
 
         const evaluations = Object.entries(assessments)
-            .filter(([, assessment]) => assessment.level)
+            .filter(([, assessment]) => assessment.level && !assessment.notApplicable)
             .map(([studentId, assessment]) => ({
                 aluno_id: studentId,
                 nivel: assessment.level,
@@ -121,8 +147,11 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
             }));
 
         if (evaluations.length === 0) {
-            setError('Nenhuma avaliação foi preenchida.');
-            return;
+            const allNotApplicable = Object.values(assessments).every(a => a.notApplicable);
+            if (!allNotApplicable) {
+                setError('Nenhuma avaliação válida foi preenchida.');
+                return;
+            }
         }
 
         if (!momentoAvaliacao && !selectedMoment) {
@@ -147,7 +176,7 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
 
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full">
-            <div className="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+            <div className="relative top-10 mx-auto p-5 border w-full max-w-5xl shadow-lg rounded-md bg-white">
                 <div className="mt-3">
                     <h3 className="text-lg leading-6 font-medium text-gray-900 text-center">Avaliar Competência: {competency.nome}</h3>
                     <div className="mt-4">
@@ -197,8 +226,9 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aluno</th>
                                         {proficiencyLevels.map(level => (
-                                            <th key={level.value} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{level.label}</th>
+                                            <th key={level.value} className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{level.label}</th>
                                         ))}
+                                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Não se aplica</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Observações</th>
                                     </tr>
                                 </thead>
@@ -207,23 +237,33 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
                                         <tr key={student.id}>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.nome}</td>
                                             {proficiencyLevels.map(level => (
-                                                <td key={level.value} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                                <td key={level.value} className="px-2 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                                                     <input
                                                         type="radio"
                                                         name={`assessment-${student.id}`}
                                                         value={level.value}
                                                         checked={assessments[student.id]?.level === level.value}
                                                         onChange={() => handleAssessmentChange(student.id, level.value)}
+                                                        disabled={assessments[student.id]?.notApplicable}
                                                         className="form-radio h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
                                                     />
                                                 </td>
                                             ))}
+                                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={assessments[student.id]?.notApplicable || false}
+                                                    onChange={(e) => handleNotApplicableChange(student.id, e.target.checked)}
+                                                    className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                                                />
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 <input
                                                     type="text"
                                                     value={assessments[student.id]?.observacoes || ''}
                                                     onChange={(e) => handleObservacaoChange(student.id, e.target.value)}
-                                                    className="w-full px-2 py-1 border border-gray-300 rounded-md"
+                                                    disabled={assessments[student.id]?.notApplicable}
+                                                    className="w-full px-2 py-1 border border-gray-300 rounded-md disabled:bg-gray-100"
                                                 />
                                             </td>
                                         </tr>

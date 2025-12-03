@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Folder, List, Settings, Hash, GraduationCap, Star } from 'lucide-react'; // Using lucide-react for consistency
+import { BookOpen, LayoutDashboard, Folder, List, Settings, Hash, GraduationCap, Star, Users } from 'lucide-react'; // Using lucide-react for consistency
 
 const FeedbackSidebar = ({ activeTab, setActiveTab, userType, currentUser, departments }) => {
   const professorTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+    { id: 'student-view', label: 'Visão do Aluno', icon: Users, path: '/student-view' },
     { id: 'dossiers', label: 'Dossiês', icon: Folder, path: '/dossiers' },
     { id: 'criteria', label: 'Critérios', icon: List, path: '/criteria' },
     { id: 'instruments', label: 'Instrumentos', icon: Settings, path: '/instruments' },

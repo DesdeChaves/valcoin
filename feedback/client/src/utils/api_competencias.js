@@ -20,6 +20,10 @@ export const updateCompetency = (id, competencyData) =>
 export const deleteCompetency = (id) => 
     handleRequest(() => feedbackClient.delete(`/competencias/${id}`), 'deleteCompetency');
 
+// Fetch eligible students for a competency assessment based on the competency's educational measure
+export const fetchEligibleStudentsForCompetency = (competenciaId, disciplinaTurmaId) => 
+    handleRequest(() => feedbackClient.get(`/competencias/${competenciaId}/eligible-students?disciplina_turma_id=${disciplinaTurmaId}`), 'fetchEligibleStudentsForCompetency');
+
 // Fetch students for a specific discipline_turma to be assessed on a competency
 export const fetchStudentsForCompetencyAssessment = (disciplineTurmaId) => 
     handleRequest(() => feedbackClient.get(`/competencias/disciplina_turma/${disciplineTurmaId}/students`), 'fetchStudentsForCompetencyAssessment');

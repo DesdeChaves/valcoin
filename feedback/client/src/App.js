@@ -150,7 +150,7 @@ function App() {
           )}
 
           {/* Catch-all redirect */}
-          <Route path="*" element={<Navigate to="/feedback/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
     </Router>

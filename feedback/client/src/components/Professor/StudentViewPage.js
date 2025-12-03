@@ -67,7 +67,7 @@ function StudentViewPage() {
 
     const handleViewGrades = () => {
         if (selectedDiscipline && selectedStudent) {
-            navigate(`/professor/student-grades/${selectedStudent}`);
+            navigate(`/student-grades/${selectedStudent}`);
         }
     };
 
