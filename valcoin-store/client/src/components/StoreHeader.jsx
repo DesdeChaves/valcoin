@@ -7,12 +7,10 @@ const StoreHeader = ({ onLogout, currentUser }) => (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center h-16">
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Coins className="w-8 h-8 text-white" />
-            <h1 className="text-xl font-bold text-white">Loja ValCoin</h1>
-          </div>
-          <div className="hidden md:block">
-            <span className="text-sm text-indigo-100">Agrupamento de Escolas de Valpaços</span>
+          <div className="hidden md:flex items-center space-x-4 text-xl font-bold">
+            <span className="bg-blue-500 text-white px-2 py-1 rounded">Respeito</span>
+            <span className="bg-green-500 text-white px-2 py-1 rounded">Resiliência</span>
+            <span className="bg-purple-500 text-white px-2 py-1 rounded">Aspiração</span>
           </div>
         </div>
         <div className="flex items-center space-x-4">

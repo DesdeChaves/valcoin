@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, FileCog, Building } from 'lucide-react'; // Using lucide-react for consistency
+import { LayoutDashboard, ClipboardList, FileCog, Building, Gauge } from 'lucide-react'; // Using lucide-react for consistency
 
 const QualidadeSidebar = ({ activeTab, setActiveTab, userType, currentUser }) => {
   const professorTabs = [
@@ -8,6 +8,7 @@ const QualidadeSidebar = ({ activeTab, setActiveTab, userType, currentUser }) =>
     { id: 'aplicacoes', label: 'Aplicações', icon: ClipboardList, path: '/aplicacoes' },
     { id: 'questionarios', label: 'Questionários', icon: FileCog, path: '/questionarios' },
     { id: 'empresas', label: 'Empresas', icon: Building, path: '/empresas' }, // New tab
+    { id: 'eqavet', label: 'Qualidade EQAVET', icon: Gauge, path: '/eqavet' },
   ];
 
   const studentTabs = [

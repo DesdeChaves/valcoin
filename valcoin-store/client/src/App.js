@@ -42,7 +42,8 @@ function App() {
 
           {/* Footer */}
           <footer className="bg-indigo-600 text-white p-4 text-center shadow-inner"> {/* Changed bg-primary to bg-indigo-600 */}
-            <p className="text-sm">&copy; 2025 Loja ValCoin. Todos os direitos reservados.</p>
+            <p className="text-sm">&copy; 2025 Loja Aurora. Todos os direitos reservados.</p>
+            <p className="text-xs mt-2">Respeito, Resiliência e Aspiração</p>
           </footer>
         </div>
       </div>

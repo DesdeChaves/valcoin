@@ -1,12 +1,12 @@
-# Manual de Utilizador Avançado da Aplicação Valcoin
+# Manual de Utilizador Avançado da Aplicação Aurora
 
-Este manual descreve em detalhe as funcionalidades da plataforma Valcoin, um ecossistema gamificado de literacia financeira. Abrange os perfis de Administrador, Professor e Aluno (Valkid/Valteen).
+Este manual descreve em detalhe as funcionalidades da plataforma Aurora, um ecossistema gamificado de literacia financeira. Abrange os perfis de Administrador, Professor e Aluno (Valkid/Valteen).
 
 ---
 
 ## 1. Administrador
 
-O Administrador detém o controlo total sobre o ecossistema Valcoin, sendo responsável pela sua configuração, personalização e supervisão económica.
+O Administrador detém o controlo total sobre o ecossistema Aurora, sendo responsável pela sua configuração, personalização e supervisão económica.
 
 ### 1.1. Dashboard de Controlo
 
@@ -21,7 +21,7 @@ O dashboard é o centro nevrálgico da plataforma, apresentando métricas vitais
 
 ### 1.2. Configuração da Economia
 
-A principal responsabilidade do Admin é modelar a economia da Valcoin.
+A principal responsabilidade do Admin é modelar a economia da Aurora.
 
 #### 1.2.1. Gestão de Regras de Transação
 As "Transaction Rules" são o motor da economia. O Admin pode criar, editar e desativar regras que definem como os Valcoins são ganhos e gastos. Cada regra pode ter:
@@ -61,7 +61,7 @@ As "Houses" são comunidades dentro da escola (semelhante às casas de Hogwarts)
 - **Aprovação de Empréstimos:** Avalia e aprova ou rejeita os pedidos de micro-empréstimos feitos pelos alunos.
 
 ### 1.4. Processos Automáticos (Cron Jobs)
-O sistema Valcoin executa uma série de processos automáticos para garantir o bom funcionamento da economia e a aplicação de regras financeiras de forma consistente.
+O sistema Aurora executa uma série de processos automáticos para garantir o bom funcionamento da economia e a aplicação de regras financeiras de forma consistente.
 
 #### 1.4.1. Pagamento de Juros de Poupança
 - **Objetivo:** Recompensar os alunos que poupam.
@@ -98,7 +98,7 @@ O sistema Valcoin executa uma série de processos automáticos para garantir o b
 
 ## 2. Professor
 
-O Professor é o principal agente de dinamização da economia Valcoin no dia-a-dia, utilizando as regras criadas pelo Admin para interagir com os alunos.
+O Professor é o principal agente de dinamização da economia Aurora no dia-a-dia, utilizando as regras criadas pelo Admin para interagir com os alunos.
 
 ### Principais Funcionalidades
 
@@ -113,7 +113,7 @@ O Professor é o principal agente de dinamização da economia Valcoin no dia-a-
 
 ## 3. Aluno
 
-O Aluno interage com o ecossistema Valcoin para aprender a gerir as suas finanças pessoais de forma prática e motivadora.
+O Aluno interage com o ecossistema Aurora para aprender a gerir as suas finanças pessoais de forma prática e motivadora.
 
 ### 3.1. Valkid (Alunos mais novos)
 
@@ -136,9 +136,9 @@ A plataforma oferece um conjunto robusto de ferramentas de literacia financeira.
 
 ---
 
-## 4. A Loja Valcoin: Um Mercado de Empreendedorismo e Aprendizagem
+## 4. A Loja Aurora: Um Mercado de Empreendedorismo e Aprendizagem
 
-A loja é o coração pulsante da economia Valcoin. Mais do que um simples mercado, é uma plataforma de micro-empreendedorismo onde qualquer membro da comunidade escolar pode criar, vender e comprar produtos e serviços, transformando talentos e bens em valor.
+A loja é o coração pulsante da economia Aurora. Mais do que um simples mercado, é uma plataforma de micro-empreendedorismo onde qualquer membro da comunidade escolar pode criar, vender e comprar produtos e serviços, transformando talentos e bens em valor.
 
 ### 4.1. Objetivos Pedagógicos
 - **Empreendedorismo na Prática:** A loja capacita os alunos a tornarem-se pequenos empreendedores. Ao permitir que vendam os seus próprios produtos e serviços, a plataforma ensina na prática os conceitos de oferta e procura, marketing, fixação de preços e gestão de um pequeno negócio.
@@ -177,18 +177,18 @@ O sistema de bilhética é uma extensão natural da loja, permitindo que qualque
 
 ## 6. Arquitetura e Instalação
 
-Esta secção detalha a arquitetura técnica da plataforma Valcoin, as tecnologias utilizadas, os requisitos de hardware e o processo de instalação.
+Esta secção detalha a arquitetura técnica da plataforma Aurora, as tecnologias utilizadas, os requisitos de hardware e o processo de instalação.
 
 ### 6.1. Arquitetura da Plataforma
 
-A plataforma Valcoin é construída sobre uma arquitetura de microserviços, orquestrada com Docker e Docker Compose. Esta abordagem garante a modularidade, escalabilidade e facilidade de manutenção de cada componente do sistema.
+A plataforma Aurora é construída sobre uma arquitetura de microserviços, orquestrada com Docker e Docker Compose. Esta abordagem garante a modularidade, escalabilidade e facilidade de manutenção de cada componente do sistema.
 
 A arquitetura é composta pelos seguintes serviços:
 
 - **`valcoin-admin-server`**: O backend da aplicação de administração, responsável pela lógica de negócio, gestão de utilizadores, e configurações da economia.
-- **`valcoin-admin-client`**: A interface de frontend (React) para os administradores e professores.
+- **`valcoin-admin-client`**: A interface de frontend (React) para os administradores e professores (Aurora Admin).
 - **`valcoin-store-server`**: O backend da loja Valcoin, que gere os produtos, as transações da loja e o sistema de bilhética.
-- **`valcoin-store-client`**: A interface de frontend (React) para a loja, utilizada por todos os membros da comunidade.
+- **`valcoin-store-client`**: A interface de frontend (React) para a loja (Aurora Store), utilizada por todos os membros da comunidade.
 - **`postgres`**: A base de dados PostgreSQL, que armazena toda a informação persistente da plataforma.
 - **`redis`**: Um servidor Redis utilizado para caching, otimizando o desempenho de queries frequentes.
 - **`nginx`**: Atua como um reverse proxy, direcionando o tráfego para os diferentes serviços (admin e loja) com base no URL.
@@ -262,4 +262,4 @@ A instalação da plataforma é realizada através do Docker Compose, o que simp
       ```
     - **Nota:** Estes scripts assumem que os ficheiros CSV (`profs.csv`, `alunos_rita.csv`, `cts.csv`) se encontram na pasta `dados/`.
 
-Após estes passos, a plataforma Valcoin estará instalada e acessível através do endereço IP ou nome de domínio do servidor.
+Após estes passos, a plataforma Aurora estará instalada e acessível através do endereço IP ou nome de domínio do servidor.

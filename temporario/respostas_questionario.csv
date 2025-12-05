@@ -1,0 +1,5 @@
+"id","aplicacao_id","destinatario_id","user_id","encarregado_id","empresa_id","email_respondente","anonimo","submetido_em","tempo_decorrido_segundos","pontuacao_obtida","pontuacao_maxima","ip_address","user_agent","completado"
+"3639156d-a77c-4e79-b3bd-c389e94ddf88","6c844b41-97e1-4473-ab3b-1e097d16677f",NULL,NULL,NULL,NULL,NULL,False,"2025-11-30 12:25:51.576243+00",NULL,NULL,NULL,NULL,NULL,True
+"76cfda26-ff90-4cea-ab35-ce016b473101","6c844b41-97e1-4473-ab3b-1e097d16677f",NULL,NULL,NULL,NULL,NULL,False,"2025-11-30 12:35:25.299005+00",NULL,NULL,NULL,NULL,NULL,True
+"bb7bce83-eaab-42ab-865f-550dd1302342","6c844b41-97e1-4473-ab3b-1e097d16677f",NULL,NULL,NULL,NULL,NULL,False,"2025-11-30 12:34:25.80376+00",NULL,NULL,NULL,NULL,NULL,True
+"ea23cf7e-4185-44ac-84c6-36217472cef2","6c844b41-97e1-4473-ab3b-1e097d16677f",NULL,NULL,NULL,NULL,NULL,False,"2025-11-30 11:22:21.117244+00",NULL,NULL,NULL,NULL,NULL,True

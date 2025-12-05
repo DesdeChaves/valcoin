@@ -1,12 +1,12 @@
-# Potencialidades da Aplicação ValCoin
+# Potencialidades da Aplicação Aurora
 
 ## Introdução
 
-A aplicação ValCoin é uma plataforma inovadora desenhada para criar um ecossistema económico e social dentro da comunidade escolar. Ao simular uma economia real com uma moeda virtual, o ValCoin, a aplicação oferece uma vasta gama de oportunidades para o desenvolvimento de competências, promoção de valores e dinamização da vida escolar e da sua relação com a comunidade. Este documento explora as principais potencialidades da aplicação.
+A aplicação Aurora é uma plataforma inovadora desenhada para criar um ecossistema económico e social dentro da comunidade escolar. Ao simular uma economia real com uma moeda virtual, o ValCoin, a aplicação oferece uma vasta gama de oportunidades para o desenvolvimento de competências, promoção de valores e dinamização da vida escolar e da sua relação com a comunidade. Este documento explora as principais potencialidades da aplicação.
 
 ## 1. Promoção da Literacia Financeira
 
-O ValCoin serve como uma ferramenta prática e interativa para a educação financeira dos alunos. Ao gerir as suas próprias carteiras virtuais, os alunos aprendem conceitos fundamentais de finanças pessoais de forma segura e controlada:
+A Aurora serve como uma ferramenta prática e interativa para a educação financeira dos alunos. Ao gerir as suas próprias carteiras virtuais, os alunos aprendem conceitos fundamentais de finanças pessoais de forma segura e controlada:
 
 -   **Gestão de Orçamento:** Os alunos recebem, gastam e poupam ValCoins, aprendendo a gerir os seus recursos de forma responsável.
 -   **Compreensão de Transações:** A aplicação permite realizar transações de crédito e débito, familiarizando os alunos com estes conceitos.
@@ -39,7 +39,7 @@ A aplicação cria uma ponte entre a escola e a comunidade local através de um 
 
 ## 5. Fomento do Empreendedorismo e da Criatividade
 
-A ValCoin inclui uma loja virtual que serve de plataforma para os alunos explorarem o seu lado empreendedor e criativo.
+A Aurora inclui uma loja virtual que serve de plataforma para os alunos explorarem o seu lado empreendedor e criativo.
 
 -   **Venda de Produtos:** Os alunos podem criar e vender os seus próprios produtos, como artesanato, poemas, desenhos, ou até mesmo produtos de projetos tecnológicos ou de ciências.
 -   **Loja de Serviços:** A plataforma permite a prestação de serviços entre alunos. Por exemplo, um aluno com bom desempenho a matemática pode vender "horas de apoio" a colegas que precisem de ajuda, sendo pago em ValCoins.
@@ -47,4 +47,4 @@ A ValCoin inclui uma loja virtual que serve de plataforma para os alunos explora
 
 ## Conclusão
 
-A aplicação ValCoin é muito mais do que um simples sistema de moeda virtual. É uma ferramenta pedagógica poderosa com o potencial de transformar a experiência educativa, promovendo a literacia financeira, reforçando valores cívicos, dinamizando a comunidade escolar e preparando os alunos para os desafios do mundo real de uma forma prática, envolvente e significativa.
+A aplicação Aurora é muito mais do que um simples sistema de moeda virtual. É uma ferramenta pedagógica poderosa com o potencial de transformar a experiência educativa, promovendo a literacia financeira, reforçando valores cívicos, dinamizando a comunidade escolar e preparando os alunos para os desafios do mundo real de uma forma prática, envolvente e significativa.

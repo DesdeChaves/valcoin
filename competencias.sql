@@ -1,466 +1,227 @@
--- ============================================================================
--- COMPETÊNCIAS - Sistema de Avaliação por Competências
--- ============================================================================
-
--- 1. Tipos de Medidas Educativas (ENUM)
-CREATE TYPE tipo_medida_educativa AS ENUM (
-    'universal',
-    'seletiva',
-    'adicional',
-    'nenhuma'
-);
-
--- 2. Níveis de Proficiência (ENUM)
-CREATE TYPE nivel_proficiencia AS ENUM (
-    'fraco',
-    'nao_satisfaz',
-    'satisfaz',
-    'satisfaz_bastante',
-    'excelente'
-);
-
--- 3. Tabela de Competências
-CREATE TABLE competencia (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    disciplina_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-    codigo VARCHAR(50) NOT NULL, -- Ex: GEO8-C01
-    nome VARCHAR(255) NOT NULL, -- Ex: "Interpretar mapas temáticos"
+CREATE TABLE public.departamento (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL UNIQUE,
+    codigo VARCHAR(20) NOT NULL UNIQUE,
     descricao TEXT,
-    
-    -- Medidas Educativas aplicáveis
-    medida_educativa tipo_medida_educativa DEFAULT 'nenhuma',
-    descricao_adaptacao TEXT, -- Descrição de como a competência é adaptada
-    
-    -- Metadados
-    criado_por_id UUID NOT NULL REFERENCES users(id),
-    validado BOOLEAN DEFAULT false, -- Competência validada pela coordenação
-    validado_por_id UUID REFERENCES users(id),
-    data_validacao TIMESTAMP,
-    
-    -- Organização
-    dominio VARCHAR(100), -- Ex: "Localização e compreensão espacial"
-    ordem INTEGER DEFAULT 0,
+    coordenador_id UUID REFERENCES public.users(id),
     ativo BOOLEAN DEFAULT true,
-    
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Constraints
-    UNIQUE(disciplina_id, codigo),
-    CHECK (medida_educativa IN ('universal', 'seletiva', 'adicional', 'nenhuma'))
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- 4. Tabela de Associação Competência-Turma
--- Permite ativar/desativar competências específicas por turma
-CREATE TABLE competencia_disciplina_turma (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    competencia_id UUID NOT NULL REFERENCES competencia(id) ON DELETE CASCADE,
-    disciplina_turma_id UUID NOT NULL REFERENCES disciplina_turma(id) ON DELETE CASCADE,
-    ativo BOOLEAN DEFAULT true,
-    
-    created_at TIMESTAMP DEFAULT NOW(),
-    
-    UNIQUE(competencia_id, disciplina_turma_id)
-);
+COMMENT ON TABLE public.departamento IS 'Departamentos curriculares (ex: Ciências Experimentais, Matemática, Línguas)';
 
--- 5. Tabela de Avaliações de Competências
-CREATE TABLE avaliacao_competencia (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    competencia_id UUID NOT NULL REFERENCES competencia(id) ON DELETE CASCADE,
-    aluno_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    professor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    disciplina_turma_id UUID NOT NULL REFERENCES disciplina_turma(id) ON DELETE CASCADE,
-    
-    -- Avaliação
-    nivel nivel_proficiencia NOT NULL,
-    observacoes TEXT,
-    
-    -- Contexto da avaliação
-    momento_avaliacao VARCHAR(100), -- Ex: "1º Período", "Avaliação Diagnóstica"
-    data_avaliacao DATE DEFAULT CURRENT_DATE,
-    
-    -- Evidências (opcional)
-    evidencias JSONB, -- Array de referências a trabalhos, testes, etc.
-    
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Índices para queries rápidas
-    CHECK (nivel IN ('fraco', 'nao_satisfaz', 'satisfaz', 'satisfaz_bastante', 'excelente'))
-);
+-- Exemplos de departamentos
+INSERT INTO departamento (nome, codigo, descricao) VALUES
+('Ciências Experimentais', 'CE', 'Ciências Naturais, Físico-Química, Biologia'),
+('Matemática', 'MAT', 'Matemática e disciplinas relacionadas'),
+('Línguas', 'LING', 'Português, Inglês, Francês, Espanhol'),
+('Ciências Sociais e Humanas', 'CSH', 'História, Geografia, Filosofia');
 
--- 6. Tabela de Medidas Educativas do Aluno
--- Regista as medidas educativas aplicadas a cada aluno
-CREATE TABLE aluno_medida_educativa (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    aluno_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    tipo_medida tipo_medida_educativa NOT NULL,
-    disciplina_id UUID REFERENCES subjects(id) ON DELETE CASCADE, -- NULL = aplica a todas
+-- Adicionar coluna departamento_id à tabela subjects
+ALTER TABLE public.subjects 
+ADD COLUMN departamento_id UUID REFERENCES public.departamento(id);
+
+-- Criar índice
+CREATE INDEX idx_subjects_departamento ON public.subjects(departamento_id);
+
+-- Atualizar disciplinas existentes (exemplo)
+UPDATE subjects SET departamento_id = (SELECT id FROM departamento WHERE codigo = 'CE') 
+WHERE nome ILIKE '%ciências%' OR nome ILIKE '%físico%' OR nome ILIKE '%biologia%';
+
+UPDATE subjects SET departamento_id = (SELECT id FROM departamento WHERE codigo = 'MAT') 
+WHERE nome ILIKE '%matemática%';
+
+-- MODIFICAR A TABELA criterio_sucesso
+DROP TABLE IF EXISTS public.criterio_sucesso CASCADE;
+
+CREATE TABLE public.criterio_sucesso (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     
+    -- Identificação
+    codigo VARCHAR(50) NOT NULL UNIQUE, -- Ex: CE-6-01 (Ciências Experimentais, 6º ano, critério 01)
+    nome VARCHAR(255) NOT NULL,
     descricao TEXT NOT NULL,
-    data_inicio DATE NOT NULL,
-    data_fim DATE, -- NULL = ainda ativa
+    
+    -- Vinculação ao Departamento (CHAVE!)
+    departamento_id UUID NOT NULL REFERENCES public.departamento(id) ON DELETE CASCADE,
+    
+    -- Ano de escolaridade em que o critério é INTRODUZIDO
+    ano_escolaridade_inicial INTEGER NOT NULL CHECK (ano_escolaridade_inicial BETWEEN 5 AND 12),
+    
+    -- Até que ano deve ser acompanhado (NULL = até conclusão)
+    ano_escolaridade_limite INTEGER CHECK (ano_escolaridade_limite >= ano_escolaridade_inicial),
+    
+    -- Nível mínimo aceitável (escala 0-10)
+    nivel_aceitavel NUMERIC(5,2) NOT NULL DEFAULT 7.0 CHECK (nivel_aceitavel BETWEEN 0 AND 10),
+    
+    -- Periodicidade recomendada de reavaliação
+    periodicidade_avaliacao VARCHAR(20) DEFAULT 'semestral' 
+        CHECK (periodicidade_avaliacao IN ('trimestral', 'semestral', 'anual')),
     
     -- Metadados
-    registado_por_id UUID NOT NULL REFERENCES users(id),
-    documento_referencia VARCHAR(255), -- Ex: "RTP 2024/25"
+    aprovado_por VARCHAR(100), -- Ex: "Conselho Pedagógico - 15/09/2024"
+    data_aprovacao DATE,
+    ativo BOOLEAN DEFAULT true,
     
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    
-    CHECK (tipo_medida IN ('universal', 'seletiva', 'adicional'))
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- 7. Tabela de Histórico de Alterações (Auditoria)
-CREATE TABLE competencia_historico (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    competencia_id UUID NOT NULL REFERENCES competencia(id) ON DELETE CASCADE,
-    alterado_por_id UUID NOT NULL REFERENCES users(id),
-    tipo_alteracao VARCHAR(50) NOT NULL, -- 'criacao', 'edicao', 'validacao', 'desativacao'
-    dados_anteriores JSONB,
-    dados_novos JSONB,
-    motivo TEXT,
-    
+COMMENT ON TABLE public.criterio_sucesso IS 'Critérios de sucesso definidos por departamento para acompanhamento longitudinal';
+COMMENT ON COLUMN public.criterio_sucesso.departamento_id IS 'Departamento responsável pela definição e acompanhamento do critério';
+COMMENT ON COLUMN public.criterio_sucesso.ano_escolaridade_inicial IS 'Ano em que o critério é introduzido';
+COMMENT ON COLUMN public.criterio_sucesso.ano_escolaridade_limite IS 'Ano limite para acompanhamento (NULL = sem limite)';
+
+-- Índices
+CREATE INDEX idx_criterio_sucesso_departamento ON public.criterio_sucesso(departamento_id);
+CREATE INDEX idx_criterio_sucesso_ano_inicial ON public.criterio_sucesso(ano_escolaridade_inicial);
+CREATE INDEX idx_criterio_sucesso_ativo ON public.criterio_sucesso(ativo) WHERE ativo = true;
+
+-- MODIFICAR: Agora vincula-se através do departamento
+DROP TABLE IF EXISTS public.criterio_sucesso_professor CASCADE;
+
+CREATE TABLE public.criterio_sucesso_professor (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+   
+    criterio_sucesso_id UUID NOT NULL REFERENCES public.criterio_sucesso(id) ON DELETE CASCADE,
+    professor_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    disciplina_id UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+   
+    data_declaracao DATE DEFAULT CURRENT_DATE,
+    ativo BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),
-    
-    CHECK (tipo_alteracao IN ('criacao', 'edicao', 'validacao', 'desativacao', 'ativacao'))
+   
+    UNIQUE(criterio_sucesso_id, professor_id, disciplina_id)
 );
 
--- ============================================================================
--- ÍNDICES PARA PERFORMANCE
--- ============================================================================
-
--- Competências
-CREATE INDEX idx_competencia_disciplina ON competencia(disciplina_id, ativo);
-CREATE INDEX idx_competencia_medida ON competencia(medida_educativa);
-CREATE INDEX idx_competencia_validado ON competencia(validado, ativo);
-CREATE INDEX idx_competencia_dominio ON competencia(dominio);
-
--- Avaliações
-CREATE INDEX idx_avaliacao_competencia_aluno ON avaliacao_competencia(aluno_id, competencia_id);
-CREATE INDEX idx_avaliacao_competencia_data ON avaliacao_competencia(data_avaliacao DESC);
-CREATE INDEX idx_avaliacao_competencia_nivel ON avaliacao_competencia(nivel);
-CREATE INDEX idx_avaliacao_competencia_momento ON avaliacao_competencia(momento_avaliacao);
-CREATE INDEX idx_avaliacao_disciplina_turma ON avaliacao_competencia(disciplina_turma_id);
-
--- Medidas Educativas
-CREATE INDEX idx_aluno_medida_ativo ON aluno_medida_educativa(aluno_id) 
-    WHERE data_fim IS NULL;
-CREATE INDEX idx_aluno_medida_disciplina ON aluno_medida_educativa(aluno_id, disciplina_id);
-
--- ============================================================================
--- VIEWS ÚTEIS
--- ============================================================================
-
--- View: Evolução do aluno por competência
-CREATE OR REPLACE VIEW v_evolucao_competencia_aluno AS
-SELECT
-    ac.aluno_id,
-    ac.competencia_id,
-    c.nome AS competencia_nome,
-    c.codigo AS competencia_codigo,
-    s.nome AS disciplina_nome,
-    ac.nivel,
-    ac.momento_avaliacao,
-    ac.data_avaliacao,
-    ac.observacoes,
-    u_prof.nome AS professor_nome,
-    ROW_NUMBER() OVER (PARTITION BY ac.aluno_id, ac.competencia_id ORDER BY ac.data_avaliacao DESC) AS ordem_cronologica_inversa
-FROM avaliacao_competencia ac
-JOIN competencia c ON c.id = ac.competencia_id
-JOIN subjects s ON s.id = c.disciplina_id
-JOIN users u_prof ON u_prof.id = ac.professor_id
-WHERE c.ativo = true;
-
--- View: Resumo de competências por disciplina
-CREATE VIEW v_competencias_disciplina_resumo AS
-SELECT 
-    s.id AS disciplina_id,
-    s.nome AS disciplina_nome,
-    s.codigo AS disciplina_codigo,
-    COUNT(DISTINCT c.id) AS total_competencias,
-    COUNT(DISTINCT CASE WHEN c.medida_educativa != 'nenhuma' THEN c.id END) AS competencias_com_medidas,
-    COUNT(DISTINCT CASE WHEN c.validado = true THEN c.id END) AS competencias_validadas,
-    ARRAY_AGG(DISTINCT c.dominio) FILTER (WHERE c.dominio IS NOT NULL) AS dominios
-FROM subjects s
-LEFT JOIN competencia c ON c.disciplina_id = s.id AND c.ativo = true
-WHERE s.ativo = true
-GROUP BY s.id, s.nome, s.codigo;
-
--- View: Progresso do aluno (última avaliação de cada competência)
-DROP VIEW IF EXISTS v_progresso_aluno_atual;
-CREATE VIEW v_progresso_aluno_atual AS
-SELECT DISTINCT ON (ac.aluno_id, ac.competencia_id)
-    ac.aluno_id,
-    u.nome AS aluno_nome,
-    u.numero_mecanografico,
-    ac.competencia_id,
-    c.codigo AS competencia_codigo,
-    c.nome AS competencia_nome,
-    c.dominio,
-    s.nome AS disciplina_nome,
-    ac.disciplina_turma_id, -- Adicionado
-    ac.nivel AS nivel_atual,
-    ac.momento_avaliacao AS ultimo_momento,
-    ac.data_avaliacao AS ultima_avaliacao,
-    ac.observacoes,
-    c.medida_educativa,
-    CASE
-        WHEN ame.id IS NOT NULL THEN true
-        ELSE false
-    END AS aluno_tem_medida_educativa
-FROM avaliacao_competencia ac
-JOIN users u ON u.id = ac.aluno_id
-JOIN competencia c ON c.id = ac.competencia_id
-JOIN subjects s ON s.id = c.disciplina_id
-LEFT JOIN aluno_medida_educativa ame ON (
-    ame.aluno_id = ac.aluno_id
-    AND (ame.disciplina_id = c.disciplina_id OR ame.disciplina_id IS NULL)
-    AND ame.data_fim IS NULL
-)
-WHERE c.ativo = true
-ORDER BY ac.aluno_id, ac.competencia_id, ac.data_avaliacao DESC;
-
--- View: Estatísticas de competências por turma
-CREATE VIEW v_estatisticas_competencias_turma AS
-SELECT 
-    dt.id AS disciplina_turma_id,
-    dt.turma_id,
-    cl.nome AS turma_nome,
-    dt.disciplina_id,
-    s.nome AS disciplina_nome,
-    c.id AS competencia_id,
-    c.nome AS competencia_nome,
-    c.dominio,
-    COUNT(DISTINCT ac.aluno_id) AS total_alunos_avaliados,
-    COUNT(ac.id) AS total_avaliacoes,
-    ROUND(AVG(
-        CASE ac.nivel
-            WHEN 'fraco' THEN 1
-            WHEN 'nao_satisfaz' THEN 2
-            WHEN 'satisfaz' THEN 3
-            WHEN 'satisfaz_bastante' THEN 4
-            WHEN 'excelente' THEN 5
-        END
-    ), 2) AS media_nivel,
-    COUNT(CASE WHEN ac.nivel = 'fraco' THEN 1 END) AS qtd_fraco,
-    COUNT(CASE WHEN ac.nivel = 'nao_satisfaz' THEN 1 END) AS qtd_nao_satisfaz,
-    COUNT(CASE WHEN ac.nivel = 'satisfaz' THEN 1 END) AS qtd_satisfaz,
-    COUNT(CASE WHEN ac.nivel = 'satisfaz_bastante' THEN 1 END) AS qtd_satisfaz_bastante,
-    COUNT(CASE WHEN ac.nivel = 'excelente' THEN 1 END) AS qtd_excelente
-FROM disciplina_turma dt
-JOIN classes cl ON cl.id = dt.turma_id
-JOIN subjects s ON s.id = dt.disciplina_id
-JOIN competencia c ON c.disciplina_id = s.id
-LEFT JOIN avaliacao_competencia ac ON (
-    ac.competencia_id = c.id 
-    AND ac.disciplina_turma_id = dt.id
-)
-WHERE c.ativo = true AND dt.ativo = true
-GROUP BY dt.id, dt.turma_id, cl.nome, dt.disciplina_id, s.nome, c.id, c.nome, c.dominio;
-
--- ============================================================================
--- FUNÇÕES ÚTEIS
--- ============================================================================
-
--- Função: Obter nível numérico da proficiência
-CREATE OR REPLACE FUNCTION nivel_proficiencia_to_number(nivel nivel_proficiencia)
-RETURNS INTEGER AS $$
-BEGIN
-    RETURN CASE nivel
-        WHEN 'fraco' THEN 1
-        WHEN 'nao_satisfaz' THEN 2
-        WHEN 'satisfaz' THEN 3
-        WHEN 'satisfaz_bastante' THEN 4
-        WHEN 'excelente' THEN 5
-    END;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-
--- Função: Verificar se aluno tem medida educativa ativa    ac.disciplina_id, 
-    s.nome AS disciplina_nome,
-    c.id AS competencia_id, 
-    c.codigo, 
-    c.nome,
-    ac.nivel AS nivel_atual,
-    COALESCE(evo.evolucao, 0) AS evolucao_pontos,  -- Default 0 se sem evolução (ex: 1ª avaliação)
-    aluno_tem_medida_educativa(ac.aluno_id, ac.disciplina_id) AS tem_medida,
-    ac.data_avaliacao AS ultima_avaliacao
-FROM avaliacao_competencia ac
-JOIN users u ON u.id = ac.aluno_id
-JOIN competencia c ON c.id = ac.competencia_id
-JOIN subjects s ON s.id = c.disciplina_id
-LEFT JOIN LATERAL calcular_evolucao_competencia(ac.aluno_id, c.id) AS evo ON true  -- LATERAL para função por linha
-WHERE c.ativo = true
-ORDER BY ac.aluno_id, s.nome, c.ordem;
-CREATE OR REPLACE FUNCTION aluno_tem_medida_educativa(
-    p_aluno_id UUID,
-    p_disciplina_id UUID DEFAULT NULL
-)
-RETURNS BOOLEAN AS $$
+-- Trigger function
+CREATE OR REPLACE FUNCTION check_criterio_disciplina_departamento()
+RETURNS TRIGGER AS $$
 DECLARE
-    v_count INTEGER;
+    dept_criterio UUID;
+    dept_disciplina UUID;
 BEGIN
-    SELECT COUNT(*)
-    INTO v_count
-    FROM aluno_medida_educativa
-    WHERE aluno_id = p_aluno_id
-        AND data_fim IS NULL
-        AND (disciplina_id = p_disciplina_id OR disciplina_id IS NULL OR p_disciplina_id IS NULL);
-    
-    RETURN v_count > 0;
-END;
-$$ LANGUAGE plpgsql;
+    -- Departamento do critério de sucesso
+    SELECT departamento_id INTO dept_criterio
+    FROM public.criterio_sucesso
+    WHERE id = NEW.criterio_sucesso_id;
 
--- Função: Calcular evolução da competência
-CREATE OR REPLACE FUNCTION calcular_evolucao_competencia(
-    p_aluno_id UUID,
-    p_competencia_id UUID
-)
-RETURNS TABLE (
-    primeira_avaliacao DATE,
-    ultima_avaliacao DATE,
-    nivel_inicial nivel_proficiencia,
-    nivel_atual nivel_proficiencia,
-    evolucao INTEGER, -- Diferença numérica
-    total_avaliacoes INTEGER
-) AS $$
-BEGIN
-    RETURN QUERY
-    WITH avaliacoes_ordenadas AS (
-        SELECT 
-            data_avaliacao,
-            nivel,
-            ROW_NUMBER() OVER (ORDER BY data_avaliacao ASC) as ordem
-        FROM avaliacao_competencia
-        WHERE aluno_id = p_aluno_id
-            AND competencia_id = p_competencia_id
-        ORDER BY data_avaliacao
-    ),
-    primeira AS (
-        SELECT data_avaliacao, nivel
-        FROM avaliacoes_ordenadas
-        WHERE ordem = 1
-    ),
-    ultima AS (
-        SELECT data_avaliacao, nivel
-        FROM avaliacoes_ordenadas
-        ORDER BY ordem DESC
-        LIMIT 1
-    )
-    SELECT 
-        primeira.data_avaliacao,
-        ultima.data_avaliacao,
-        primeira.nivel,
-        ultima.nivel,
-        (nivel_proficiencia_to_number(ultima.nivel) - nivel_proficiencia_to_number(primeira.nivel))::INTEGER,
-        (SELECT COUNT(*)::INTEGER FROM avaliacoes_ordenadas)    ac.disciplina_id, 
-    s.nome AS disciplina_nome,
-    c.id AS competencia_id, 
-    c.codigo, 
-    c.nome,
-    ac.nivel AS nivel_atual,
-    COALESCE(evo.evolucao, 0) AS evolucao_pontos,  -- Default 0 se sem evolução (ex: 1ª avaliação)
-    aluno_tem_medida_educativa(ac.aluno_id, ac.disciplina_id) AS tem_medida,
-    ac.data_avaliacao AS ultima_avaliacao
-FROM avaliacao_competencia ac
-JOIN users u ON u.id = ac.aluno_id
-JOIN competencia c ON c.id = ac.competencia_id
-JOIN subjects s ON s.id = c.disciplina_id
-LEFT JOIN LATERAL calcular_evolucao_competencia(ac.aluno_id, c.id) AS evo ON true  -- LATERAL para função por linha
-WHERE c.ativo = true
-ORDER BY ac.aluno_id, s.nome, c.ordem;
-    FROM primeira, ultima;
-END;
-$$ LANGUAGE plpgsql;
+    -- Departamento da disciplina escolhida
+    SELECT departamento_id INTO dept_disciplina
+    FROM public.subjects
+    WHERE id = NEW.disciplina_id;
 
--- ============================================================================
--- TRIGGERS
--- ============================================================================
-
--- Trigger: Atualizar updated_at
-CREATE OR REPLACE FUNCTION update_competencia_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_competencia_updated_at
-    BEFORE UPDATE ON competencia
-    FOR EACH ROW
-    EXECUTE FUNCTION update_competencia_updated_at();
-
-CREATE TRIGGER trigger_avaliacao_competencia_updated_at
-    BEFORE UPDATE ON avaliacao_competencia
-    FOR EACH ROW
-    EXECUTE FUNCTION update_competencia_updated_at();
-
-CREATE TRIGGER trigger_aluno_medida_updated_at
-    BEFORE UPDATE ON aluno_medida_educativa
-    FOR EACH ROW
-    EXECUTE FUNCTION update_competencia_updated_at();
-
--- Trigger: Registar histórico de alterações
-CREATE OR REPLACE FUNCTION registar_alteracao_competencia()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        INSERT INTO competencia_historico (
-            competencia_id,
-            alterado_por_id,
-            tipo_alteracao,
-            dados_novos
-        ) VALUES (
-            NEW.id,
-            NEW.criado_por_id,
-            'criacao',
-            row_to_json(NEW)::jsonb
-        );
-    ELSIF TG_OP = 'UPDATE' THEN
-        INSERT INTO competencia_historico (
-            competencia_id,
-            alterado_por_id,
-            tipo_alteracao,
-            dados_anteriores,
-            dados_novos
-        ) VALUES (
-            NEW.id,
-            NEW.criado_por_id,
-            CASE 
-                WHEN OLD.validado = false AND NEW.validado = true THEN 'validacao'
-                WHEN OLD.ativo = true AND NEW.ativo = false THEN 'desativacao'
-                WHEN OLD.ativo = false AND NEW.ativo = true THEN 'ativacao'
-                ELSE 'edicao'
-            END,
-            row_to_json(OLD)::jsonb,
-            row_to_json(NEW)::jsonb
-        );
+    IF dept_criterio IS DISTINCT FROM dept_disciplina THEN
+        RAISE EXCEPTION 'A disciplina (%) não pertence ao mesmo departamento do critério de sucesso', NEW.disciplina_id;
     END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_historico_competencia
-    AFTER INSERT OR UPDATE ON competencia
+-- Trigger
+CREATE TRIGGER trg_check_criterio_disciplina_departamento
+    BEFORE INSERT OR UPDATE ON public.criterio_sucesso_professor
     FOR EACH ROW
-    EXECUTE FUNCTION registar_alteracao_competencia();
+    EXECUTE FUNCTION check_criterio_disciplina_departamento();
+    
+  -- A tabela avaliacao_criterio_sucesso mantém-se similar, mas com melhorias
+DROP TABLE IF EXISTS public.avaliacao_criterio_sucesso CASCADE;
 
--- ============================================================================
--- DADOS INICIAIS (OPCIONAL)
--- ============================================================================
+CREATE TABLE public.avaliacao_criterio_sucesso (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    
+    criterio_sucesso_id UUID NOT NULL REFERENCES public.criterio_sucesso(id) ON DELETE CASCADE,
+    aluno_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    professor_id UUID NOT NULL REFERENCES public.users(id),
+    disciplina_id UUID NOT NULL REFERENCES public.subjects(id),
+    
+    -- Avaliação (escala 0-10 para uniformizar)
+    pontuacao NUMERIC(5,2) NOT NULL CHECK (pontuacao BETWEEN 0 AND 10),
+    
+    -- Contexto temporal
+    ano_letivo VARCHAR(9) NOT NULL,
+    ano_escolaridade_aluno INTEGER NOT NULL, -- Ano do aluno NESTA avaliação
+    periodo VARCHAR(20), -- 'trimestre1', 'semestre1', 'anual'
+    
+    observacoes TEXT,
+    evidencias JSONB, -- Links para trabalhos, testes, etc.
+    
+    -- Status de conclusão
+    atingiu_sucesso BOOLEAN DEFAULT false, -- true se pontuacao >= nivel_aceitavel
+    data_conclusao TIMESTAMP, -- Quando atingiu pela primeira vez
+    
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
 
--- Exemplo de competências para Geografia 8º ano
-INSERT INTO competencia (disciplina_id, codigo, nome, descricao, dominio, criado_por_id, ordem) 
+COMMENT ON TABLE public.avaliacao_criterio_sucesso IS 'Histórico completo de avaliações de critérios ao longo dos anos';
+COMMENT ON COLUMN public.avaliacao_criterio_sucesso.ano_escolaridade_aluno IS 'Ano escolar do aluno no momento desta avaliação';
+
+-- Índices otimizados
+CREATE INDEX idx_aval_criterio_aluno ON public.avaliacao_criterio_sucesso(aluno_id, criterio_sucesso_id);
+CREATE INDEX idx_aval_criterio_ano_aluno ON public.avaliacao_criterio_sucesso(ano_escolaridade_aluno);
+CREATE INDEX idx_aval_criterio_pendente ON public.avaliacao_criterio_sucesso(atingiu_sucesso) 
+    WHERE atingiu_sucesso = false;
+    
+ -- View: Critérios ainda não atingidos por aluno
+CREATE VIEW v_criterios_pendentes_aluno AS
 SELECT 
-    s.id,
-    'GEO8-C01',
-    'Interpretar mapas temáticos',
-    'Capacidade de ler e interpretar diferentes tipos de mapas temáticos',
-    'Localização e compreensão espacial',
-    (SELECT id FROM users WHERE tipo_utilizador = 'ADMIN' LIMIT 1),
-    1
-FROM subjects s 
-WHERE s.codigo LIKE '%GEO%' AND s.ativo = true
-LIMIT 1;
+    cs.id AS criterio_id,
+    cs.codigo AS criterio_codigo,
+    cs.nome AS criterio_nome,
+    cs.ano_escolaridade_inicial,
+    cs.nivel_aceitavel,
+    d.nome AS departamento_nome,
+    u.id AS aluno_id,
+    u.nome AS aluno_nome,
+    u.ano_escolar AS ano_atual_aluno,
+    ultima_aval.pontuacao AS ultima_pontuacao,
+    ultima_aval.ano_letivo AS ultima_avaliacao_ano,
+    ultima_aval.created_at AS ultima_avaliacao_data,
+    COUNT(todas_aval.id) AS total_avaliacoes,
+    -- Quantos anos o aluno está "atrasado" neste critério
+    (u.ano_escolar - cs.ano_escolaridade_inicial) AS anos_desde_introducao
+FROM criterio_sucesso cs
+JOIN departamento d ON d.id = cs.departamento_id
+CROSS JOIN users u
+LEFT JOIN LATERAL (
+    SELECT *
+    FROM avaliacao_criterio_sucesso
+    WHERE criterio_sucesso_id = cs.id AND aluno_id = u.id
+    ORDER BY created_at DESC
+    LIMIT 1
+) ultima_aval ON true
+LEFT JOIN avaliacao_criterio_sucesso todas_aval ON (
+    todas_aval.criterio_sucesso_id = cs.id AND todas_aval.aluno_id = u.id
+)
+WHERE u.tipo_utilizador = 'ALUNO'
+    AND u.ativo = true
+    AND cs.ativo = true
+    AND u.ano_escolar >= cs.ano_escolaridade_inicial
+    AND (cs.ano_escolaridade_limite IS NULL OR u.ano_escolar <= cs.ano_escolaridade_limite)
+    AND (ultima_aval.atingiu_sucesso IS NULL OR ultima_aval.atingiu_sucesso = false)
+GROUP BY cs.id, cs.codigo, cs.nome, cs.ano_escolaridade_inicial, cs.nivel_aceitavel,
+         d.nome, u.id, u.nome, u.ano_escolar, 
+         ultima_aval.pontuacao, ultima_aval.ano_letivo, ultima_aval.created_at;
+
+-- View: Dashboard para Coordenador de Departamento
+CREATE VIEW v_dashboard_departamento AS
+SELECT 
+    d.id AS departamento_id,
+    d.nome AS departamento_nome,
+    COUNT(DISTINCT cs.id) AS total_criterios,
+    COUNT(DISTINCT s.id) AS total_disciplinas,
+    COUNT(DISTINCT csp.professor_id) AS professores_envolvidos,
+    COUNT(DISTINCT acs.aluno_id) AS alunos_avaliados,
+    COUNT(DISTINCT CASE WHEN acs.atingiu_sucesso = true THEN acs.aluno_id END) AS alunos_com_sucesso,
+    ROUND(AVG(acs.pontuacao), 2) AS media_pontuacoes
+FROM departamento d
+LEFT JOIN criterio_sucesso cs ON cs.departamento_id = d.id AND cs.ativo = true
+LEFT JOIN subjects s ON s.departamento_id = d.id AND s.ativo = true
+LEFT JOIN criterio_sucesso_professor csp ON csp.criterio_sucesso_id = cs.id AND csp.ativo = true
+LEFT JOIN avaliacao_criterio_sucesso acs ON acs.criterio_sucesso_id = cs.id
+WHERE d.ativo = true
+GROUP BY d.id, d.nome;     
+

@@ -155,6 +155,8 @@ services:
         condition: service_healthy
       feedback-client:
         condition: service_healthy
+      qualidade-client:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
@@ -201,6 +203,26 @@ services:
     depends_on:
       valcoin-admin-server:
         condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  qualidade-client:
+    build:
+      context: ./qualidade
+      dockerfile: Dockerfile
+      args:
+        PUBLIC_URL: /qualidade
+    container_name: qualidade_client
+    networks:
+      - valcoin-network
+    depends_on:
+      valcoin-admin-server:
+        condition: service_healthy # Assuming it needs the admin server for auth
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]

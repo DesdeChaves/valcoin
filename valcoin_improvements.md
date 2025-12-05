@@ -1,6 +1,6 @@
-# Propostas de Melhoria para a Plataforma Valcoin
+# Propostas de Melhoria para a Plataforma Aurora
 
-Este documento apresenta um conjunto abrangente de melhorias estratégicas para elevar a plataforma Valcoin ao próximo nível, expandindo as suas capacidades pedagógicas e técnicas.
+Este documento apresenta um conjunto abrangente de melhorias estratégicas para elevar a plataforma Aurora ao próximo nível, expandindo as suas capacidades pedagógicas e técnicas.
 
 ---
 
@@ -142,10 +142,10 @@ Criação de uma bolsa de valores interna onde alunos podem investir em "empresa
 ### 4. Banco Central e Política Monetária Ativa
 
 **Problema Atual:**
-A economia Valcoin não possui controlo monetário ativo para combater inflação ou deflação.
+A economia Aurora não possui controlo monetário ativo para combater inflação ou deflação.
 
 **Proposta:**
-Criação de um "Banco Central Valcoin" gerido por alunos sob supervisão do Administrador.
+Criação de um "Banco Central Aurora" gerido por alunos sob supervisão do Administrador.
 
 **Estrutura:**
 
@@ -554,7 +554,7 @@ Alunos estão constantemente em dispositivos móveis. Uma app nativa melhora dra
 **Para Mentores:**
 - 30 VC/mês por mentorando ativo
 - 10 pontos de Legado por mentorando por trimestre
-- Badge de "Mentor Valcoin"
+- Badge de "Mentor Aurora"
 - Certificado de competências no final do ano
 - Referência para universidade/emprego
 

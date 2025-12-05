@@ -187,6 +187,87 @@ export const submeterRespostaAutenticada = async (aplicacaoId, payload) => {
   return res.data;
 };
 
+
+
+// ============================================================
+// FUNÇÕES EQAVET – 2025 (adicionar ao teu api.js)
+// ============================================================
+
+// Ciclos Formativos
+export const getCiclosFormativos = async (ativo = 'true') => {
+  const params = {};
+  if (ativo !== 'all') {
+    params.ativo = ativo;
+  }
+  const res = await apiClient.get('/qualidade/equavet/ciclos', { params });
+  return res.data;
+};
+
+export const createCicloFormativo = async (data) => {
+  const res = await apiClient.post('/qualidade/equavet/ciclos', data);
+  return res.data;
+};
+
+export const updateCicloFormativo = async (id, data) => {
+  const res = await apiClient.put(`/qualidade/equavet/ciclos/${id}`, data);
+  return res.data;
+};
+
+export const getTurmasByCiclo = async (id) => {
+  const res = await apiClient.get(`/qualidade/equavet/ciclos/${id}/turmas`);
+  return res.data;
+};
+
+export const updateTurmasForCiclo = async (id, turmas) => {
+  const res = await apiClient.put(`/qualidade/equavet/ciclos/${id}/turmas`, { turmas });
+  return res.data;
+};
+
+// Metas Institucionais
+export const getMetasInstitucionais = async (ano_letivo) => {
+  const res = await apiClient.get('/qualidade/equavet/metas', { params: { ano_letivo } });
+  return res.data;
+};
+
+export const saveMetaInstitucional = async (data) => {
+  const res = await apiClient.post('/qualidade/equavet/metas', data);
+  return res.data;
+};
+
+// Dashboard principal (Metas vs Resultados)
+export const getEqavetDashboard = async () => {
+  const res = await apiClient.get('/qualidade/equavet/dashboard');
+  return res.data;
+};
+
+// Indicadores (todos com GET, POST e PUT)
+export const getIndicador = async (nome, cicloId, ano) => {
+  const res = await apiClient.get(`/qualidade/equavet/indicador${nome}`, { params: { cicloId, ano } });
+  return res.data;
+};
+
+export const saveIndicador = async (nome, data) => {
+  const res = await apiClient.post(`/qualidade/equavet/indicador${nome}`, data);
+  return res.data;
+};
+
+export const updateIndicador = async (nome, data) => {
+  const res = await apiClient.put(`/qualidade/equavet/indicador${nome}`, data);
+  return res.data;
+};
+
+// Tracking de Diplomados
+export const getTrackingDiplomados = async (cicloId) => {
+  const res = await apiClient.get('/qualidade/equavet/tracking', { params: { cicloId } });
+  return res.data;
+};
+
+export const updateTrackingDiplomado = async (data) => {
+  const res = await apiClient.post('/qualidade/equavet/tracking', data);
+  return res.data;
+};
+
+
 // ============================================================
 // TODAS AS FUNÇÕES ANTIGAS – MANTIDAS SÓ PARA NÃO DAR ERRO DE IMPORT
 // (Podes apagar depois de limpar o código)

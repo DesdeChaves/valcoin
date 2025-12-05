@@ -1,0 +1,3 @@
+ -     console.log(`[DB] Executing query:`, text);                                                                                 │ 
+│ 135 -     console.log(`[DB] With params:`, params);                                                                                   │ 
+│ 134 +     console.log(`🔍 Executando query: ${text.su

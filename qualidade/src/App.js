@@ -18,6 +18,7 @@ import AplicacaoCreate from './pages/AplicacaoCreate';
 import EmpresasList from './pages/Empresas/EmpresasList';
 import EmpresaForm from './pages/Empresas/EmpresaForm';
 import EmpresaDetail from './pages/Empresas/EmpresaDetail';
+import QualidadeEqavet from './pages/QualidadeEqavet';
 
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentAplicações from './pages/student/StudentAplicações';
@@ -78,6 +79,7 @@ function App() {
               <Route path="empresas/create" element={<EmpresaForm />} />
               <Route path="empresas/edit/:id" element={<EmpresaForm />} />
               <Route path="empresas/:id" element={<EmpresaDetail />} />
+              <Route path="eqavet" element={<QualidadeEqavet />} />
             </>
           ) : user?.tipo_utilizador === 'ALUNO' ? (
             <>

@@ -1,19 +1,19 @@
-# Documentação da API da Plataforma Valcoin
+# Documentação da API da Plataforma Aurora
 
 ## 1. Visão Geral
 
-A plataforma Valcoin é um sistema de economia virtual desenhado para um ambiente educacional. O seu propósito é simular um sistema financeiro real, permitindo que alunos, professores e administradores interajam através de uma moeda digital, o "Valcoin".
+A plataforma Aurora é um sistema de economia virtual desenhado para um ambiente educacional. O seu propósito é simular um sistema financeiro real, permitindo que alunos, professores e administradores interajam através de uma moeda digital, o "Valcoin".
 
 A plataforma divide-se em duas componentes principais:
 
-1.  **Valcoin Admin (O Banco):** Uma aplicação de back-office (servidor e painel de administração) que funciona como o "banco central". Permite a gestão completa de utilizadores (alunos, professores, administradores), turmas, disciplinas, transações, regras de negócio, produtos financeiros (poupanças, créditos) e a visualização de dashboards com métricas vitais.
-2.  **Valcoin Store (A Loja):** Uma aplicação completa com frontend e backend que representa o "mercado". Aqui, os utilizadores podem gastar os seus Valcoins para comprar produtos e serviços (incluindo bilhetes para eventos) listados por outros utilizadores.
+1.  **Aurora Admin (O Banco):** Uma aplicação de back-office (servidor e painel de administração) que funciona como o "banco central". Permite a gestão completa de utilizadores (alunos, professores, administradores), turmas, disciplinas, transações, regras de negócio, produtos financeiros (poupanças, créditos) e a visualização de dashboards com métricas vitais.
+2.  **Aurora Store (A Loja):** Uma aplicação completa com frontend e backend que representa o "mercado". Aqui, os utilizadores podem gastar os seus Valcoins para comprar produtos e serviços (incluindo bilhetes para eventos) listados por outros utilizadores.
 
 Este documento detalha todos os endpoints da API para ambas as componentes.
 
 ---
 
-## 2. Valcoin Admin API (`valcoin-admin/valcoin_server.js`)
+## 2. Aurora Admin API (`valcoin-admin/valcoin_server.js`)
 
 Este servidor gere toda a lógica de negócio, utilizadores e transações.
 
@@ -147,9 +147,9 @@ Este servidor gere toda a lógica de negócio, utilizadores e transações.
 
 ---
 
-## 3. Valcoin Store API (`valcoin-store/server/store_server.js`)
+## 3. Aurora Store API (`valcoin-store/server/store_server.js`)
 
-Este servidor gere a loja, incluindo produtos, compras e categorias. Funciona como um proxy para o `valcoin-admin` para autenticação e transações monetárias.
+Este servidor gere a loja, incluindo produtos, compras e categorias. Funciona como um proxy para o `aurora-admin` para autenticação e transações monetárias.
 
 ### 3.1. Saúde e Autenticação
 

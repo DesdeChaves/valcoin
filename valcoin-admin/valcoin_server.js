@@ -486,6 +486,9 @@ console.log('[DEBUG] Mounting /api/qualidade/empresas router.');
 const empresasRouter = require('./libs/qualidade/empresas')(authenticateJWT, authenticateAdminOrProfessor);
 app.use('/api/qualidade/empresas', empresasRouter);
 
+const equavetRouter = require('./libs/qualidade/equavet')(authenticateJWT, authenticateAdminOrProfessor);
+app.use('/api/qualidade/equavet', equavetRouter);
+
 // Protected qualidade routes (require professor authentication)
 app.use('/api/qualidade/professor', authenticateJWT, authorizeProfessor, qualidadeProtectedRouter);
 app.use('/api/qualidade/student', authenticateJWT, authorizeStudent, qualidadeStudentRouter);

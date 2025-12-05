@@ -1,6 +1,6 @@
-# Manual de Utilizador Avançado da Aplicação Valcoin
+# Manual de Utilizador Avançado da Aplicação Aurora
 
-A Valcoin é um ecossistema gamificado de literacia financeira que transforma a aprendizagem económica numa experiência viva e prática. Este manual descreve em detalhe as funcionalidades da plataforma para os perfis de Administrador, Professor e Aluno (Valkid/Valteen).
+A Aurora é um ecossistema gamificado de literacia financeira que transforma a aprendizagem económica numa experiência viva e prática. Este manual descreve em detalhe as funcionalidades da plataforma para os perfis de Administrador, Professor e Aluno (Valkid/Valteen).
 
 ---
 
@@ -9,7 +9,7 @@ A Valcoin é um ecossistema gamificado de literacia financeira que transforma a 
 ### Pontos Fortes da Plataforma
 
 #### 1. Pedagogia Através da Experiência
-A Valcoin distingue-se por não se limitar a *ensinar* literacia financeira — permite que os alunos a *vivam*. Ao criar uma economia funcional dentro da escola, onde as decisões financeiras têm consequências reais (ainda que em moeda virtual), a plataforma oferece uma aprendizagem pedagogicamente superior a qualquer manual teórico tradicional.
+A Aurora distingue-se por não se limitar a *ensinar* literacia financeira — permite que os alunos a *vivam*. Ao criar uma economia funcional dentro da escola, onde as decisões financeiras têm consequências reais (ainda que em moeda virtual), a plataforma oferece uma aprendizagem pedagogicamente superior a qualquer manual teórico tradicional.
 
 #### 2. Gamificação Sofisticada e Significativa
 O sistema de Houses, pontos de Legado e a progressão natural de Valkid para Valteen demonstra uma compreensão profunda da motivação juvenil. Não se trata de gamificação superficial baseada em badges decorativos, mas de uma estrutura cuidadosamente desenhada que cria sentido de pertença, identidade comunitária e propósito duradouro.
@@ -48,7 +48,7 @@ A plataforma não simplifica excessivamente a realidade económica. A inclusão 
 
 ## 1. Administrador
 
-O Administrador detém o controlo estratégico sobre o ecossistema Valcoin, sendo responsável pela sua configuração, personalização e supervisão económica.
+O Administrador detém o controlo estratégico sobre o ecossistema Aurora, sendo responsável pela sua configuração, personalização e supervisão económica.
 
 ### 1.1. Dashboard de Controlo
 
@@ -78,7 +78,7 @@ O dashboard constitui o centro nevrálgico da plataforma, apresentando métricas
 
 ### 1.2. Configuração da Economia
 
-A principal responsabilidade estratégica do Administrador é modelar e equilibrar a economia da Valcoin, garantindo a sua sustentabilidade e relevância pedagógica.
+A principal responsabilidade estratégica do Administrador é modelar e equilibrar a economia da Aurora, garantindo a sua sustentabilidade e relevância pedagógica.
 
 #### 1.2.1. Gestão de Regras de Transação
 
@@ -182,7 +182,7 @@ O Administrador (ou professor designado) avalia pedidos de micro-empréstimos su
 
 ### 1.4. Processos Automáticos (Cron Jobs)
 
-O sistema Valcoin executa processos automáticos que garantem o funcionamento contínuo da economia e a aplicação consistente de regras financeiras, simulando a automatização presente no sistema financeiro real.
+O sistema Aurora executa processos automáticos que garantem o funcionamento contínuo da economia e a aplicação consistente de regras financeiras, simulando a automatização presente no sistema financeiro real.
 
 #### 1.4.1. Pagamento de Juros de Poupança
 
@@ -256,7 +256,7 @@ O sistema Valcoin executa processos automáticos que garantem o funcionamento co
 
 ## 2. Professor
 
-O Professor é o principal agente dinamizador da economia Valcoin no quotidiano escolar, utilizando as ferramentas pedagógicas criadas pelo Administrador para motivar e educar os alunos.
+O Professor é o principal agente dinamizador da economia Aurora no quotidiano escolar, utilizando as ferramentas pedagógicas criadas pelo Administrador para motivar e educar os alunos.
 
 ### Principais Funcionalidades
 
@@ -352,9 +352,9 @@ Secção especial de prestígio que exibe:
 
 ---
 
-## 4. A Loja Valcoin: Mercado de Empreendedorismo e Aprendizagem
+## 4. A Loja Aurora: Mercado de Empreendedorismo e Aprendizagem
 
-A loja representa o coração pulsante da economia Valcoin. Mais do que um simples marketplace, constitui uma plataforma de micro-empreendedorismo onde qualquer membro da comunidade escolar pode criar, comercializar e adquirir produtos e serviços, transformando talentos e bens em valor económico real.
+A loja representa o coração pulsante da economia Aurora. Mais do que um simples marketplace, constitui uma plataforma de micro-empreendedorismo onde qualquer membro da comunidade escolar pode criar, comercializar e adquirir produtos e serviços, transformando talentos e bens em valor económico real.
 
 ### 4.1. Objetivos Pedagógicos
 
@@ -541,34 +541,34 @@ Esta autonomia total ensina:
 
 ## 6. Arquitetura e Instalação
 
-Esta secção detalha a arquitetura técnica da plataforma Valcoin, as tecnologias utilizadas, os requisitos de hardware e o processo de instalação e configuração.
+Esta secção detalha a arquitetura técnica da plataforma Aurora, as tecnologias utilizadas, os requisitos de hardware e o processo de instalação e configuração.
 
 ### 6.1. Arquitetura da Plataforma
 
-A plataforma Valcoin é construída sobre uma **arquitetura de microserviços moderna**, orquestrada com Docker e Docker Compose. Esta abordagem arquitetural garante modularidade, escalabilidade horizontal, facilidade de manutenção e isolamento de responsabilidades.
+A plataforma Aurora é construída sobre uma **arquitetura de microserviços moderna**, orquestrada com Docker e Docker Compose. Esta abordagem arquitetural garante modularidade, escalabilidade horizontal, facilidade de manutenção e isolamento de responsabilidades.
 
 #### Componentes do Sistema
 
-**`valcoin-admin-server`**
+**`aurora-admin-server`**
 - Backend da aplicação de administração
 - Responsável pela lógica de negócio central
 - Gestão de utilizadores, autenticação e autorização
 - Configurações da economia e regras de transação
 - API RESTful para comunicação com o frontend
 
-**`valcoin-admin-client`**
+**`aurora-admin-client`**
 - Interface de frontend desenvolvida em React
 - Destinada a administradores e professores
 - UI/UX otimizada para gestão e supervisão
 - Visualizações de dados e dashboards interativos
 
-**`valcoin-store-server`**
+**`aurora-store-server`**
 - Backend dedicado à loja Valcoin
 - Gestão de produtos, inventário e transações comerciais
 - Sistema de bilhética integrado
 - Processamento de pagamentos em Valcoins
 
-**`valcoin-store-client`**
+**`aurora-store-client`**
 - Interface de frontend da loja (React)
 - Acessível a todos os membros da comunidade
 - Experiência de compra otimizada
@@ -700,7 +700,7 @@ Os seguintes requisitos constituem recomendações para um ambiente de produçã
 
 ### 6.4. Processo de Instalação
 
-A instalação da plataforma Valcoin é simplificada através da utilização de Docker Compose, que automatiza o deployment e a configuração de todos os serviços necessários.
+A instalação da plataforma Aurora é simplificada através da utilização de Docker Compose, que automatiza o deployment e a configuração de todos os serviços necessários.
 
 #### Passo 1: Pré-requisitos
 
@@ -756,8 +756,8 @@ JWT_SECRET=seu-segredo-jwt-super-secreto-e-aleatorio-com-minimo-32-caracteres
 # Base de Dados
 DB_HOST=postgres
 DB_PORT=5432
-DB_NAME=valcoin
-DB_USER=valcoin_user
+DB_NAME=aurora
+DB_USER=aurora_user
 DB_PASSWORD=password-seguro-da-base-de-dados
 
 # Redis
@@ -910,14 +910,14 @@ sudo certbot renew --dry-run
 
 ```bash
 #!/bin/bash
-# backup_valcoin.sh
+# backup_aurora.sh
 
 BACKUP_DIR="/var/backups/valcoin"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 mkdir -p $BACKUP_DIR
 
-docker exec postgres pg_dump -U valcoin_user valcoin | gzip > $BACKUP_DIR/valcoin_backup_$DATE.sql.gz
+docker exec postgres pg_dump -U aurora_user aurora | gzip > $BACKUP_DIR/aurora_backup_$DATE.sql.gz
 
 # Manter apenas backups dos últimos 30 dias
 find $BACKUP_DIR -name "*.sql.gz" -mtime +30 -delete
@@ -940,8 +940,8 @@ docker stats
 
 **Logs de Aplicação:**
 ```bash
-docker-compose logs -f valcoin-admin-server
-docker-compose logs -f valcoin-store-server
+docker-compose logs -f aurora-admin-server
+docker-compose logs -f aurora-store-server
 ```
 
 **Atualizar Serviços:**
@@ -959,7 +959,7 @@ docker-compose up -d --build
 
 ### 7.1. Impacto Educativo
 
-A plataforma Valcoin transcende o conceito tradicional de "aplicação escolar" para se constituir como um **laboratório social e económico vivo**, onde os alunos não apenas aprendem conceitos teóricos, mas experimentam as dinâmicas reais de uma economia funcional.
+A plataforma Aurora transcende o conceito tradicional de "aplicação escolar" para se constituir como um **laboratório social e económico vivo**, onde os alunos não apenas aprendem conceitos teóricos, mas experimentam as dinâmicas reais de uma economia funcional.
 
 #### Aprendizagens Fundamentais
 
@@ -983,7 +983,7 @@ O sistema de Houses equilibra o espírito competitivo com a cooperação intra-g
 
 ### 7.2. Preparação para a Vida Adulta
 
-A Valcoin prepara os jovens para enfrentar desafios financeiros reais:
+A Aurora prepara os jovens para enfrentar desafios financeiros reais:
 - Gestão de orçamento pessoal e familiar
 - Tomada de decisões de investimento informadas
 - Compreensão de produtos financeiros complexos
@@ -1000,7 +1000,7 @@ A arquitetura modular da plataforma permite:
 
 ### 7.4. Conclusão
 
-Se implementada com dedicação pedagógica e suporte técnico adequado, a Valcoin tem potencial para **revolucionar a educação financeira** em Portugal e além-fronteiras. Ao transformar conceitos abstratos em experiências tangíveis, a plataforma pode genuinamente alterar a relação das novas gerações com o dinheiro, criando adultos mais conscientes, responsáveis e preparados para navegar a complexidade económica do século XXI.
+Se implementada com dedicação pedagógica e suporte técnico adequado, a Aurora tem potencial para **revolucionar a educação financeira** em Portugal e além-fronteiras. Ao transformar conceitos abstratos em experiências tangíveis, a plataforma pode genuinamente alterar a relação das novas gerações com o dinheiro, criando adultos mais conscientes, responsáveis e preparados para navegar a complexidade económica do século XXI.
 
 ---
 

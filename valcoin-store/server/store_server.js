@@ -153,7 +153,7 @@ const authenticateUser = async (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     try {
-        const response = await axios.get('http://valcoin-admin-server:3001/api/user', {
+        const response = await axios.get('http://aurora-admin-server:3001/api/user', {
             headers: { Authorization: `Bearer ${token}` },
             timeout: 5000
         });
@@ -202,7 +202,7 @@ app.get('/health', async (req, res) => {
 // Login proxy
 app.post('/login', strictLimiter, async (req, res) => {
     try {
-        const response = await axios.post('http://valcoin-admin-server:3001/api/login', req.body, { timeout: 10000 });
+        const response = await axios.post('http://aurora-admin-server:3001/api/login', req.body, { timeout: 10000 });
         res.json(response.data);
     } catch (error) {
         console.error('Login failed:', error.message);
@@ -359,7 +359,7 @@ app.get('/products/:id/purchases', authenticateUser, async (req, res) => {
 // Proxy para buscar detalhes do usuário (vendedor) de forma segura
 app.get('/users/:id', authenticateUser, async (req, res) => {
     try {
-        const response = await axios.get(`http://valcoin-admin-server:3001/api/users/${req.params.id}`, {
+        const response = await axios.get(`http://aurora-admin-server:3001/api/users/${req.params.id}`, {
             headers: { Authorization: req.headers.authorization },
             timeout: 5000
         });
@@ -631,7 +631,7 @@ app.post('/buy', authenticateUser, async (req, res) => {
                 taxa_iva_ref: product.taxa_iva_ref 
             };
 
-            await axios.post('http://valcoin-admin-server:3001/api/store/buy', transactionPayload, { 
+            await axios.post('http://aurora-admin-server:3001/api/store/buy', transactionPayload, { 
                 headers: { Authorization: req.headers.authorization }, 
                 timeout: 10000 
             });

@@ -14,7 +14,7 @@ const StoreSidebar = ({ activeTab, setActiveTab }) => {
     <div className="w-64 h-screen bg-indigo-800 text-indigo-100 flex flex-col">
       <div className="p-4 text-2xl font-bold text-white flex items-center space-x-2">
         <Coins className="w-8 h-8" />
-        <span>Loja ValCoin</span>
+        <span>Loja Aurora</span>
       </div>
       <nav className="mt-6 flex-1">
         <ul>
