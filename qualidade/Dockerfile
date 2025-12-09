@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN rm -rf node_modules && rm -f package-lock.json
 RUN npm config set registry https://registry.npmjs.org/
 RUN npm config set fetch-retry-maxtimeout 600000
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copy the rest of the application code
 COPY . .

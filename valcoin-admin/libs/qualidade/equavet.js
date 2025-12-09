@@ -5,9 +5,12 @@
 const express = require('express');
 const db = require('../db');
 const { withTransaction } = require('../db');
+const { redisClient, connect } = require('../redis'); // Add this line
+const { refreshDashboardCache, DASHBOARD_CACHE_KEY, refreshInstrumentoAnaliseCache, INSTRUMENTO_ANALISE_CACHE_KEY } = require('./equavet_helpers'); // Modify this line
 
 module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
     const router = express.Router();
+
 
     // ============================================================================
     // FUNÇÃO AUXILIAR: Recalcular indicadores automaticamente a partir do tracking
@@ -175,93 +178,138 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
                 ON CONFLICT (ano_letivo, indicador) DO UPDATE SET meta_global=EXCLUDED.meta_global, justificacao=EXCLUDED.justificacao
                 RETURNING *
             `, [ano_letivo, indicador, meta_global, justificacao || null]);
+            
+            // Refresh the dashboard cache after updating metas
+            await refreshDashboardCache();
+
             res.json(result.rows[0]);
         } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao gravar meta' }); }
     });
 
     // ============================================================================
-    // 3. DASHBOARD METAS vs RESULTADOS
+    // 3. DASHBOARD (PROTECTED)
     // ============================================================================
     router.get('/dashboard', authenticateJWT, async (req, res) => {
         try {
-            const query = `
-                SELECT
-                    cf.id,
-                    cf.designacao AS ciclo_formativo,
-                    cf.area_educacao_formacao,
-                    cf.nivel_qnq,
-                    (cf.ano_inicio || '/' || right(cf.ano_fim::text,2)) AS ano_letivo,
-
-                    COALESCE(i1.taxa_colocacao_global, 0) AS resultado_ind1,
-                    COALESCE(m1.meta_global, 0) AS meta_ind1,
-                    
-                    COALESCE(i2.taxa_conclusao_global, 0) AS resultado_ind2,
-                    COALESCE(m2.meta_global, 0) AS meta_ind2,
-                    
-                    COALESCE(i3.taxa_abandono_global, 0) AS resultado_ind3,
-                    COALESCE(m3.meta_global, 0) AS meta_ind3,
-                    
-                    COALESCE(i4.taxa_utilizacao_global, 0) AS resultado_ind4,
-                    COALESCE(m4.meta_global, 0) AS meta_ind4,
-
-                    COALESCE(i5.media_satisfacao_global, 0) AS resultado_ind5,
-                    COALESCE(m5.meta_global, 0) AS meta_ind5,
-
-                    COALESCE(i6.taxa_prosseguimento_global, 0) AS resultado_ind6a,
-                    COALESCE(m6.meta_global, 0) AS meta_ind6a
-
-                FROM eqavet_ciclos_formativos cf
-
-                LEFT JOIN (
-                    SELECT DISTINCT ON (ciclo_formativo_id) *
-                    FROM eqavet_indicador_1_colocacao
-                    ORDER BY ciclo_formativo_id, ano_recolha DESC
-                ) i1 ON i1.ciclo_formativo_id = cf.id
-
-                LEFT JOIN (
-                    SELECT DISTINCT ON (ciclo_formativo_id) *
-                    FROM eqavet_indicador_2_conclusao
-                    ORDER BY ciclo_formativo_id, ano_recolha DESC
-                ) i2 ON i2.ciclo_formativo_id = cf.id
-
-                LEFT JOIN (
-                    SELECT DISTINCT ON (ciclo_formativo_id) *
-                    FROM eqavet_indicador_3_abandono
-                    ORDER BY ciclo_formativo_id, ano_recolha DESC
-                ) i3 ON i3.ciclo_formativo_id = cf.id
-
-                LEFT JOIN (
-                    SELECT DISTINCT ON (ciclo_formativo_id) *
-                    FROM eqavet_indicador_4_utilizacao
-                    ORDER BY ciclo_formativo_id, ano_recolha DESC
-                ) i4 ON i4.ciclo_formativo_id = cf.id
-
-                LEFT JOIN (
-                    SELECT DISTINCT ON (ciclo_formativo_id) *
-                    FROM eqavet_indicador_5b_satisfacao_empregadores
-                    ORDER BY ciclo_formativo_id, ano_recolha DESC
-                ) i5 ON i5.ciclo_formativo_id = cf.id
-
-                LEFT JOIN (
-                    SELECT DISTINCT ON (ciclo_formativo_id) *
-                    FROM eqavet_indicador_6a_prosseguimento
-                    ORDER BY ciclo_formativo_id, ano_recolha DESC
-                ) i6 ON i6.ciclo_formativo_id = cf.id
-
-                LEFT JOIN eqavet_metas_institucionais m1 ON m1.ano_letivo = (cf.ano_inicio || '/' || cf.ano_fim) AND m1.indicador = '1'
-                LEFT JOIN eqavet_metas_institucionais m2 ON m2.ano_letivo = (cf.ano_inicio || '/' || cf.ano_fim) AND m2.indicador = '2'
-                LEFT JOIN eqavet_metas_institucionais m3 ON m3.ano_letivo = (cf.ano_inicio || '/' || cf.ano_fim) AND m3.indicador = '3'
-                LEFT JOIN eqavet_metas_institucionais m4 ON m4.ano_letivo = (cf.ano_inicio || '/' || cf.ano_fim) AND m4.indicador = '4'
-                LEFT JOIN eqavet_metas_institucionais m5 ON m5.ano_letivo = (cf.ano_inicio || '/' || cf.ano_fim) AND m5.indicador = '5b'
-                LEFT JOIN eqavet_metas_institucionais m6 ON m6.ano_letivo = (cf.ano_inicio || '/' || cf.ano_fim) AND m6.indicador = '6a'
-
-                WHERE cf.ativo = true
-                ORDER BY cf.ano_inicio DESC, cf.designacao;
-            `;
-            const result = await db.query(query);
-            res.json(result.rows);
-        } catch (err) { console.error(err); res.status(500).json({ error: 'Erro no dashboard' }); }
+            // This call ensures admins see the latest data and also refreshes the public cache.
+            const data = await refreshDashboardCache();
+            res.json(data || []);
+        } catch (err) {
+            console.error('Error fetching real-time EQAVET dashboard for admin:', err);
+            res.status(500).json({ error: 'Could not retrieve dashboard data.' });
+        }
     });
+
+    // ============================================================================
+    // 3. GESTÃO DO CACHE DO DASHBOARD
+    // ============================================================================
+    router.post('/refresh-dashboard-cache', authenticateJWT, authenticateAdminOrProfessor, async (req, res) => {
+        try {
+            await refreshDashboardCache();
+            res.status(200).json({ success: true, message: 'O cache do dashboard EQAVET foi atualizado com sucesso.' });
+        } catch (err) {
+            console.error('Failed to manually refresh dashboard cache:', err);
+            res.status(500).json({ error: 'Não foi possível atualizar o cache do dashboard.' });
+        }
+    });
+
+const getCachedOrFreshData = async () => {
+  try {
+    const client = await connect(); // Ensure Redis connection is established
+    const cachedData = await client.get(DASHBOARD_CACHE_KEY);
+
+    if (cachedData) {
+      console.log('[EQAVET] Serving dashboard from Redis cache.');
+      const parsedData = JSON.parse(cachedData);
+      return parsedData;
+    }
+  } catch (redisErr) {
+    console.error('[EQAVET] Error connecting to Redis or fetching from cache:', redisErr);
+    // Continue to fetch from DB if Redis is down or errors
+  }
+
+  console.log('[EQAVET] Fetching dashboard from database...');
+  const query = `
+    SELECT * FROM vw_eqavet_resumo_anual 
+    ORDER BY ano_letivo DESC
+  `;
+  console.log('[EQAVET] Executing DB query:', query);
+  try {
+    const { rows } = await db.query(query);
+    console.log(`[EQAVET] DB query returned ${rows.length} rows.`);
+    if (rows.length > 0) {
+        console.log('[EQAVET] First row of data:', rows[0]);
+    }
+    
+    try {
+      const client = await connect(); // Ensure Redis connection is established
+      await client.set(DASHBOARD_CACHE_KEY, JSON.stringify(rows), { EX: 86400 }); // Cache for 24 hours in Redis
+      console.log(`[EQAVET] Dashboard cached in Redis. ${rows.length} items.`);
+    } catch (redisErr) {
+      console.error('[EQAVET] Error storing EQAVET dashboard in Redis cache:', redisErr);
+    }
+    
+    return rows;
+  } catch (dbError) {
+      console.error('[EQAVET] Database query failed:', dbError);
+      throw dbError; // Re-throw to be caught by the route handler
+  }
+}
+
+const getCachedOrFreshInstrumentoAnaliseData = async () => {
+  try {
+    const client = await connect();
+    const cachedData = await client.get(INSTRUMENTO_ANALISE_CACHE_KEY);
+
+    if (cachedData) {
+      console.log('[EQAVET] Serving instrumento analise from Redis cache.');
+      const parsedData = JSON.parse(cachedData);
+      return parsedData;
+    }
+  } catch (redisErr) {
+    console.error('[EQAVET] Error connecting to Redis or fetching from cache:', redisErr);
+  }
+
+  return await refreshInstrumentoAnaliseCache();
+}
+
+
+// ROTA PUBLICA (ou só para autenticados – tu decides)
+router.get('/resumo-anual', async (req, res) => {
+  console.log('[EQAVET] Received request for /resumo-anual');
+  try {
+    const data = await getCachedOrFreshData();
+    res.json(data);
+  } catch (err) {
+    console.error('Erro ao obter resumo anual EQAVET:', err);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/instrumento-analise', async (req, res) => {
+  try {
+    const data = await getCachedOrFreshInstrumentoAnaliseData();
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching instrumento analise data:', err);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ROTA PARA FORÇAR ATUALIZAÇÃO DO CACHE (só admins/professores)
+router.post('/refresh-dashboard-cache', authenticateJWT, authenticateAdminOrProfessor, async (req, res) => {
+  try {
+    await refreshDashboardCache();
+    res.status(200).json({
+      success: true,
+      message: 'Cache do dashboard EQAVET atualizado com sucesso.',
+      updated_at: new Date().toLocaleString('pt-PT')
+    });
+  } catch (err) {
+    console.error('Failed to refresh EQAVET dashboard cache:', err);
+    res.status(500).json({ error: 'Não foi possível atualizar o cache.' });
+  }
+});
 
     // ============================================================================
     // 4. CRUD COMPLETO DOS INDICADORES (GET + POST + PUT)
@@ -299,6 +347,10 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
                     VALUES ($1, $2, ${values.join(', ')})
                     ON CONFLICT (ciclo_formativo_id, ano_recolha) DO UPDATE SET ${upsert}
                 `, [ciclo_formativo_id, ano_recolha, ...Object.values(dados)]);
+                
+                // Refresh cache after update
+                await refreshDashboardCache();
+                
                 res.json({ success: true, message: `Indicador ${ind.name} gravado` });
             } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
         });
@@ -313,6 +365,10 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
                     UPDATE ${table} SET ${set} WHERE ciclo_formativo_id=$1 AND ano_recolha=$2 RETURNING *
                 `, values);
                 if (result.rowCount === 0) return res.status(404).json({ error: 'Indicador não encontrado' });
+                
+                // Refresh cache after update
+                await refreshDashboardCache();
+                
                 res.json(result.rows[0]);
             } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
         });
@@ -357,6 +413,10 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
 
                 await recalcularIndicadores(client, ciclo_formativo_id);
             });
+            
+            // Refresh cache after transaction succeeds
+            await refreshDashboardCache();
+            
             res.json({ success: true, message: 'Diplomado atualizado → Indicadores 1, 4 e 6a recalculados automaticamente' });
         } catch (err) {
             console.error('Erro no tracking:', err);

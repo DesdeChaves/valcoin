@@ -359,3 +359,125 @@ LEFT JOIN eqavet_metas_institucionais m6 ON m6.ano_letivo = (cf.ano_inicio || '/
 
 WHERE cf.ativo = true
 ORDER BY cf.ano_inicio DESC, cf.designacao;
+
+
+
+alterações:
+
+-- 1. Primeiro, remove a view antiga (se existir)
+DROP VIEW IF EXISTS public.vw_eqavet_metas_vs_resultados CASCADE;
+
+-- ============================================================================
+-- VIEW FINAL CORRETA – Metas vs Resultados EQAVET 2025
+-- Regra oficial: A meta usada é a do ano letivo em que o ciclo TERMINOU
+-- Ex: ciclo 2021–2024 → termina em 2024 → recolha em 2025 → compara com meta 2024/2025
+-- ============================================================================
+-- VIEW FINAL OFICIAL EQAVET 2025 – 100% FUNCIONAL
+C-- VIEW FINAL OFICIAL EQAVET 2025 – CORRETA E FUNCIONAL
+-- VIEW FINAL OFICIAL EQAVET 2025 – CORRETA E FUNCIONAL
+DROP VIEW IF EXISTS public.vw_eqavet_resumo_anual;
+DROP VIEW IF EXISTS public.vw_eqavet_metas_vs_resultados;
+DROP VIEW IF EXISTS public.vw_eqavet_metas_vs_resultados;
+CREATE OR REPLACE VIEW public.vw_eqavet_metas_vs_resultados AS
+
+WITH ciclos_relevantes AS (
+    SELECT *
+    FROM eqavet_ciclos_formativos cf
+    WHERE cf.ativo = true
+      AND (
+        cf.ano_fim < EXTRACT(YEAR FROM CURRENT_DATE)
+        OR EXISTS (SELECT 1 FROM eqavet_indicador_1_colocacao WHERE ciclo_formativo_id = cf.id)
+      )
+)
+
+SELECT
+    cf.id                                            AS ciclo_id,
+    cf.designacao                                    AS ciclo_formativo,
+    cf.area_educacao_formacao                        AS area_formacao,
+    cf.nivel_qnq                                     AS nivel_qnq,
+    cf.ano_inicio || '–' || cf.ano_fim               AS periodo_ciclo,
+    (cf.ano_fim || '/' || (cf.ano_fim + 1))           AS ano_letivo_conclusao,
+    (cf.ano_fim + 1)                                 AS ano_recolha_pos_conclusao,
+
+    -- FORÇA CONVERSÃO DE TEXTO → NUMÉRICO (resolve o teu problema!)
+    NULLIF(TRIM(i1.taxa_colocacao_global), '')::numeric(5,2)      AS ind1_colocacao,
+    NULLIF(TRIM(i2.taxa_conclusao_global), '')::numeric(5,2)      AS ind2_conclusao,
+    NULLIF(TRIM(i3.taxa_abandono_global), '')::numeric(5,2)       AS ind3_abandono,
+    NULLIF(TRIM(i4.taxa_utilizacao_global), '')::numeric(5,2)     AS ind4_utilizacao_competencias,
+    NULLIF(TRIM(i5.taxa_satisfacao_global), '')::numeric(5,2)     AS ind5b_satisfacao_empregadores,
+    NULLIF(TRIM(i6.taxa_prosseguimento_global), '')::numeric(5,2) AS ind6a_prosseguimento_estudos,
+
+    COALESCE(m1.meta_global, 0) AS meta_ind1,
+    COALESCE(m2.meta_global, 0) AS meta_ind2,
+    COALESCE(m3.meta_global, 0) AS meta_ind3,
+    COALESCE(m4.meta_global, 0) AS meta_ind4,
+    COALESCE(m5.meta_global, 0) AS meta_ind5b,
+    COALESCE(m6.meta_global, 0) AS meta_ind6a,
+
+    -- STATUS CORRETO (agora funciona!)
+    CASE 
+        WHEN NULLIF(TRIM(i1.taxa_colocacao_global),'')::numeric >= COALESCE(m1.meta_global,0) THEN 'Cumprida'
+        WHEN NULLIF(TRIM(i1.taxa_colocacao_global),'') IS NOT NULL THEN 'Não cumprida'
+        ELSE 'Pendente'
+    END AS status_ind1,
+
+    CASE 
+        WHEN NULLIF(TRIM(i2.taxa_conclusao_global),'')::numeric >= COALESCE(m2.meta_global,0) THEN 'Cumprida'
+        WHEN NULLIF(TRIM(i2.taxa_conclusao_global),'') IS NOT NULL THEN 'Não cumprida'
+        ELSE 'Pendente'
+    END AS status_ind2,
+
+    CASE 
+        WHEN NULLIF(TRIM(i3.taxa_abandono_global),'')::numeric <= COALESCE(m3.meta_global,999) THEN 'Cumprida'
+        WHEN NULLIF(TRIM(i3.taxa_abandono_global),'') IS NOT NULL THEN 'Não cumprida'
+        ELSE 'Pendente'
+    END AS status_ind3
+
+FROM ciclos_relevantes cf
+
+LEFT JOIN eqavet_indicador_1_colocacao      i1 ON i1.ciclo_formativo_id = cf.id AND i1.ano_recolha = cf.ano_fim + 1
+LEFT JOIN eqavet_indicador_2_conclusao      i2 ON i2.ciclo_formativo_id = cf.id AND i2.ano_recolha = cf.ano_fim
+LEFT JOIN eqavet_indicador_3_abandono       i3 ON i3.ciclo_formativo_id = cf.id AND i3.ano_recolha = cf.ano_fim
+LEFT JOIN eqavet_indicador_4_utilizacao     i4 ON i4.ciclo_formativo_id = cf.id AND i4.ano_recolha = cf.ano_fim + 1
+LEFT JOIN eqavet_indicador_5b_satisfacao_empregadores i5 ON i5.ciclo_formativo_id = cf.id AND i5.ano_recolha = cf.ano_fim + 1
+LEFT JOIN eqavet_indicador_6a_prosseguimento i6 ON i6.ciclo_formativo_id = cf.id AND i6.ano_recolha = cf.ano_fim + 1
+
+LEFT JOIN eqavet_metas_institucionais m1 ON m1.ano_letivo = (cf.ano_fim || '/' || (cf.ano_fim + 1)) AND m1.indicador = '1'
+LEFT JOIN eqavet_metas_institucionais m2 ON m2.ano_letivo = (cf.ano_fim || '/' || (cf.ano_fim + 1)) AND m2.indicador = '2'
+LEFT JOIN eqavet_metas_institucionais m3 ON m3.ano_letivo = (cf.ano_fim || '/' || (cf.ano_fim + 1)) AND m3.indicador = '3'
+LEFT JOIN eqavet_metas_institucionais m4 ON m4.ano_letivo = (cf.ano_fim || '/' || (cf.ano_fim + 1)) AND m4.indicador = '4'
+LEFT JOIN eqavet_metas_institucionais m5 ON m5.ano_letivo = (cf.ano_fim || '/' || (cf.ano_fim + 1)) AND m5.indicador = '5b'
+LEFT JOIN eqavet_metas_institucionais m6 ON m6.ano_letivo = (cf.ano_fim || '/' || (cf.ano_fim + 1)) AND m6.indicador = '6a'
+
+ORDER BY cf.ano_fim DESC, cf.designacao;
+
+
+CREATE OR REPLACE VIEW public.vw_eqavet_resumo_anual AS
+SELECT
+    ano_letivo_conclusao as ano_letivo,
+    COUNT(DISTINCT ciclo_id) AS ciclos_ativos,
+    
+    ROUND(AVG(ind1_colocacao),2) AS media_ind1,
+    ROUND(AVG(ind2_conclusao),2) AS media_ind2,
+    ROUND(AVG(ind3_abandono),2) AS media_ind3,
+    ROUND(AVG(ind4_utilizacao_competencias),2) AS media_ind4,
+    ROUND(AVG(ind5b_satisfacao_empregadores),2) AS media_ind5b,
+    ROUND(AVG(ind6a_prosseguimento_estudos),2) AS media_ind6a,
+    
+    MAX(meta_ind1) AS meta_ind1,
+    MAX(meta_ind2) AS meta_ind2,
+    MAX(meta_ind3) AS meta_ind3,
+    MAX(meta_ind4) AS meta_ind4,
+    MAX(meta_ind5b) AS meta_ind5b,
+    MAX(meta_ind6a) AS meta_ind6a,
+    
+    CASE WHEN AVG(ind1_colocacao) >= MAX(meta_ind1) THEN 'Cumprida' ELSE 'Não cumprida' END AS global_ind1,
+    CASE WHEN AVG(ind2_conclusao) >= MAX(meta_ind2) THEN 'Cumprida' ELSE 'Não cumprida' END AS global_ind2,
+    CASE WHEN AVG(ind3_abandono) <= MAX(meta_ind3) THEN 'Cumprida' ELSE 'Não cumprida' END AS global_ind3
+
+FROM vw_eqavet_metas_vs_resultados
+GROUP BY ano_letivo_conclusao
+ORDER BY ano_letivo_conclusao DESC;
+
+
+

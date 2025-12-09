@@ -1,0 +1,52 @@
+const getLegadosStats = async () => {
+  return {
+    totalLegados: 127,
+    alunosDistintos: 43,
+    categorias: [
+      { nome: 'Resiliência', count: 35, icon: '💪', color: '#f97316' },
+      { nome: 'Superação', count: 28, icon: '🎯', color: '#8b5cf6' },
+      { nome: 'Liderança', count: 22, icon: '👑', color: '#3b82f6' },
+      { nome: 'Solidariedade', count: 18, icon: '🤝', color: '#10b981' },
+      { nome: 'Criatividade', count: 15, icon: '🎨', color: '#ec4899' },
+      { nome: 'Excelência Académica', count: 9, icon: '📚', color: '#6366f1' }
+    ],
+    evolucaoMensal: [
+      { mes: 'Set', total: 8 },
+      { mes: 'Out', total: 15 },
+      { mes: 'Nov', total: 22 },
+      { mes: 'Dez', total: 18 },
+      { mes: 'Jan', total: 25 },
+      { mes: 'Fev', total: 21 },
+      { mes: 'Mar', total: 18 }
+    ],
+    topAlunos: [
+      { nome: 'Maria Silva', legados: 5, categorias: ['Resiliência', 'Superação', 'Liderança'] },
+      { nome: 'João Santos', legados: 4, categorias: ['Solidariedade', 'Criatividade'] },
+      { nome: 'Ana Costa', legados: 4, categorias: ['Excelência Académica', 'Liderança'] },
+      { nome: 'Pedro Oliveira', legados: 3, categorias: ['Resiliência', 'Superação'] },
+      { nome: 'Sofia Pereira', legados: 3, categorias: ['Criatividade', 'Solidariedade'] }
+    ],
+    recentesLegados: [
+      { 
+        aluno: 'Maria Silva', 
+        categoria: 'Resiliência', 
+        descricao: 'Superou dificuldades pessoais mantendo excelente desempenho académico',
+        data: '2024-12-05',
+        atribuidor: 'Prof. António Ferreira'
+      },
+      { 
+        aluno: 'João Santos', 
+        categoria: 'Solidariedade', 
+        descricao: 'Organizou campanha de apoio a colegas em dificuldade',
+        data: '2024-12-03',
+        atribuidor: 'Prof. Carla Mendes'
+      },
+      { 
+        aluno: 'Ana Costa', 
+        categoria: 'Liderança', 
+        descricao: 'Liderou projeto inovador de sustentabilidade na escola',
+        data: '2024-12-01',
+        atribuidor: 'Dir. Manuel Costa'
+      }
+    ]
+  

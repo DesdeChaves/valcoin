@@ -3,73 +3,176 @@ import React, { useState, useEffect } from 'react';
 import { getMetasInstitucionais, saveMetaInstitucional } from '../../services/api';
 
 const MetasInstitucionais = () => {
-  const [ano, setAno] = useState(new Date().getFullYear() + '/' + (new Date().getFullYear() + 1).toString().slice(-2));
+  const [anosLetivos, setAnosLetivos] = useState([]);
+  const [selectedAno, setSelectedAno] = useState('');
   const [metas, setMetas] = useState({});
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const indicadores = [
-    { id: '1', nome: 'Colocação (Ind. 1)', placeholder: 'ex: 85' },
-    { id: '2', nome: 'Conclusão (Ind. 2)', placeholder: 'ex: 90' },
-    { id: '3', nome: 'Abandono máximo (Ind. 3)', placeholder: 'ex: 8' },
-    { id: '4', nome: 'Utilização Competências (Ind. 4)', placeholder: 'ex: 75' },
-    { id: '5b', nome: 'Satisfação Empregadores (média 1-4)', placeholder: 'ex: 3.5' },
-    { id: '6a', nome: 'Prosseguimento Estudos (Ind. 6a)', placeholder: 'ex: 40' },
-  ];
-
+  // Lista de anos letivos dos últimos 6 anos + próximos 2 (ajusta se quiseres)
   useEffect(() => {
-    loadMetas();
-  }, [ano]);
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 4;
+    const years = [];
+    for (let y = startYear; y <= currentYear + 2; y++) {
+      years.push(`${y}/${y + 1}`);
+    }
+    setAnosLetivos(years);
+    setSelectedAno(`${currentYear}/${currentYear + 1}`); // ano atual por defeito
+  }, []);
 
-  const loadMetas = async () => {
+  // Carregar metas quando muda o ano letivo
+  useEffect(() => {
+    if (selectedAno) {
+      loadMetas(selectedAno);
+    }
+  }, [selectedAno]);
+
+  const loadMetas = async (anoLetivo) => {
     setLoading(true);
     try {
-      const data = await getMetasInstitucionais(ano);
+      const data = await getMetasInstitucionais(anoLetivo);
       const map = {};
-      data.forEach(m => { map[m.indicador] = m.meta_global; });
+      data.forEach(m => {
+        map[m.indicador] = (
+          typeof m.meta_global === 'number' && !isNaN(m.meta_global)
+            ? m.meta_global
+            : parseFloat(m.meta_global) || 0
+        ).toFixed(2);
+      });
       setMetas(map);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    } catch (err) {
+      console.error('Erro ao carregar metas:', err);
+      setMetas({});
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (indicador, value) => {
+    setMetas(prev => ({
+      ...prev,
+      [indicador]: value
+    }));
   };
 
   const saveAll = async () => {
-    for (const ind of indicadores) {
-      if (metas[ind.id]) {
-        await saveMetaInstitucional({ ano_letivo: ano, indicador: ind.id, meta_global: Number(metas[ind.id]) });
-      }
+    if (!selectedAno) return alert('Selecione um ano letivo');
+
+    setSaving(true);
+    try {
+      const promises = indicadores.map(async (ind) => {
+        const valor = metas[ind.id];
+        if (valor !== undefined && valor !== '' && !isNaN(valor)) {
+          await saveMetaInstitucional({
+            ano_letivo: selectedAno,
+            indicador: ind.id,
+            meta_global: parseFloat(valor)
+          });
+        }
+      });
+
+      await Promise.all(promises);
+      alert(`Metas do ano letivo ${selectedAno} guardadas com sucesso!`);
+      loadMetas(selectedAno); // recarrega para confirmar
+    } catch (err) {
+      console.error('Erro ao guardar:', err);
+      alert('Erro ao guardar algumas metas. Verifique os valores.');
+    } finally {
+      setSaving(false);
     }
-    alert('Metas gravadas com sucesso!');
   };
 
+  const indicadores = [
+    { id: '1', nome: 'Colocação no Mercado de Trabalho (Ind. 1)', unidade: '%' },
+    { id: '2', nome: 'Taxa de Conclusão (Ind. 2)', unidade: '%' },
+    { id: '3', nome: 'Taxa de Abandono Máxima (Ind. 3)', unidade: '%' },
+    { id: '4', nome: 'Utilização das Competências no Posto de Trabalho (Ind. 4)', unidade: '%' },
+    { id: '5b', nome: 'Satisfação dos Empregadores (Ind. 5b)', unidade: 'média (1-4)' },
+    { id: '6a', nome: 'Prosseguimento de Estudos (Ind. 6a)', unidade: '%' },
+  ];
+
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-bold mb-6">Metas Institucionais – Plano de Melhoria</h2>
-
-      <div className="mb-6 flex items-center gap-4">
-        <label className="font-medium">Ano Letivo:</label>
-        <input value={ano} onChange={e => setAno(e.target.value)} className="border rounded px-3 py-2 w-40" />
-      </div>
-
-      {loading ? <p>Carregando...</p> : (
-        <div className="space-y-4">
-          {indicadores.map(ind => (
-            <div key={ind.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded">
-              <span className="w-80 font-medium">{ind.nome}</span>
-              <input
-                type="number"
-                step="0.1"
-                placeholder={ind.placeholder}
-                value={metas[ind.id] || ''}
-                onChange={e => setMetas({ ...metas, [ind.id]: e.target.value })}
-                className="border rounded px-3 py-2 w-32 text-right"
-              />
-              <span className="text-gray-600">{ind.id === '5b' ? '(média 1-4)' : '%'}</span>
-            </div>
-          ))}
-          <button onClick={saveAll} className="mt-6 bg-green-600 text-white px-8 py-3 rounded hover:bg-green-700 font-semibold">
-            Gravar Todas as Metas
-          </button>
+    <div className="max-w-5xl mx-auto p-6">
+      <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-700 text-white p-8">
+          <h1 className="text-3xl font-bold">Metas Institucionais EQAVET</h1>
+          <p className="mt-2 text-indigo-100">Plano de Melhoria Anual – Definição e Histórico</p>
         </div>
-      )}
+
+        <div className="p-8">
+          {/* Seleção do Ano Letivo */}
+          <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <label className="text-lg font-semibold text-gray-700">Ano Letivo:</label>
+            <select
+              value={selectedAno}
+              onChange={(e) => setSelectedAno(e.target.value)}
+              className="px-5 py-3 border-2 border-indigo-200 rounded-xl text-lg font-medium focus:border-indigo-500 outline-none transition"
+            >
+              {anosLetivos.map(ano => (
+                <option key={ano} value={ano}>
+                  {ano} {ano === `${new Date().getFullYear()}/${new Date().getFullYear() + 1}` ? ' (Atual)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600"></div>
+              <p className="mt-4 text-gray-600">A carregar metas do ano {selectedAno}...</p>
+            </div>
+          ) : (
+            <div className="grid gap-5">
+              {indicadores.map(ind => (
+                <div
+                  key={ind.id}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:shadow-md transition"
+                >
+                  <div className="flex-1">
+                    <span className="font-semibold text-gray-800 text-lg">{ind.nome}</span>
+                    <span className="block text-sm text-gray-500 mt-1">Indicador {ind.id}</span>
+                  </div>
+                  <div className="flex items-center gap-4 mt-4 sm:mt-0">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max={ind.id === '5b' ? 4 : 100}
+                      value={metas[ind.id] || ''}
+                      onChange={(e) => handleInputChange(ind.id, e.target.value)}
+                      className="w-28 px-4 py-3 border-2 border-gray-300 rounded-lg text-right text-xl font-bold focus:border-indigo-500 outline-none"
+                      placeholder="0.0"
+                    />
+                    <span className="text-lg font-medium text-gray-600 w-32 text-left">
+                      {ind.unidade}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              <div className="text-center mt-10">
+                <button
+                  onClick={saveAll}
+                  disabled={saving}
+                  className={`px-12 py-4 rounded-xl text-white font-bold text-lg transition transform hover:scale-105 shadow-lg ${
+                    saving 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                  }`}
+                >
+                  {saving ? 'A GUARDAR METAS...' : 'GUARDAR TODAS AS METAS'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Rodapé */}
+        <div className="bg-gray-50 px-8 py-5 border-t text-center text-sm text-gray-600">
+          Sistema EQAVET 2025 • Metas definidas anualmente conforme Plano de Melhoria • Auditável ANQEP
+        </div>
+      </div>
     </div>
   );
 };

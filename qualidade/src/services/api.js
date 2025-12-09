@@ -267,6 +267,11 @@ export const updateTrackingDiplomado = async (data) => {
   return res.data;
 };
 
+// Adiciona esta função ao teu api.js
+export const getEqavetResumoAnual = async () => {
+  const response = await apiClient.get('/qualidade/equavet/resumo-anual');
+  return response.data;
+};
 
 // ============================================================
 // TODAS AS FUNÇÕES ANTIGAS – MANTIDAS SÓ PARA NÃO DAR ERRO DE IMPORT

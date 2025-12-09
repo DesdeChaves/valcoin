@@ -1,0 +1,9 @@
+comandos para aceder aos contentores
+
+docker exec valcoin_postgres pg_dump --schema-only --format=plain -U user -F t valcoin  > schema_8dez.dump
+
+docker exec -it valcoin_postgres psql -U user -d valcoin
+
+
+docker exec -it valcoin_redis redis-cli DEL dashboard:equavet
+

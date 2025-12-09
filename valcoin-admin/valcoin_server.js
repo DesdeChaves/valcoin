@@ -159,6 +159,12 @@ const feedbackStudentsRoutes = require('./libs/feedback/students');
 const competenciasRoutes = require('./libs/competencias/competencias.js');
 const medidasEducativasRouter = require('./libs/feedback/medidasEducativasRouter.js');
 const { publicRouter: qualidadePublicRouter, protectedRouter: qualidadeProtectedRouter, studentRouter: qualidadeStudentRouter } = require('./libs/qualidade/routes');
+const publicEquavetRouter = require('./libs/qualidade/equavet_public')();
+const publicLegadosRouter = require('./libs/legados_public')();
+const publicHousesRouter = require('./libs/qualidade/houses_public')();
+const publicCriteriosSucessoRouter = require('./libs/qualidade/criterios_sucesso_public')();
+const publicCompetenciasRouter = require('./libs/qualidade/competencias_public')();
+
 
 
 
@@ -220,6 +226,11 @@ testProfessorSalaryManually();
 
 // Public qualidade routes (no authentication required)
 app.use('/api/qualidade/public', qualidadePublicRouter);
+app.use('/api/public/qualidade/equavet', publicEquavetRouter);
+app.use('/api/public/legados', publicLegadosRouter);
+app.use('/api/public/houses', publicHousesRouter);
+app.use('/api/public/criterios-sucesso', publicCriteriosSucessoRouter);
+app.use('/api/public/competencias', publicCompetenciasRouter);
 
 // ============================================================================
 // AUTHENTICATION MIDDLEWARE
@@ -488,6 +499,9 @@ app.use('/api/qualidade/empresas', empresasRouter);
 
 const equavetRouter = require('./libs/qualidade/equavet')(authenticateJWT, authenticateAdminOrProfessor);
 app.use('/api/qualidade/equavet', equavetRouter);
+
+const legadosRouter = require('./libs/legados')(authenticateJWT, authenticateAdminOrProfessor);
+app.use('/api/legados', legadosRouter);
 
 // Protected qualidade routes (require professor authentication)
 app.use('/api/qualidade/professor', authenticateJWT, authorizeProfessor, qualidadeProtectedRouter);

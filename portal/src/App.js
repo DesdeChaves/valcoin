@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, LogOut, DollarSign, Store, BookOpen, Settings, User, ArrowRight, Check } from 'lucide-react';
+import { Routes, Route, Link } from 'react-router-dom';
+import IndicadoresPublicosPage from './pages/IndicadoresPublicosPage';
+import { Menu, LogOut, DollarSign, Store, BookOpen, Settings, User, ArrowRight, Check, BarChart } from 'lucide-react';
 
 // Simula o estado de autenticação global
 const AuthService = {
@@ -145,10 +147,16 @@ const LandingPage = ({ onSelectApp }) => {
               </text>
             </svg>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">Respeito</span>
-            <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">Resiliência</span>
-            <span className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-semibold rounded-full">Aspiração</span>
+          <div className="flex items-center gap-6">
+            <Link to="/indicadores" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-2">
+              <BarChart size={16} />
+              Indicadores Públicos
+            </Link>
+            <div className="flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">Respeito</span>
+                <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">Resiliência</span>
+                <span className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-semibold rounded-full">Aspiração</span>
+            </div>
           </div>
         </div>
       </header>
@@ -170,7 +178,7 @@ const LandingPage = ({ onSelectApp }) => {
         </div>
 
         {/* Apps Grid */}
-        <div className="max-w-7xl mx-auto grid md:grid-cols-4 gap-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
           {apps.map((app, index) => {
             const Icon = app.icon;
             return (
@@ -182,15 +190,17 @@ const LandingPage = ({ onSelectApp }) => {
                 {/* Gradient Background on Hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${app.hoverGradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`}></div>
                 
-                <div className="relative p-8">
+                <div className="relative p-8 flex flex-col h-full">
                   {/* Icon */}
                   <div className={`w-14 h-14 bg-gradient-to-br ${app.gradient} rounded-xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                     <Icon className="w-7 h-7 text-white" />
                   </div>
 
                   {/* Content */}
-                  <h3 className="text-2xl font-bold text-slate-900 mb-3">{app.name}</h3>
-                  <p className="text-slate-600 mb-6 leading-relaxed">{app.description}</p>
+                  <div className="flex-grow">
+                    <h3 className="text-2xl font-bold text-slate-900 mb-3">{app.name}</h3>
+                    <p className="text-slate-600 mb-6 leading-relaxed">{app.description}</p>
+                  </div>
 
                   {/* Features */}
                   <div className="space-y-2 mb-8">
@@ -203,13 +213,25 @@ const LandingPage = ({ onSelectApp }) => {
                   </div>
 
                   {/* Button */}
-                  <button
-                    onClick={() => onSelectApp(app)}
-                    className={`w-full bg-gradient-to-r ${app.gradient} hover:${app.hoverGradient} text-white py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 group/btn`}
-                  >
-                    <span>Aceder à Plataforma</span>
-                    <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform duration-300" />
-                  </button>
+                  <div className="mt-auto">
+                    {app.isInternal ? (
+                      <Link
+                        to={app.path}
+                        className={`w-full bg-gradient-to-r ${app.gradient} hover:${app.hoverGradient} text-white py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 group/btn`}
+                      >
+                        <span>Aceder à Página</span>
+                        <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform duration-300" />
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => onSelectApp(app)}
+                        className={`w-full bg-gradient-to-r ${app.gradient} hover:${app.hoverGradient} text-white py-3.5 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 group/btn`}
+                      >
+                        <span>Aceder à Plataforma</span>
+                        <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform duration-300" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -565,7 +587,7 @@ const AppView = ({ app, user, onSwitchApp, onLogout }) => {
 };
 
 // Aplicação Principal
-export default function AuroraSSO() {
+const MainPage = () => {
   const [view, setView] = useState('landing');
   const [selectedApp, setSelectedApp] = useState(null);
   const [user, setUser] = useState(null);
@@ -636,4 +658,14 @@ export default function AuroraSSO() {
   }
 
   return null;
+}
+
+// The new main App component that handles routing
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<MainPage />} />
+      <Route path="/indicadores" element={<IndicadoresPublicosPage />} />
+    </Routes>
+  );
 }
