@@ -356,4 +356,162 @@ router.get('/:id/avaliacoes/recent', async (req, res) => {
     }
 });
 
+// GET competency evolution data for a specific discipline
+router.get('/evolution-by-discipline/:disciplinaId', async (req, res) => {
+    const { disciplinaId } = req.params;
+    try {
+        const query = `
+            WITH momentos_ranking AS (
+                -- Para cada competência e disciplina_turma, ordena os momentos do mais recente para o mais antigo
+                SELECT
+                    competencia_id,
+                    disciplina_turma_id,
+                    momento_avaliacao,
+                    data_avaliacao,
+                    ROW_NUMBER() OVER (PARTITION BY competencia_id, disciplina_turma_id
+                                       ORDER BY data_avaliacao DESC,
+                                                momento_avaliacao DESC) AS rank_momento
+                FROM public.avaliacao_competencia
+                GROUP BY competencia_id, disciplina_turma_id, momento_avaliacao, data_avaliacao
+            ),
+            dados_com_momento AS (
+                SELECT
+                    ac.*,
+                    mr.rank_momento
+                FROM public.avaliacao_competencia ac
+                JOIN momentos_ranking mr
+                  ON ac.competencia_id = mr.competencia_id
+                 AND ac.disciplina_turma_id = mr.disciplina_turma_id
+                 AND ac.momento_avaliacao = mr.momento_avaliacao
+                 AND ac.data_avaliacao = mr.data_avaliacao
+            ),
+            competencia_stats_por_momento AS (
+                SELECT
+                    competencia_id,
+                    disciplina_turma_id,
+                    momento_avaliacao,
+                    data_avaliacao, -- Preserve data_avaliacao from the moment
+                    rank_momento,
+                    CASE rank_momento
+                        WHEN 1 THEN 'Último momento'
+                        WHEN 2 THEN 'Penúltimo momento'
+                    END AS descricao_momento,
+                    COUNT(DISTINCT aluno_id) AS total_alunos_avaliados,
+                    COUNT(*) FILTER (WHERE nivel = 'fraco') AS qtd_fraco,
+                    COUNT(*) FILTER (WHERE nivel = 'nao_satisfaz') AS qtd_nao_satisfaz,
+                    COUNT(*) FILTER (WHERE nivel = 'satisfaz') AS qtd_satisfaz,
+                    COUNT(*) FILTER (WHERE nivel = 'satisfaz_bastante') AS qtd_satisfaz_bastante,
+                    COUNT(*) FILTER (WHERE nivel = 'excelente') AS qtd_excelente,
+                    -- Média numérica do nível de proficiência para o momento
+                    ROUND(AVG(
+                        CASE nivel
+                            WHEN 'fraco' THEN 1
+                            WHEN 'nao_satisfaz' THEN 2
+                            WHEN 'satisfaz' THEN 3
+                            WHEN 'satisfaz_bastante' THEN 4
+                            WHEN 'excelente' THEN 5
+                            ELSE 0 -- Default ou tratamento de erro
+                        END
+                    ), 2) AS media_nivel,
+                    -- Percentil 25, 50 e 75 (usando os valores numéricos da função)
+                    percentile_cont(0.25) WITHIN GROUP (ORDER BY
+                        CASE nivel
+                            WHEN 'fraco' THEN 1
+                            WHEN 'nao_satisfaz' THEN 2
+                            WHEN 'satisfaz' THEN 3
+                            WHEN 'satisfaz_bastante' THEN 4
+                            WHEN 'excelente' THEN 5
+                            ELSE 0
+                        END) AS p25,
+                    percentile_cont(0.50) WITHIN GROUP (ORDER BY
+                        CASE nivel
+                            WHEN 'fraco' THEN 1
+                            WHEN 'nao_satisfaz' THEN 2
+                            WHEN 'satisfaz' THEN 3
+                            WHEN 'satisfaz_bastante' THEN 4
+                            WHEN 'excelente' THEN 5
+                            ELSE 0
+                        END) AS p50_mediana,
+                    percentile_cont(0.75) WITHIN GROUP (ORDER BY
+                        CASE nivel
+                            WHEN 'fraco' THEN 1
+                            WHEN 'nao_satisfaz' THEN 2
+                            WHEN 'satisfaz' THEN 3
+                            WHEN 'satisfaz_bastante' THEN 4
+                            WHEN 'excelente' THEN 5
+                            ELSE 0
+                        END) AS p75
+                FROM dados_com_momento
+                WHERE rank_momento IN (1, 2)
+                GROUP BY competencia_id, disciplina_turma_id, momento_avaliacao, data_avaliacao, rank_momento
+            )
+            SELECT
+                c.id AS competencia_id,
+                c.codigo AS competencia_codigo,
+                c.nome AS competencia_nome,
+                (
+                    SELECT json_agg(d.nome)
+                    FROM public.competencia_dominio cd
+                    JOIN public.dominios d ON d.id = cd.dominio_id
+                    WHERE cd.competencia_id = c.id
+                ) AS dominios,
+                s.id AS disciplina_id,
+                s.nome AS disciplina_nome,
+                s.codigo AS disciplina_codigo,
+                pdt.id AS professor_disciplina_turma_id,
+                dt.id AS disciplina_turma_id,
+                cs.descricao_momento,
+                cs.momento_avaliacao,
+                cs.data_avaliacao,
+                cs.total_alunos_avaliados,
+                cs.qtd_fraco,
+                cs.qtd_nao_satisfaz,
+                cs.qtd_satisfaz,
+                cs.qtd_satisfaz_bastante,
+                cs.qtd_excelente,
+                cs.media_nivel,
+                ROUND(cs.p25::numeric, 2) AS p25,
+                ROUND(cs.p50_mediana::numeric, 2) AS p50_mediana,
+                ROUND(cs.p75::numeric, 2) AS p75,
+                -- Conversão dos percentis de volta para texto (para facilitar leitura)
+                CASE ROUND(cs.p25)
+                    WHEN 1 THEN 'Fraco'
+                    WHEN 2 THEN 'Não Satisfaz'
+                    WHEN 3 THEN 'Satisfaz'
+                    WHEN 4 THEN 'Satisfaz Bastante'
+                    WHEN 5 THEN 'Excelente'
+                    ELSE 'N/A'
+                END AS p25_nivel,
+                CASE ROUND(cs.p50_mediana)
+                    WHEN 1 THEN 'Fraco'
+                    WHEN 2 THEN 'Não Satisfaz'
+                    WHEN 3 THEN 'Satisfaz'
+                    WHEN 4 THEN 'Satisfaz Bastante'
+                    WHEN 5 THEN 'Excelente'
+                    ELSE 'N/A'
+                END AS p50_nivel,
+                CASE ROUND(cs.p75)
+                    WHEN 1 THEN 'Fraco'
+                    WHEN 2 THEN 'Não Satisfaz'
+                    WHEN 3 THEN 'Satisfaz'
+                    WHEN 4 THEN 'Satisfaz Bastante'
+                    WHEN 5 THEN 'Excelente'
+                    ELSE 'N/A'
+                END AS p75_nivel
+            FROM competencia_stats_por_momento cs
+            JOIN public.competencia c ON c.id = cs.competencia_id
+            JOIN public.disciplina_turma dt ON dt.id = cs.disciplina_turma_id
+            JOIN public.subjects s ON s.id = dt.disciplina_id
+            LEFT JOIN public.professor_disciplina_turma pdt ON pdt.disciplina_turma_id = dt.id
+            WHERE dt.disciplina_id = $1 -- Filter by disciplinaId
+            ORDER BY s.nome, c.nome, cs.rank_momento;
+        `;
+        const result = await db.query(query, [disciplinaId]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error fetching competency evolution by discipline:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 module.exports = router;

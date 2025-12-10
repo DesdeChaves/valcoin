@@ -1,82 +1,103 @@
 // portal/src/services/api.js
 import axios from 'axios';
 
-console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
-const publicApiClient = axios.create({
+// ============================================================================
+// AXIOS CLIENTS - Separate instances for different base URLs
+// ============================================================================
+
+// Main API client for Aurora system
+const apiClient = axios.create({
   baseURL: process.env.REACT_APP_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
-/**
- * Fetches the public EQAVET dashboard data from the backend.
- * This endpoint is cached by Redis on the server.
- */
-export const getEqavetDashboard = async () => {
-  try {
-    const res = await publicApiClient.get('/public/qualidade/equavet/dashboard');
-    return res.data;
-  } catch (error) {
-    console.error("Error fetching EQAVET dashboard data:", error);
-    // Return an empty array or handle the error as needed for the UI
-    return [];
-  }
+// Feedback API client
+const feedbackClient = axios.create({
+  baseURL: (process.env.REACT_APP_API_URL || '') + '/api/feedback',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+
+// ============================================================================
+// SHARED INTERCEPTORS
+// ============================================================================
+
+const setupInterceptors = (client) => {
+  // Request interceptor
+  client.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  // Response interceptor
+  client.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        // Handle unauthorized/forbidden: e.g., redirect to login
+        console.error('Authentication error:', error.response);
+        // Example: Redirect to login page
+        // window.location.href = '/login'; 
+      }
+      return Promise.reject(error);
+    }
+  );
 };
 
-export const getEqavetResumoAnual = async () => {
+setupInterceptors(apiClient);
+setupInterceptors(feedbackClient);
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+export const handleRequest = async (request, endpointName) => {
   try {
-    const response = await publicApiClient.get('/qualidade/equavet/resumo-anual');
+    const response = await request();
     return response.data;
   } catch (error) {
-    console.error("Full error fetching EQAVET annual summary:", error);
+    console.error(`${endpointName} failed:`, error.response?.data || error.message);
     throw error;
   }
 };
 
-export const getInstrumentoAnalise = async () => {
-  try {
-    const response = await publicApiClient.get('/qualidade/equavet/instrumento-analise');
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching instrumento analise data:", error);
-    throw error;
-  }
-};
+// ============================================================================
+// PUBLIC API CALLS (Frontend - no auth)
+// ============================================================================
+export const getEqavetDashboard = () => 
+  handleRequest(() => publicApiClient.get('/public/qualidade/equavet/dashboard'), 'getEqavetDashboard');
 
-export const getLegadosStats = async () => {
-  try {
-    const response = await publicApiClient.get('/public/legados/stats');
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-};
+export const getEqavetResumoAnual = () => 
+  handleRequest(() => publicApiClient.get('/qualidade/equavet/resumo-anual'), 'getEqavetResumoAnual');
 
-export const getHousesStats = async () => {
-  try {
-    const response = await publicApiClient.get('/public/houses/stats');
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching houses stats:", error);
-    throw error;
-  }
-};
+export const getInstrumentoAnalise = () =>
+  handleRequest(() => publicApiClient.get('/qualidade/equavet/instrumento-analise'), 'getInstrumentoAnalise');
 
-export const getCriteriosSucessoStats = async () => {
-  try {
-    const response = await publicApiClient.get('/public/criterios-sucesso/stats');
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching criterios de sucesso stats:", error);
-    throw error;
-  }
-};
+export const getLegadosStats = () =>
+  handleRequest(() => publicApiClient.get('/public/legados/stats'), 'getLegadosStats');
 
-export const getCompetenciasStats = async () => {
-  try {
-    const response = await publicApiClient.get('/public/competencias/stats');
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching competencias stats:", error);
-    throw error;
-  }
-};
+export const getHousesStats = () =>
+  handleRequest(() => publicApiClient.get('/public/houses/stats'), 'getHousesStats');
+
+export const getCriteriosSucessoStats = () =>
+  handleRequest(() => publicApiClient.get('/public/criterios-sucesso/stats'), 'getCriteriosSucessoStats');
+
+export const getCompetenciasStats = () =>
+  handleRequest(() => publicApiClient.get('/public/competencias/stats'), 'getCompetenciasStats');
+
+// ============================================================================
+// AUTHENTICATED API CALLS (Frontend - requires auth)
+// ============================================================================
+
+export const fetchCompetencyEvolutionByDiscipline = (disciplineId) =>
+  handleRequest(() => feedbackClient.get(`/competencias/evolution-by-discipline/${disciplineId}`), 'fetchCompetencyEvolutionByDiscipline');

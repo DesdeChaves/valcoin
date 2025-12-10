@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, TrendingUp, Users, Award, CheckCircle, AlertTriangle, Layers, Target, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line } from 'recharts';
-import { getCompetenciasStats } from '../services/api';
+import { getCompetenciasStats, fetchCompetencyEvolutionByDiscipline } from '../services/api'; // Import new API function
 
 const CompetenciasDashboard = () => {
   const [data, setData] = useState(null);
@@ -9,6 +9,9 @@ const CompetenciasDashboard = () => {
   const [selectedDisciplina, setSelectedDisciplina] = useState('todas');
   const [viewMode, setViewMode] = useState('overview'); // overview, disciplinas, dominios
   const [expandedDisciplina, setExpandedDisciplina] = useState(null);
+  const [competencyEvolutionData, setCompetencyEvolutionData] = useState({}); // New state for evolution data
+  const [loadingEvolution, setLoadingEvolution] = useState(false);
+  const [errorEvolution, setErrorEvolution] = useState(null);
 
   useEffect(() => {
     getCompetenciasStats()
@@ -21,6 +24,60 @@ const CompetenciasDashboard = () => {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (expandedDisciplina) {
+      setLoadingEvolution(true);
+      setErrorEvolution(null);
+      fetchCompetencyEvolutionByDiscipline(expandedDisciplina)
+        .then(evolutionStats => {
+          // Group evolution stats by competency_id for easier rendering
+          const groupedEvolution = evolutionStats.reduce((acc, current) => {
+            const { competencia_id, ...rest } = current;
+            if (!acc[competencia_id]) {
+              acc[competencia_id] = {
+                details: {
+                  competencia_id: current.competencia_id,
+                  competencia_codigo: current.competencia_codigo,
+                  competencia_nome: current.competencia_nome,
+                  dominios: current.dominios,
+                  disciplina_id: current.disciplina_id,
+                  disciplina_nome: current.disciplina_nome,
+                  disciplina_codigo: current.disciplina_codigo,
+                }, // Store common details (code, name, domains, etc.)
+                moments: []
+              };
+            }
+            acc[competencia_id].moments.push({
+              descricao_momento: current.descricao_momento,
+              momento_avaliacao: current.momento_avaliacao,
+              data_avaliacao: current.data_avaliacao,
+              media_nivel: current.media_nivel,
+              total_alunos_avaliados: current.total_alunos_avaliados,
+              p25: current.p25,
+              p50_mediana: current.p50_mediana,
+              p75: current.p75,
+              p25_nivel: current.p25_nivel,
+              p50_nivel: current.p50_nivel,
+              p75_nivel: current.p75_nivel,
+              qtd_fraco: current.qtd_fraco,
+              qtd_nao_satisfaz: current.qtd_nao_satisfaz,
+              qtd_satisfaz: current.qtd_satisfaz,
+              qtd_satisfaz_bastante: current.qtd_satisfaz_bastante,
+              qtd_excelente: current.qtd_excelente,
+            });
+            return acc;
+          }, {});
+          setCompetencyEvolutionData(prev => ({ ...prev, [expandedDisciplina]: groupedEvolution }));
+          setLoadingEvolution(false);
+        })
+        .catch(err => {
+          console.error('Erro ao carregar evolução da competência:', err);
+          setErrorEvolution('Falha ao carregar dados de evolução.');
+          setLoadingEvolution(false);
+        });
+    }
+  }, [expandedDisciplina]);
 
   if (loading) {
     return (
@@ -49,6 +106,14 @@ const CompetenciasDashboard = () => {
     if (media >= 3.5) return 'text-green-600';
     if (media >= 2.5) return 'text-amber-600';
     return 'text-red-600';
+  };
+
+  const getNivelDisplay = (media) => {
+    if (media >= 4.5) return 'Excelente';
+    if (media >= 3.5) return 'Satisfaz Bastante';
+    if (media >= 2.5) return 'Satisfaz';
+    if (media >= 1.5) return 'Não Satisfaz';
+    return 'Fraco';
   };
 
   // Calcular média global
@@ -348,6 +413,9 @@ const CompetenciasDashboard = () => {
               <div className="space-y-4">
                 {disciplinasFiltradas.map(disc => {
                   const isExpanded = expandedDisciplina === disc.disciplina_id;
+                  const evolutionForDiscipline = competencyEvolutionData[disc.disciplina_id] || {};
+                  const competenciesList = Object.values(evolutionForDiscipline);
+                  
                   return (
                     <div key={disc.disciplina_id} className="border-2 border-indigo-100 rounded-2xl overflow-hidden">
                       <div 
@@ -398,7 +466,7 @@ const CompetenciasDashboard = () => {
                           </div>
 
                           {disc.dominios && disc.dominios.length > 0 && (
-                            <div>
+                            <div className="mb-6">
                               <div className="text-sm font-semibold text-gray-700 mb-3">Domínios de competências:</div>
                               <div className="flex flex-wrap gap-2">
                                 {disc.dominios.map((dom, i) => (
@@ -409,13 +477,63 @@ const CompetenciasDashboard = () => {
                               </div>
                             </div>
                           )}
+
+                          {loadingEvolution ? (
+                            <div className="text-center py-4">A carregar evolução das competências...</div>
+                          ) : errorEvolution ? (
+                            <div className="text-center py-4 text-red-500">Erro ao carregar evolução: {errorEvolution}</div>
+                          ) : competenciesList.length > 0 ? (
+                            <div className="space-y-6">
+                              <h3 className="text-2xl font-bold text-gray-800 mt-8 mb-4">Evolução das Competências</h3>
+                              {competenciesList.map((compData, compIdx) => (
+                                <div key={compData.details.competencia_id} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                      <p className="font-semibold text-gray-800">{compData.details.competencia_codigo} - {compData.details.competencia_nome}</p>
+                                      {compData.details.dominios && compData.details.dominios.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1 text-xs">
+                                          {compData.details.dominios.map((dom, i) => (
+                                            <span key={i} className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full">
+                                              {dom}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${getNivelColor(compData.moments[0]?.media_nivel)}`}>
+                                        Média Atual: {compData.moments[0]?.media_nivel || '—'}
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {compData.moments
+                                      .sort((a, b) => (b.rank_momento || 0) - (a.rank_momento || 0)) // Ensure latest moment is first
+                                      .map((moment, momentIdx) => (
+                                      <div key={momentIdx} className="border border-gray-300 rounded-md p-3">
+                                        <p className="font-medium text-gray-700 mb-2">{moment.descricao_momento} ({moment.momento_avaliacao})</p>
+                                        <div className="text-sm space-y-1">
+                                          <p><strong>Data:</strong> {new Date(moment.data_avaliacao).toLocaleDateString()}</p>
+                                          <p><strong>Média:</strong> <span className={getNivelColor(moment.media_nivel)}>{moment.media_nivel} ({getNivelDisplay(moment.media_nivel)})</span></p>
+                                          <p><strong>Mediana:</strong> {moment.p50_mediana} ({moment.p50_nivel})</p>
+                                          <p><strong>Alunos Avaliados:</strong> {moment.total_alunos_avaliados}</p>
+                                          <p><strong>Fraco:</strong> {moment.qtd_fraco}, <strong>Não Satisfaz:</strong> {moment.qtd_nao_satisfaz}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-4 text-gray-600">Nenhuma evolução de competência disponível para esta disciplina.</div>
+                          )}
                         </div>
                       )}
                     </div>
                   );
                 })}
               </div>
-            </div>
+            )}
 
             {disciplinasComAvaliacao.length === 0 && (
               <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-8 text-center">
