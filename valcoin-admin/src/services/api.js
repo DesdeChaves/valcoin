@@ -216,6 +216,12 @@ export const getAllCiclos = () => handleRequest(() => apiClient.get('/admin/cicl
 export const createCiclo = (data) => handleRequest(() => apiClient.post('/admin/ciclos', data), 'createCiclo');
 export const updateCiclo = (id, data) => handleRequest(() => apiClient.put(`/admin/ciclos/${id}`, data), 'updateCiclo');
 export const deleteCiclo = (id) => handleRequest(() => apiClient.delete(`/admin/ciclos/${id}`), 'deleteCiclo');
+
+export const getAllDominios = () => handleRequest(() => apiClient.get('/admin/dominios'), 'getAllDominios');
+export const createDominio = (data) => handleRequest(() => apiClient.post('/admin/dominios', data), 'createDominio');
+export const updateDominio = (id, data) => handleRequest(() => apiClient.put(`/admin/dominios/${id}`, data), 'updateDominio');
+export const deleteDominio = (id) => handleRequest(() => apiClient.delete(`/admin/dominios/${id}`), 'deleteDominio');
+
 export const runInterestPayment = () => handleRequest(() => apiClient.post('/admin/run-interest-payment'), 'runInterestPayment');
 
 export const getAlunoTurma = () => handleRequest(() => apiClient.get('/aluno_turma'), 'getAlunoTurma');

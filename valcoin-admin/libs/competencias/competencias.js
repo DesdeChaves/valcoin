@@ -7,7 +7,21 @@ const { validateCompetencia } = require('./helpers.js');
 router.get('/disciplina/:disciplinaId', async (req, res) => {
     const { disciplinaId } = req.params;
     try {
-        const result = await db.query('SELECT * FROM competencia WHERE disciplina_id = $1 AND ativo = true ORDER BY ordem', [disciplinaId]);
+        const query = `
+            SELECT 
+                c.*, 
+                COALESCE(
+                    (SELECT json_agg(json_build_object('id', d.id, 'nome', d.nome))
+                     FROM competencia_dominio cd
+                     JOIN dominios d ON cd.dominio_id = d.id
+                     WHERE cd.competencia_id = c.id),
+                    '[]'::json
+                ) as dominios
+            FROM competencia c
+            WHERE c.disciplina_id = $1 AND c.ativo = true
+            ORDER BY c.ordem;
+        `;
+        const result = await db.query(query, [disciplinaId]);
         res.status(200).json(result.rows);
     } catch (error) {
         console.error('Error fetching competencies:', error);
@@ -19,7 +33,20 @@ router.get('/disciplina/:disciplinaId', async (req, res) => {
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const result = await db.query('SELECT * FROM competencia WHERE id = $1', [id]);
+        const query = `
+            SELECT 
+                c.*, 
+                COALESCE(
+                    (SELECT json_agg(json_build_object('id', d.id, 'nome', d.nome))
+                     FROM competencia_dominio cd
+                     JOIN dominios d ON cd.dominio_id = d.id
+                     WHERE cd.competencia_id = c.id),
+                    '[]'::json
+                ) as dominios
+            FROM competencia c
+            WHERE c.id = $1;
+        `;
+        const result = await db.query(query, [id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Competency not found' });
         }
@@ -37,19 +64,55 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: error.details[0].message });
     }
 
-    const { disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, dominio, ordem } = value;
+    const { disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, dominio_ids, ordem } = value;
 
+    const client = await db.getClient();
     try {
-        const result = await db.query(
-            `INSERT INTO competencia (disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, dominio, ordem)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        await client.query('BEGIN');
+
+        const competenciaResult = await client.query(
+            `INSERT INTO competencia (disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, ordem)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, dominio, ordem]
+            [disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, ordem]
         );
-        res.status(201).json(result.rows[0]);
-    } catch (error) {
-        console.error('Error creating competency:', error);
+        const newCompetencia = competenciaResult.rows[0];
+
+        if (dominio_ids && dominio_ids.length > 0) {
+            const domainInsertPromises = dominio_ids.map(dominio_id => {
+                return client.query(
+                    'INSERT INTO competencia_dominio (competencia_id, dominio_id) VALUES ($1, $2)',
+                    [newCompetencia.id, dominio_id]
+                );
+            });
+            await Promise.all(domainInsertPromises);
+        }
+
+        await client.query('COMMIT');
+        
+        // Fetch the full competency with domains to return
+        const finalResult = await db.query(
+            `SELECT 
+                c.*, 
+                COALESCE(
+                    (SELECT json_agg(json_build_object('id', d.id, 'nome', d.nome))
+                     FROM competencia_dominio cd
+                     JOIN dominios d ON cd.dominio_id = d.id
+                     WHERE cd.competencia_id = c.id),
+                    '[]'::json
+                ) as dominios
+            FROM competencia c
+            WHERE c.id = $1;`,
+            [newCompetencia.id]
+        );
+
+        res.status(201).json(finalResult.rows[0]);
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error creating competency:', err);
         res.status(500).json({ error: 'Internal server error' });
+    } finally {
+        client.release();
     }
 });
 
@@ -61,25 +124,65 @@ router.put('/:id', async (req, res) => {
         return res.status(400).json({ error: error.details[0].message });
     }
 
-    const { disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, dominio, ordem, validado, validado_por_id, ativo } = value;
+    const { disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, dominio_ids, ordem, validado, validado_por_id, ativo } = value;
 
+    const client = await db.getClient();
     try {
-        const result = await db.query(
+        await client.query('BEGIN');
+
+        const competenciaResult = await client.query(
             `UPDATE competencia
-             SET disciplina_id = $1, codigo = $2, nome = $3, descricao = $4, medida_educativa = $5, descricao_adaptacao = $6, criado_por_id = $7, dominio = $8, ordem = $9, validado = $10, validado_por_id = $11, ativo = $12, updated_at = NOW()
-             WHERE id = $13
+             SET disciplina_id = $1, codigo = $2, nome = $3, descricao = $4, medida_educativa = $5, descricao_adaptacao = $6, criado_por_id = $7, ordem = $8, validado = $9, validado_por_id = $10, ativo = $11, updated_at = NOW()
+             WHERE id = $12
              RETURNING *`,
-            [disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, dominio, ordem, validado, validado_por_id, ativo, id]
+            [disciplina_id, codigo, nome, descricao, medida_educativa, descricao_adaptacao, criado_por_id, ordem, validado, validado_por_id, ativo, id]
         );
-        if (result.rows.length === 0) {
+
+        if (competenciaResult.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Competency not found' });
         }
-        res.status(200).json(result.rows[0]);
-    } catch (error) {
-        console.error('Error updating competency:', error);
+
+        // Update domains
+        await client.query('DELETE FROM competencia_dominio WHERE competencia_id = $1', [id]);
+        if (dominio_ids && dominio_ids.length > 0) {
+            const domainInsertPromises = dominio_ids.map(dominio_id => {
+                return client.query(
+                    'INSERT INTO competencia_dominio (competencia_id, dominio_id) VALUES ($1, $2)',
+                    [id, dominio_id]
+                );
+            });
+            await Promise.all(domainInsertPromises);
+        }
+
+        await client.query('COMMIT');
+
+        // Fetch the full competency with domains to return
+        const finalResult = await db.query(
+            `SELECT 
+                c.*, 
+                COALESCE(
+                    (SELECT json_agg(json_build_object('id', d.id, 'nome', d.nome))
+                     FROM competencia_dominio cd
+                     JOIN dominios d ON cd.dominio_id = d.id
+                     WHERE cd.competencia_id = c.id),
+                    '[]'::json
+                ) as dominios
+            FROM competencia c
+            WHERE c.id = $1;`,
+            [id]
+        );
+        
+        res.status(200).json(finalResult.rows[0]);
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error updating competency:', err);
         res.status(500).json({ error: 'Internal server error' });
+    } finally {
+        client.release();
     }
 });
+
 
 // DELETE a competency (soft delete)
 router.delete('/:id', async (req, res) => {

@@ -64,19 +64,19 @@ router.get('/stats', async (req, res) => {
         ORDER BY s.nome
       ) AS data
       FROM subjects s
-      -- Contar COMPETÊNCIAS (não avaliações)
       LEFT JOIN (
         SELECT
           c.disciplina_id,
           COUNT(DISTINCT c.id) AS total_competencias, 
           COUNT(DISTINCT CASE WHEN c.validado THEN c.id END) AS validadas,
           COUNT(DISTINCT CASE WHEN c.medida_educativa != 'nenhuma' THEN c.id END) AS com_medidas,
-          jsonb_agg(DISTINCT NULLIF(TRIM(c.dominio), '')) FILTER (WHERE TRIM(c.dominio) != '') AS dominios
+          jsonb_agg(DISTINCT d.nome) FILTER (WHERE d.nome IS NOT NULL) AS dominios
         FROM competencia c
+        LEFT JOIN competencia_dominio cd ON c.id = cd.competencia_id
+        LEFT JOIN dominios d ON cd.dominio_id = d.id
         WHERE c.ativo = true
         GROUP BY c.disciplina_id
       ) comp_stats ON comp_stats.disciplina_id = s.id
-      -- Contar AVALIAÇÕES e calcular média
       LEFT JOIN (
         SELECT
           c.disciplina_id,
@@ -97,11 +97,49 @@ router.get('/stats', async (req, res) => {
         GROUP BY c.disciplina_id
       ) aval_stats ON aval_stats.disciplina_id = s.id
       WHERE s.ativo = true
+    ),
+    dominiosResumo AS (
+      SELECT jsonb_agg(stats) AS data
+      FROM (
+        SELECT
+          d.nome AS dominio_nome,
+          COUNT(DISTINCT c.id) AS total_competencias,
+          COUNT(ac.id) AS total_avaliacoes,
+          ROUND(AVG(nivel_proficiencia_to_number(ac.nivel)), 2) AS media_nivel
+        FROM dominios d
+        LEFT JOIN competencia_dominio cd ON d.id = cd.dominio_id
+        LEFT JOIN competencia c ON cd.competencia_id = c.id
+        LEFT JOIN avaliacao_competencia ac ON c.id = ac.competencia_id
+        GROUP BY d.nome
+      ) stats
+    ),
+    topCompetenciasDificeis AS (
+      SELECT jsonb_agg(stats) AS data
+      FROM (
+        SELECT
+          c.codigo,
+          c.nome,
+          s.nome as disciplina,
+          (SELECT json_agg(d.nome) FROM competencia_dominio cd JOIN dominios d ON cd.dominio_id = d.id WHERE cd.competencia_id = c.id) as dominios,
+          ROUND(AVG(nivel_proficiencia_to_number(ac.nivel)), 2) as media_nivel,
+          COUNT(DISTINCT ac.aluno_id) as alunos_avaliados,
+          COUNT(*) FILTER (WHERE ac.nivel = 'fraco') as qtd_fraco,
+          COUNT(*) FILTER (WHERE ac.nivel = 'nao_satisfaz') as qtd_nao_satisfaz,
+          c.medida_educativa
+        FROM avaliacao_competencia ac
+        JOIN competencia c ON ac.competencia_id = c.id
+        JOIN subjects s ON c.disciplina_id = s.id
+        GROUP BY c.id, s.nome
+        ORDER BY media_nivel ASC
+        LIMIT 10
+      ) stats
     )
     SELECT jsonb_build_object(
       'overview',             (SELECT to_jsonb(o) FROM overview o),
       'disciplinasResumo',    COALESCE((SELECT data FROM disciplinasResumo), '[]'::jsonb),
-      'distribuicaoNiveis',   COALESCE((SELECT data FROM distribuicao_niveis), '[]'::jsonb)
+      'distribuicaoNiveis',   COALESCE((SELECT data FROM distribuicao_niveis), '[]'::jsonb),
+      'dominiosResumo',       COALESCE((SELECT data FROM dominiosResumo), '[]'::jsonb),
+      'topCompetenciasDificeis', COALESCE((SELECT data FROM topCompetenciasDificeis), '[]'::jsonb)
     ) AS dashboard_data;
   `;
 

@@ -1,17 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { createCompetency, updateCompetency } from '../../utils/api_competencias';
+import { getAllDominios } from '../../utils/api';
 
 const CompetencyModal = ({ isOpen, onClose, competency, disciplineId, professorId }) => {
     const [formData, setFormData] = useState({
         codigo: '',
         nome: '',
         descricao: '',
-        dominio: '',
+        dominio_ids: [], // Changed to handle multiple domains
         medida_educativa: 'nenhuma',
         descricao_adaptacao: '',
         ordem: 0,
     });
+    const [dominios, setDominios] = useState([]);
     const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchDominiosData = async () => {
+            try {
+                const data = await getAllDominios();
+                setDominios(data);
+            } catch (err) {
+                console.error('Error fetching dominios:', err);
+                setError('Falha ao carregar os domínios.');
+            }
+        };
+        if (isOpen) {
+            fetchDominiosData();
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (competency) {
@@ -19,7 +36,7 @@ const CompetencyModal = ({ isOpen, onClose, competency, disciplineId, professorI
                 codigo: competency.codigo || '',
                 nome: competency.nome || '',
                 descricao: competency.descricao || '',
-                dominio: competency.dominio || '',
+                dominio_ids: competency.dominios ? competency.dominios.map(d => d.id) : [], // Expecting an array of domain objects
                 medida_educativa: competency.medida_educativa || 'nenhuma',
                 descricao_adaptacao: competency.descricao_adaptacao || '',
                 ordem: competency.ordem || 0,
@@ -29,17 +46,26 @@ const CompetencyModal = ({ isOpen, onClose, competency, disciplineId, professorI
                 codigo: '',
                 nome: '',
                 descricao: '',
-                dominio: '',
+                dominio_ids: [],
                 medida_educativa: 'nenhuma',
                 descricao_adaptacao: '',
                 ordem: 0,
             });
         }
-    }, [competency]);
+    }, [competency, isOpen]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleDomainChange = (domainId) => {
+        setFormData(prev => {
+            const newDominioIds = prev.dominio_ids.includes(domainId)
+                ? prev.dominio_ids.filter(id => id !== domainId)
+                : [...prev.dominio_ids, domainId];
+            return { ...prev, dominio_ids: newDominioIds };
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -92,10 +118,23 @@ const CompetencyModal = ({ isOpen, onClose, competency, disciplineId, professorI
                                 <textarea name="descricao" id="descricao" placeholder="Descrição detalhada da competência" value={formData.descricao} onChange={handleChange} className="mb-2 w-full px-3 py-2 border border-gray-300 rounded-md" />
                             </div>
                             <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="dominio">
-                                    Domínio
+                                <label className="block text-gray-700 text-sm font-bold mb-2">
+                                    Domínios
                                 </label>
-                                <input type="text" name="dominio" id="dominio" placeholder="Domínio da Competência" value={formData.dominio} onChange={handleChange} className="mb-2 w-full px-3 py-2 border border-gray-300 rounded-md" />
+                                <div className="grid grid-cols-2 gap-2">
+                                    {dominios.map(dom => (
+                                        <div key={dom.id} className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                id={`dominio-${dom.id}`}
+                                                checked={formData.dominio_ids.includes(dom.id)}
+                                                onChange={() => handleDomainChange(dom.id)}
+                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                            <label htmlFor={`dominio-${dom.id}`} className="ml-2 text-sm text-gray-700">{dom.nome}</label>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                             <div className="mb-4">
                                 <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="medida_educativa">

@@ -10,7 +10,7 @@ const competenciaSchema = Joi.object({
     criado_por_id: Joi.string().uuid().required(),
     validado: Joi.boolean().default(false),
     validado_por_id: Joi.string().uuid().allow(null),
-    dominio: Joi.string().max(100).allow(null, ''),
+    dominio_ids: Joi.array().items(Joi.string().uuid()).allow(null),
     ordem: Joi.number().integer().default(0),
     ativo: Joi.boolean().default(true)
 });

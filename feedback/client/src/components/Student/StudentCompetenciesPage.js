@@ -95,7 +95,7 @@ const StudentCompetenciesPage = () => {
                                             <span className="font-medium mr-1">Disciplina:</span> {comp.disciplina_nome}
                                         </p>
                                         <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                                            <span className="font-medium mr-1">Domínio:</span> {comp.dominio || 'N/A'}
+                                            <span className="font-medium mr-1">Domínios:</span> {comp.dominios?.join(', ') || 'N/A'}
                                         </p>
                                     </div>
                                     <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">

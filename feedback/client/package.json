@@ -22,7 +22,7 @@
   "proxy": "http://localhost:3002",
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "NODE_OPTIONS=--max-old-space-size=4096 react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

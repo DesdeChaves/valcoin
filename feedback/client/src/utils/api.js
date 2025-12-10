@@ -248,6 +248,8 @@ export const manageHouseMembers = (id, data) => handleRequest(() => apiClient.po
 
 export const getDepartments = () => handleRequest(() => apiClient.get('/departments'), 'getDepartments');
 
+export const getAllDominios = () => handleRequest(() => apiClient.get('/admin/dominios'), 'getAllDominios');
+
 // Student Loans (Admin Management)
 export const getAllStudentLoans = () => handleRequest(() => apiClient.get('/admin/student-loans'), 'getAllStudentLoans');
 export const approveStudentLoan = (id) => handleRequest(() => apiClient.patch(`/admin/student-loans/${id}/approve`), 'approveStudentLoan');

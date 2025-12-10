@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, TrendingUp, Users, Award, CheckCircle, AlertTriangle, Layers, Target, Filter } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import { BookOpen, TrendingUp, Users, Award, CheckCircle, AlertTriangle, Layers, Target, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line } from 'recharts';
 import { getCompetenciasStats } from '../services/api';
 
 const CompetenciasDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedDisciplina, setSelectedDisciplina] = useState('todas');
+  const [viewMode, setViewMode] = useState('overview'); // overview, disciplinas, dominios
+  const [expandedDisciplina, setExpandedDisciplina] = useState(null);
 
   useEffect(() => {
     getCompetenciasStats()
@@ -94,6 +96,34 @@ const CompetenciasDashboard = () => {
           </div>
         </div>
 
+        {/* Navigation Tabs */}
+        <div className="flex justify-center gap-4 mb-8 flex-wrap">
+          <button
+            onClick={() => setViewMode('overview')}
+            className={`px-6 py-3 rounded-xl font-semibold transition ${
+              viewMode === 'overview' ? 'bg-cyan-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Visão Geral
+          </button>
+          <button
+            onClick={() => setViewMode('disciplinas')}
+            className={`px-6 py-3 rounded-xl font-semibold transition ${
+              viewMode === 'disciplinas' ? 'bg-cyan-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Por Disciplina
+          </button>
+          <button
+            onClick={() => setViewMode('dominios')}
+            className={`px-6 py-3 rounded-xl font-semibold transition ${
+              viewMode === 'dominios' ? 'bg-cyan-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            Por Domínio
+          </button>
+        </div>
+
         {/* KPIs Principais */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-cyan-500">
@@ -139,174 +169,306 @@ const CompetenciasDashboard = () => {
           </div>
         </div>
 
-        {/* Distribuição de Níveis de Proficiência */}
-        {data.distribuicaoNiveis && data.distribuicaoNiveis.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-2xl p-8">
-            <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
-              <Target className="w-8 h-8 text-cyan-600" />
-              Distribuição de Níveis de Proficiência
-            </h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Gráfico de Barras */}
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={data.distribuicaoNiveis}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis 
-                    dataKey="nivel" 
-                    angle={-15} 
-                    textAnchor="end" 
-                    height={100}
-                    style={{ fontSize: '12px' }}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'white', 
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '12px',
-                      padding: '12px'
-                    }}
-                  />
-                  <Bar dataKey="count" radius={[8, 8, 0, 0]}>
-                    {data.distribuicaoNiveis.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={coresNiveis[entry.nivel] || '#6b7280'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-
-              {/* Cards de Níveis */}
-              <div className="space-y-3">
-                {data.distribuicaoNiveis.map((nivel, idx) => (
-                  <div key={idx} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:shadow-md transition-all">
-                    <div 
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg"
-                      style={{ backgroundColor: coresNiveis[nivel.nivel] || '#6b7280' }}
-                    >
-                      {idx + 1}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-bold text-gray-800">{nivel.nivel}</div>
-                      <div className="text-sm text-gray-600">
-                        {nivel.count} avaliações ({nivel.percent}%)
-                      </div>
-                    </div>
-                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${Math.min(nivel.percent * 2, 100)}%`, 
-                          backgroundColor: coresNiveis[nivel.nivel] || '#6b7280'
+        {/* VIEW MODE: OVERVIEW */}
+        {viewMode === 'overview' && (
+          <>
+            {/* Distribuição de Níveis de Proficiência */}
+            {data.distribuicaoNiveis && data.distribuicaoNiveis.length > 0 && (
+              <div className="bg-white rounded-3xl shadow-2xl p-8">
+                <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
+                  <Target className="w-8 h-8 text-cyan-600" />
+                  Distribuição de Níveis de Proficiência
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Gráfico de Barras */}
+                  <ResponsiveContainer width="100%" height={350}>
+                    <BarChart data={data.distribuicaoNiveis}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="nivel" 
+                        angle={-15} 
+                        textAnchor="end" 
+                        height={100}
+                        style={{ fontSize: '12px' }}
+                      />
+                      <YAxis />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'white', 
+                          border: '2px solid #e5e7eb',
+                          borderRadius: '12px',
+                          padding: '12px'
                         }}
                       />
-                    </div>
+                      <Bar dataKey="count" radius={[8, 8, 0, 0]}>
+                        {data.distribuicaoNiveis.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={coresNiveis[entry.nivel] || '#6b7280'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+
+                  {/* Cards de Níveis */}
+                  <div className="space-y-3">
+                    {data.distribuicaoNiveis.map((nivel, idx) => (
+                      <div key={idx} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:shadow-md transition-all">
+                        <div 
+                          className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-lg"
+                          style={{ backgroundColor: coresNiveis[nivel.nivel] || '#6b7280' }}
+                        >
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-bold text-gray-800">{nivel.nivel}</div>
+                          <div className="text-sm text-gray-600">
+                            {nivel.count} avaliações ({nivel.percent}%)
+                          </div>
+                        </div>
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${Math.min(nivel.percent * 2, 100)}%`, 
+                              backgroundColor: coresNiveis[nivel.nivel] || '#6b7280'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Competências com Maior Dificuldade */}
+            {data.topCompetenciasDificeis && data.topCompetenciasDificeis.length > 0 && (
+              <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-3xl shadow-2xl p-8 border-2 border-red-200">
+                <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                  Competências que Necessitam Reforço
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {data.topCompetenciasDificeis.map((comp, idx) => (
+                    <div key={idx} className="bg-white rounded-2xl p-6 shadow-lg">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="px-3 py-1 bg-red-600 text-white rounded-full text-sm font-bold">
+                              {comp.codigo}
+                            </span>
+                            <span className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm">
+                              {comp.disciplina}
+                            </span>
+                            {comp.medida_educativa !== 'nenhuma' && (
+                              <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
+                                Medida: {comp.medida_educativa}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-800 mb-1">{comp.nome}</h3>
+                          {comp.dominios && comp.dominios.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                                {comp.dominios.map((dom, i) => (
+                                    <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                                        {dom}
+                                    </span>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-4xl font-bold ${getNivelColor(comp.media_nivel)}`}>
+                            {comp.media_nivel}
+                          </div>
+                          <div className="text-sm text-gray-600">média</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 text-center text-sm">
+                        <div className="bg-red-50 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-red-600">{comp.qtd_fraco}</div>
+                          <div className="text-xs text-gray-600">Fraco</div>
+                        </div>
+                        <div className="bg-orange-50 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-orange-600">{comp.qtd_nao_satisfaz}</div>
+                          <div className="text-xs text-gray-600">Não Satisfaz</div>
+                        </div>
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <div className="text-2xl font-bold text-blue-600">{comp.alunos_avaliados}</div>
+                          <div className="text-xs text-gray-600">Total Avaliados</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* VIEW MODE: DISCIPLINAS */}
+        {viewMode === 'disciplinas' && (
+          <>
+            {/* Filtro de Disciplinas */}
+            {disciplinasComAvaliacao.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-lg p-4 flex items-center gap-4 flex-wrap">
+                <Filter className="w-5 h-5 text-gray-600" />
+                <span className="font-semibold text-gray-700">Filtrar por disciplina:</span>
+                <button
+                  onClick={() => setSelectedDisciplina('todas')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    selectedDisciplina === 'todas' 
+                      ? 'bg-cyan-600 text-white' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Todas ({disciplinasComAvaliacao.length})
+                </button>
+                {disciplinasComAvaliacao.map(disc => (
+                  <button
+                    key={disc.disciplina_id}
+                    onClick={() => setSelectedDisciplina(disc.disciplina_id)}
+                    className={`px-4 py-2 rounded-lg font-medium transition ${
+                      selectedDisciplina === disc.disciplina_id
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {disc.disciplina_nome}
+                  </button>
                 ))}
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* Filtro de Disciplinas */}
-        {disciplinasComAvaliacao.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-4 flex items-center gap-4 flex-wrap">
-            <Filter className="w-5 h-5 text-gray-600" />
-            <span className="font-semibold text-gray-700">Filtrar por disciplina:</span>
-            <button
-              onClick={() => setSelectedDisciplina('todas')}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                selectedDisciplina === 'todas' 
-                  ? 'bg-cyan-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Todas ({disciplinasComAvaliacao.length})
-            </button>
-            {disciplinasComAvaliacao.map(disc => (
-              <button
-                key={disc.disciplina_id}
-                onClick={() => setSelectedDisciplina(disc.disciplina_id)}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  selectedDisciplina === disc.disciplina_id
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {disc.disciplina_nome}
-              </button>
-            ))}
-          </div>
-        )}
+            {/* Detalhes por Disciplina */}
+            <div className="bg-white rounded-3xl shadow-2xl p-8">
+              <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
+                <BookOpen className="w-8 h-8 text-indigo-600" />
+                Detalhes por Disciplina
+              </h2>
+              <div className="space-y-4">
+                {disciplinasFiltradas.map(disc => {
+                  const isExpanded = expandedDisciplina === disc.disciplina_id;
+                  return (
+                    <div key={disc.disciplina_id} className="border-2 border-indigo-100 rounded-2xl overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-indigo-50 to-cyan-50 p-6 cursor-pointer hover:from-indigo-100 hover:to-cyan-100 transition-all"
+                        onClick={() => setExpandedDisciplina(isExpanded ? null : disc.disciplina_id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center text-2xl font-bold">
+                              {disc.disciplina_nome.charAt(0)}
+                            </div>
+                            <div>
+                              <h3 className="text-2xl font-bold text-gray-800">{disc.disciplina_nome}</h3>
+                              <p className="text-sm text-gray-600">{disc.disciplina_codigo}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <div className={`text-4xl font-bold ${getNivelColor(disc.media_nivel)}`}>
+                                {disc.media_nivel > 0 ? disc.media_nivel : '—'}
+                              </div>
+                              <div className="text-sm text-gray-600">média</div>
+                            </div>
+                            {isExpanded ? <ChevronUp className="w-6 h-6 text-gray-400" /> : <ChevronDown className="w-6 h-6 text-gray-400" />}
+                          </div>
+                        </div>
+                      </div>
 
-        {/* Cards de Disciplinas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {disciplinasFiltradas.map(disc => (
-            <div 
-              key={disc.disciplina_id}
-              className="bg-white border-2 border-indigo-100 rounded-3xl p-8 hover:shadow-2xl transition-all cursor-pointer bg-gradient-to-br from-white to-indigo-50"
-            >
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <BookOpen className="w-6 h-6 text-indigo-600" />
-                    <h3 className="text-2xl font-bold text-gray-800">{disc.disciplina_nome}</h3>
-                  </div>
-                  <p className="text-sm text-gray-600 font-mono">{disc.disciplina_codigo}</p>
-                </div>
-                <div className={`text-5xl font-bold ${getNivelColor(disc.media_nivel)}`}>
-                  {disc.media_nivel > 0 ? disc.media_nivel : '—'}
-                </div>
-              </div>
+                      {isExpanded && (
+                        <div className="p-6 bg-white">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div className="text-center p-4 bg-indigo-50 rounded-xl">
+                              <div className="text-3xl font-bold text-indigo-600">{disc.total_competencias}</div>
+                              <div className="text-sm text-gray-600 mt-1">Competências</div>
+                            </div>
+                            <div className="text-center p-4 bg-green-50 rounded-xl">
+                              <div className="text-3xl font-bold text-green-600">{disc.competencias_validadas}</div>
+                              <div className="text-sm text-gray-600 mt-1">Validadas</div>
+                            </div>
+                            <div className="text-center p-4 bg-blue-50 rounded-xl">
+                              <div className="text-3xl font-bold text-blue-600">{disc.total_avaliacoes}</div>
+                              <div className="text-sm text-gray-600 mt-1">Avaliações</div>
+                            </div>
+                            <div className="text-center p-4 bg-amber-50 rounded-xl">
+                              <div className="text-3xl font-bold text-amber-600">{disc.competencias_com_medidas}</div>
+                              <div className="text-sm text-gray-600 mt-1">Com Medidas</div>
+                            </div>
+                          </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="text-center p-3 bg-white rounded-xl shadow-sm">
-                  <div className="text-2xl font-bold text-indigo-600">{disc.total_competencias}</div>
-                  <div className="text-xs text-gray-600 mt-1">Competências</div>
-                </div>
-                <div className="text-center p-3 bg-white rounded-xl shadow-sm">
-                  <div className="text-2xl font-bold text-green-600">{disc.competencias_validadas}</div>
-                  <div className="text-xs text-gray-600 mt-1">Validadas</div>
-                </div>
-                <div className="text-center p-3 bg-white rounded-xl shadow-sm">
-                  <div className="text-2xl font-bold text-amber-600">{disc.competencias_com_medidas}</div>
-                  <div className="text-xs text-gray-600 mt-1">c/ Medidas</div>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 rounded-xl p-3">
-                <div className="text-sm font-semibold text-blue-700 mb-2">
-                  📊 {disc.total_avaliacoes} avaliações realizadas
-                </div>
-                {disc.dominios && disc.dominios.length > 0 && (
-                  <>
-                    <div className="text-xs font-semibold text-gray-600 mb-2">Domínios:</div>
-                    <div className="flex flex-wrap gap-2">
-                      {disc.dominios.map((dom, i) => (
-                        <span key={i} className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs">
-                          {dom}
-                        </span>
-                      ))}
+                          {disc.dominios && disc.dominios.length > 0 && (
+                            <div>
+                              <div className="text-sm font-semibold text-gray-700 mb-3">Domínios de competências:</div>
+                              <div className="flex flex-wrap gap-2">
+                                {disc.dominios.map((dom, i) => (
+                                  <span key={i} className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+                                    {dom}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </>
-                )}
+                  );
+                })}
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* Mensagem se não houver disciplinas com avaliações */}
-        {disciplinasComAvaliacao.length === 0 && (
-          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-8 text-center">
-            <AlertTriangle className="w-12 h-12 text-amber-600 mx-auto mb-4" />
-            <p className="text-xl font-semibold text-amber-800">
-              Ainda não existem avaliações de competências registadas
-            </p>
-            <p className="text-amber-600 mt-2">
-              As avaliações aparecerão aqui assim que forem registadas pelos professores
-            </p>
-          </div>
+            {disciplinasComAvaliacao.length === 0 && (
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-8 text-center">
+                <AlertTriangle className="w-12 h-12 text-amber-600 mx-auto mb-4" />
+                <p className="text-xl font-semibold text-amber-800">
+                  Ainda não existem avaliações de competências registadas
+                </p>
+              </div>
+            )}
+          </>
         )}
 
+        {/* VIEW MODE: DOMINIOS */}
+        {viewMode === 'dominios' && (
+          <div className="bg-white rounded-3xl shadow-2xl p-8">
+            <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
+              <Layers className="w-8 h-8 text-purple-600" />
+              Estatísticas por Domínio
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {data.dominiosResumo && data.dominiosResumo.length > 0 ? (
+                data.dominiosResumo.map((dominio, idx) => (
+                  <div key={idx} className="bg-purple-50 border-2 border-purple-200 rounded-2xl p-6">
+                    <h3 className="text-xl font-bold text-purple-800 mb-3">{dominio.dominio_nome}</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-gray-700">
+                        <span>Competências Associadas:</span>
+                        <span className="font-semibold">{dominio.total_competencias}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-gray-700">
+                        <span>Total de Avaliações:</span>
+                        <span className="font-semibold">{dominio.total_avaliacoes}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-gray-700">
+                        <span>Nível Médio:</span>
+                        <span className={`font-bold ${getNivelColor(dominio.media_nivel)}`}>
+                          {dominio.media_nivel ? dominio.media_nivel.toFixed(2) : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-full bg-amber-50 border-2 border-amber-200 rounded-2xl p-8 text-center">
+                  <AlertTriangle className="w-12 h-12 text-amber-600 mx-auto mb-4" />
+                  <p className="text-xl font-semibold text-amber-800">
+                    Não existem dados de domínios disponíveis.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getSettings, updateSettings, getUsers } from '../services/api';
 import Categories from './Categories'; // Import the new component
 import Ciclos from './Ciclos';
+import Dominios from './Dominios';
 
 const Settings = () => {
   const [settings, setSettings] = useState(null);
@@ -118,6 +119,12 @@ const Settings = () => {
             className={`${activeTab === 'ciclos' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
           >
             Ciclos
+          </button>
+          <button
+            onClick={() => setActiveTab('dominios')}
+            className={`${activeTab === 'dominios' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            Domínios
           </button>
         </nav>
       </div>
@@ -379,6 +386,12 @@ const Settings = () => {
       {activeTab === 'ciclos' && (
         <div className="mt-6">
           <Ciclos />
+        </div>
+      )}
+
+      {activeTab === 'dominios' && (
+        <div className="mt-6">
+          <Dominios />
         </div>
       )}
     </div>

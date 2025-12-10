@@ -1226,6 +1226,7 @@ CREATE TABLE public.competencia (
     ativo boolean DEFAULT true,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone DEFAULT now(),
+    dominio_id uuid,
     CONSTRAINT competencia_medida_educativa_check CHECK ((medida_educativa = ANY (ARRAY['universal'::public.tipo_medida_educativa, 'seletiva'::public.tipo_medida_educativa, 'adicional'::public.tipo_medida_educativa, 'nenhuma'::public.tipo_medida_educativa])))
 );
 
@@ -1505,6 +1506,30 @@ CREATE TABLE public.disciplina_turma (
 
 
 ALTER TABLE public.disciplina_turma OWNER TO "user";
+
+--
+-- Name: dominios; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.dominios (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nome character varying(100) NOT NULL,
+    descricao text,
+    ativo boolean DEFAULT true NOT NULL,
+    criado_por_id uuid,
+    data_criacao timestamp with time zone DEFAULT now(),
+    data_atualizacao timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.dominios OWNER TO "user";
+
+--
+-- Name: TABLE dominios; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON TABLE public.dominios IS 'Tabela para armazenar os domínios de competências (ex: Cognitivo, Socio-emocional).';
+
 
 --
 -- Name: dossie; Type: TABLE; Schema: public; Owner: user
@@ -3411,7 +3436,7 @@ CREATE VIEW public.v_progresso_aluno_atual AS
     ac.competencia_id,
     c.codigo AS competencia_codigo,
     c.nome AS competencia_nome,
-    c.dominio,
+    d.nome AS dominio_nome,
     s.nome AS disciplina_nome,
     ac.disciplina_turma_id,
     ac.nivel AS nivel_atual,
@@ -3423,13 +3448,13 @@ CREATE VIEW public.v_progresso_aluno_atual AS
             WHEN (ame.id IS NOT NULL) THEN true
             ELSE false
         END AS aluno_tem_medida_educativa
-   FROM ((((public.avaliacao_competencia ac
+   FROM (((((public.avaliacao_competencia ac
      JOIN public.users u ON ((u.id = ac.aluno_id)))
      JOIN public.competencia c ON ((c.id = ac.competencia_id)))
+     LEFT JOIN public.dominios d ON ((d.id = c.dominio_id)))
      JOIN public.subjects s ON ((s.id = c.disciplina_id)))
      LEFT JOIN public.aluno_medida_educativa ame ON (((ame.aluno_id = ac.aluno_id) AND ((ame.disciplina_id = c.disciplina_id) OR (ame.disciplina_id IS NULL)) AND (ame.data_fim IS NULL))))
-  WHERE (c.ativo = true)
-  ORDER BY ac.aluno_id, ac.competencia_id, ac.data_avaliacao DESC;
+  ORDER BY ac.aluno_id, ac.competencia_id, ac.data_avaliacao DESC, ac.momento_avaliacao DESC;
 
 
 ALTER TABLE public.v_progresso_aluno_atual OWNER TO "user";
@@ -4047,6 +4072,14 @@ ALTER TABLE ONLY public.disciplina_turma
 
 
 --
+-- Name: dominios dominios_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.dominios
+    ADD CONSTRAINT dominios_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: dossie dossie_pkey; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -4583,6 +4616,14 @@ ALTER TABLE ONLY public.transactions
 
 
 --
+-- Name: dominios uq_dominios_nome; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.dominios
+    ADD CONSTRAINT uq_dominios_nome UNIQUE (nome);
+
+
+--
 -- Name: empresas uq_empresas_email; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -4768,6 +4809,13 @@ CREATE INDEX idx_competencia_disciplina ON public.competencia USING btree (disci
 --
 
 CREATE INDEX idx_competencia_dominio ON public.competencia USING btree (dominio);
+
+
+--
+-- Name: idx_competencia_dominio_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_competencia_dominio_id ON public.competencia USING btree (dominio_id);
 
 
 --
@@ -5901,6 +5949,14 @@ ALTER TABLE ONLY public.disciplina_turma
 
 
 --
+-- Name: dominios dominios_criado_por_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.dominios
+    ADD CONSTRAINT dominios_criado_por_id_fkey FOREIGN KEY (criado_por_id) REFERENCES public.users(id);
+
+
+--
 -- Name: dossie dossie_professor_disciplina_turma_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -6066,6 +6122,14 @@ ALTER TABLE ONLY public.eqavet_turma_ciclo
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT fk_category FOREIGN KEY (category_id) REFERENCES public.categories(id);
+
+
+--
+-- Name: competencia fk_competencia_dominio; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.competencia
+    ADD CONSTRAINT fk_competencia_dominio FOREIGN KEY (dominio_id) REFERENCES public.dominios(id) ON DELETE SET NULL;
 
 
 --

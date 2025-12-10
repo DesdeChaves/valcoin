@@ -110,6 +110,7 @@ const {
   updateAlunoTurma,
   deleteAlunoTurma,
 } = require('./libs/aluno_turma');
+const { getAllDominios, createDominio, updateDominio, deleteDominio } = require('./libs/qualidade/dominios');
 
 const { getSettings, updateSettings } = require('./libs/settings');
 const { getSchoolRevenues, createSchoolRevenue, updateSchoolRevenue, deleteSchoolRevenue } = require('./libs/schoolRevenues');
@@ -935,6 +936,54 @@ app.post('/api/admin/run-interest-payment', authenticateAdminJWT, async (req, re
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ============================================================================
+// ADMIN ROUTES - Dominios
+// ============================================================================
+
+app.get('/api/admin/dominios', authenticateAdminOrProfessor, async (req, res) => {
+    try {
+        const dominios = await getAllDominios();
+        res.json(dominios);
+    } catch (error) {
+        console.error('Error getting dominios:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/admin/dominios', authenticateAdminOrProfessor, async (req, res) => {
+    try {
+        const { nome, descricao } = req.body;
+        const newDominio = await createDominio(nome, descricao, req.user.id);
+        res.status(201).json(newDominio);
+    } catch (error) {
+        console.error('Error creating dominio:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.put('/api/admin/dominios/:id', authenticateAdminOrProfessor, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nome, descricao, ativo } = req.body;
+        const updatedDominio = await updateDominio(id, nome, descricao, ativo);
+        res.json(updatedDominio);
+    } catch (error) {
+        console.error('Error updating dominio:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.delete('/api/admin/dominios/:id', authenticateAdminOrProfessor, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await deleteDominio(id);
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error deleting dominio:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============================================================================
