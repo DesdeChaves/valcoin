@@ -6,7 +6,8 @@ import axios from 'axios';
 // ============================================================================
 
 // Main API client for Aurora system
-const apiClient = axios.create({
+console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
+const publicApiClient = axios.create({
   baseURL: process.env.REACT_APP_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 });
@@ -54,7 +55,7 @@ const setupInterceptors = (client) => {
   );
 };
 
-setupInterceptors(apiClient);
+setupInterceptors(publicApiClient);
 setupInterceptors(feedbackClient);
 
 // ============================================================================
@@ -94,6 +95,9 @@ export const getCriteriosSucessoStats = () =>
 
 export const getCompetenciasStats = () =>
   handleRequest(() => publicApiClient.get('/public/competencias/stats'), 'getCompetenciasStats');
+
+export const fetchCompetenciasEvolucaoPorDisciplina = () =>
+  handleRequest(() => publicApiClient.get('/public/competencias/competencias-evolucao-por-disciplina'), 'fetchCompetenciasEvolucaoPorDisciplina');
 
 // ============================================================================
 // AUTHENTICATED API CALLS (Frontend - requires auth)

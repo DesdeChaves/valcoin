@@ -1,17 +1,183 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, TrendingUp, Users, Award, CheckCircle, AlertTriangle, Layers, Target, Filter, ChevronDown, ChevronUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, LineChart, Line } from 'recharts';
-import { getCompetenciasStats, fetchCompetencyEvolutionByDiscipline } from '../services/api'; // Import new API function
+import { BookOpen, TrendingUp, Users, Award, CheckCircle, AlertTriangle, Layers, Target, Filter, ChevronDown, ChevronUp, TrendingDown, ArrowRight } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { getCompetenciasStats, fetchCompetenciasEvolucaoPorDisciplina } from '../services/api';
+
+const TrendIcon = ({ trend }) => {
+  if (trend > 0) return <TrendingUp className="w-5 h-5 text-green-500" />;
+  if (trend < 0) return <TrendingDown className="w-5 h-5 text-red-500" />;
+  return <ArrowRight className="w-5 h-5 text-gray-500" />;
+};
+
+const CompetenciaItem = ({ competencia }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const ultimoMomento = competencia.momentos[0];
+  const penultimoMomento = competencia.momentos[1];
+  const trend = penultimoMomento ? ultimoMomento.media_nivel - penultimoMomento.media_nivel : 0;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex justify-between items-center p-6 text-left"
+      >
+        <h4 className="text-xl font-semibold text-gray-800">
+          <span className="font-bold text-indigo-600">{competencia.competencia_codigo}</span> - {competencia.competencia_nome}
+        </h4>
+        {isExpanded ? (
+          <ChevronUp className="w-6 h-6 text-indigo-600" />
+        ) : (
+          <ChevronDown className="w-6 h-6 text-gray-500" />
+        )}
+      </button>
+      {isExpanded && (
+        <div className="p-6 bg-gray-50 border-t border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Penúltimo Momento */}
+            <div className="bg-gray-100 p-4 rounded-lg">
+              <h5 className="text-sm font-bold text-gray-600 mb-2 truncate">{penultimoMomento ? penultimoMomento.momento_avaliacao : 'Sem dados anteriores'}</h5>
+              {penultimoMomento ? (
+                <div className="space-y-2">
+                  <p className="text-2xl font-bold text-gray-700">{penultimoMomento.media_nivel}</p>
+                  <p className="text-xs text-gray-500">Média de Nível</p>
+                  <p className="text-sm text-gray-600">{penultimoMomento.total_alunos_avaliados} alunos</p>
+                </div>
+              ) : <p className="text-gray-500 text-sm">N/A</p>}
+            </div>
+
+            {/* Último Momento */}
+            <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-lg">
+              <h5 className="text-sm font-bold text-blue-800 mb-2 truncate">{ultimoMomento.momento_avaliacao}</h5>
+              <div className="space-y-2">
+                <p className="text-2xl font-bold text-blue-700">{ultimoMomento.media_nivel}</p>
+                <p className="text-xs text-blue-600">Média de Nível</p>
+                <p className="text-sm text-blue-700">{ultimoMomento.total_alunos_avaliados} alunos</p>
+              </div>
+            </div>
+
+            {/* Evolução */}
+            <div className="flex flex-col items-center justify-center bg-green-50 p-4 rounded-lg">
+               <h5 className="text-sm font-bold text-green-800 mb-2">Evolução</h5>
+               <div className="flex items-center gap-2">
+                 <TrendIcon trend={trend} />
+                 <p className={`text-2xl font-bold ${trend > 0 ? 'text-green-600' : trend < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                   {trend.toFixed(2)}
+                 </p>
+               </div>
+               <p className="text-xs text-gray-500 mt-1">na média de nível</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+const DisciplinaEvolucaoView = ({ data, loading, error }) => {
+  const [selectedDisciplinaId, setSelectedDisciplinaId] = useState('');
+
+  // Filter disciplines with no competencies
+  const availableDisciplinas = data ? data.filter(d => d.competencias && d.competencias.length > 0) : [];
+
+  useEffect(() => {
+    // Auto-select the first available discipline when data is loaded or if the selected one is no longer available
+    if (availableDisciplinas.length > 0 && 
+        (!selectedDisciplinaId || !availableDisciplinas.some(d => d.disciplina_id === selectedDisciplinaId))) {
+      setSelectedDisciplinaId(availableDisciplinas[0].disciplina_id);
+    } else if (availableDisciplinas.length === 0) {
+      setSelectedDisciplinaId(''); // No disciplines to select
+    }
+  }, [availableDisciplinas, selectedDisciplinaId]);
+
+
+  if (loading) {
+    return (
+      <div className="text-center py-8 text-xl text-gray-600">
+        <BookOpen className="w-12 h-12 text-cyan-600 animate-pulse mx-auto mb-4" />
+        A carregar evolução por disciplina...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-xl text-red-600">
+        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        Erro ao carregar dados de evolução: {error}
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="text-center py-8 text-xl text-gray-500">
+        Não foram encontrados dados de evolução para as disciplinas.
+      </div>
+    );
+  }
+
+  // If after filtering, there are no available disciplines, show a message
+  if (availableDisciplinas.length === 0) {
+    return (
+      <div className="bg-white p-8 rounded-3xl shadow-2xl text-center text-gray-500">
+        Nenhuma disciplina com competências para exibir evolução.
+      </div>
+    );
+  }
+
+  const selectedDisciplina = availableDisciplinas.find(d => d.disciplina_id === selectedDisciplinaId);
+
+  return (
+    <div className="bg-white p-8 rounded-3xl shadow-2xl">
+      <div className="mb-6">
+        <label htmlFor="disciplina-select" className="block text-lg font-medium text-gray-700 mb-2">
+          Selecione uma Disciplina
+        </label>
+        <select
+          id="disciplina-select"
+          value={selectedDisciplinaId}
+          onChange={(e) => setSelectedDisciplinaId(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-lg"
+        >
+          {availableDisciplinas.map((disciplina) => (
+            <option key={disciplina.disciplina_id} value={disciplina.disciplina_id}>
+              {disciplina.disciplina_nome} ({disciplina.disciplina_codigo})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedDisciplina && (
+        <div>
+          <h3 className="text-2xl font-bold text-gray-800 mb-6">
+            Competências de <span className="text-cyan-600">{selectedDisciplina.disciplina_nome}</span>
+          </h3>
+          {selectedDisciplina.competencias && selectedDisciplina.competencias.length > 0 ? (
+            <div className="space-y-6">
+              {selectedDisciplina.competencias.map((competencia) => (
+                <CompetenciaItem key={competencia.competencia_id} competencia={competencia} />
+              ))}
+            </div>
+          ) : (
+             <p className="text-center text-gray-500 py-4">Nenhuma competência com avaliações encontrada para esta disciplina.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 const CompetenciasDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDisciplina, setSelectedDisciplina] = useState('todas');
   const [viewMode, setViewMode] = useState('overview'); // overview, disciplinas, dominios
-  const [expandedDisciplina, setExpandedDisciplina] = useState(null);
-  const [competencyEvolutionData, setCompetencyEvolutionData] = useState({}); // New state for evolution data
-  const [loadingEvolution, setLoadingEvolution] = useState(false);
-  const [errorEvolution, setErrorEvolution] = useState(null);
+
+  const [disciplinaEvolucaoData, setDisciplinaEvolucaoData] = useState(null);
+  const [loadingDisciplinaEvolucao, setLoadingDisciplinaEvolucao] = useState(false);
+  const [errorDisciplinaEvolucao, setErrorDisciplinaEvolucao] = useState(null);
 
   useEffect(() => {
     getCompetenciasStats()
@@ -26,58 +192,19 @@ const CompetenciasDashboard = () => {
   }, []);
 
   useEffect(() => {
-    if (expandedDisciplina) {
-      setLoadingEvolution(true);
-      setErrorEvolution(null);
-      fetchCompetencyEvolutionByDiscipline(expandedDisciplina)
-        .then(evolutionStats => {
-          // Group evolution stats by competency_id for easier rendering
-          const groupedEvolution = evolutionStats.reduce((acc, current) => {
-            const { competencia_id, ...rest } = current;
-            if (!acc[competencia_id]) {
-              acc[competencia_id] = {
-                details: {
-                  competencia_id: current.competencia_id,
-                  competencia_codigo: current.competencia_codigo,
-                  competencia_nome: current.competencia_nome,
-                  dominios: current.dominios,
-                  disciplina_id: current.disciplina_id,
-                  disciplina_nome: current.disciplina_nome,
-                  disciplina_codigo: current.disciplina_codigo,
-                }, // Store common details (code, name, domains, etc.)
-                moments: []
-              };
-            }
-            acc[competencia_id].moments.push({
-              descricao_momento: current.descricao_momento,
-              momento_avaliacao: current.momento_avaliacao,
-              data_avaliacao: current.data_avaliacao,
-              media_nivel: current.media_nivel,
-              total_alunos_avaliados: current.total_alunos_avaliados,
-              p25: current.p25,
-              p50_mediana: current.p50_mediana,
-              p75: current.p75,
-              p25_nivel: current.p25_nivel,
-              p50_nivel: current.p50_nivel,
-              p75_nivel: current.p75_nivel,
-              qtd_fraco: current.qtd_fraco,
-              qtd_nao_satisfaz: current.qtd_nao_satisfaz,
-              qtd_satisfaz: current.qtd_satisfaz,
-              qtd_satisfaz_bastante: current.qtd_satisfaz_bastante,
-              qtd_excelente: current.qtd_excelente,
-            });
-            return acc;
-          }, {});
-          setCompetencyEvolutionData(prev => ({ ...prev, [expandedDisciplina]: groupedEvolution }));
-          setLoadingEvolution(false);
+    if (viewMode === 'disciplinas' && !disciplinaEvolucaoData) {
+      setLoadingDisciplinaEvolucao(true);
+      fetchCompetenciasEvolucaoPorDisciplina()
+        .then(data => {
+          setDisciplinaEvolucaoData(data);
+          setLoadingDisciplinaEvolucao(false);
         })
         .catch(err => {
-          console.error('Erro ao carregar evolução da competência:', err);
-          setErrorEvolution('Falha ao carregar dados de evolução.');
-          setLoadingEvolution(false);
+          setErrorDisciplinaEvolucao(err.message || 'Falha ao carregar dados.');
+          setLoadingDisciplinaEvolucao(false);
         });
     }
-  }, [expandedDisciplina]);
+  }, [viewMode, disciplinaEvolucaoData]);
 
   if (loading) {
     return (
@@ -108,14 +235,6 @@ const CompetenciasDashboard = () => {
     return 'text-red-600';
   };
 
-  const getNivelDisplay = (media) => {
-    if (media >= 4.5) return 'Excelente';
-    if (media >= 3.5) return 'Satisfaz Bastante';
-    if (media >= 2.5) return 'Satisfaz';
-    if (media >= 1.5) return 'Não Satisfaz';
-    return 'Fraco';
-  };
-
   // Calcular média global
   const mediaGlobal = data.distribuicaoNiveis && data.distribuicaoNiveis.length > 0
     ? (data.distribuicaoNiveis.reduce((sum, n) => {
@@ -126,12 +245,6 @@ const CompetenciasDashboard = () => {
         return sum + (valor * n.count);
       }, 0) / data.distribuicaoNiveis.reduce((sum, n) => sum + n.count, 0)).toFixed(1)
     : 0;
-
-  // Filtrar disciplinas
-  const disciplinasComAvaliacao = data.disciplinasResumo?.filter(d => d.total_avaliacoes > 0) || [];
-  const disciplinasFiltradas = selectedDisciplina === 'todas' 
-    ? disciplinasComAvaliacao 
-    : disciplinasComAvaliacao.filter(d => d.disciplina_id === selectedDisciplina);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 p-8">
@@ -372,12 +485,11 @@ const CompetenciasDashboard = () => {
 
         {/* VIEW MODE: DISCIPLINAS */}
         {viewMode === 'disciplinas' && (
-          <div className="tab-disciplinas-content">
-            {/* DEBUG: Conteúdo temporariamente comentado para encontrar erro JSX */}
-            <div className="text-center py-8 text-xl text-gray-600">
-              Conteúdo da tab "Por Disciplina" (em depuração)
-            </div>
-          </div>
+           <DisciplinaEvolucaoView 
+              data={disciplinaEvolucaoData}
+              loading={loadingDisciplinaEvolucao}
+              error={errorDisciplinaEvolucao}
+            />
         )}
 
         {/* VIEW MODE: DOMINIOS */}
