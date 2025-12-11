@@ -142,6 +142,7 @@ export const repayStudentLoan = (id, data) => handleRequest(() => apiClient.post
 // ============================================================================
 export const getDashboardMetrics = () => handleRequest(() => apiClient.get('/dashboard'), 'getDashboardMetrics');
 export const getUsers = () => handleRequest(() => apiClient.get('/users'), 'getUsers');
+export const getProfessors = () => handleRequest(() => apiClient.get('/professors'), 'getProfessors');
 export const getUnassignedStudents = () => handleRequest(() => apiClient.get('/unassigned-students'), 'getUnassignedStudents');
 export const getUser = (id) => handleRequest(() => apiClient.get(`/users/${id}`), 'getUser');
 export const createUser = (data) => handleRequest(() => apiClient.post('/users', data), 'createUser');

@@ -19,6 +19,7 @@ const {
   getUnassignedStudents,
   updateUserPassword,
   changeUserPassword,
+  getProfessors,
 } = require('./libs/users');
 
 const { 
@@ -395,26 +396,32 @@ app.post('/api/login', async (req, res) => {
     if (rows.length > 0) {
       const user = rows[0];
       if (bcrypt.compareSync(password, user.password_hash)) {
-        let isCoordinator = false;
-        if (user.tipo_utilizador === 'PROFESSOR') {
-          const { rows: coordinatorRows } = await db.query('SELECT id FROM departamento WHERE coordenador_id = $1', [user.id]);
-          if (coordinatorRows.length > 0) {
-            isCoordinator = true;
-          }
-        }
+        // New RBAC logic: Fetch all active roles for the user
+        const rolesQuery = `
+          SELECT r.name
+          FROM roles r
+          JOIN user_roles ur ON r.id = ur.role_id
+          WHERE ur.user_id = $1 AND r.is_active = TRUE;
+        `;
+        const rolesResult = await db.query(rolesQuery, [user.id]);
+        const roles = rolesResult.rows.map(row => row.name);
 
+        // Create JWT payload with roles array
         const accessToken = jwt.sign(
           {
             id: user.id,
             numero_mecanografico: user.numero_mecanografico,
             tipo_utilizador: user.tipo_utilizador,
-            isCoordinator: isCoordinator
+            roles: roles // Include the roles array
           },
           JWT_SECRET,
           { expiresIn: '8h' }
         );
+
         const { password_hash, ...userWithoutPassword } = user;
-        res.json({ accessToken, user: { ...userWithoutPassword, isCoordinator } });
+        
+        // Return user object with roles for immediate use on the frontend
+        res.json({ accessToken, user: { ...userWithoutPassword, roles } });
       } else {
         res.status(401).json({ error: 'Invalid credentials' });
       }
@@ -833,6 +840,8 @@ app.post('/api/users', authenticateAdminOrProfessor, createUser);
 app.put('/api/users/:id', authenticateAdminOrProfessor, updateUser);
 app.put('/api/admin/users/:id/password', authenticateAdminJWT, updateUserPassword);
 app.delete('/api/users/:id', authenticateAdminOrProfessor, deleteUser);
+
+app.get('/api/professors', authenticateAdminOrProfessor, getProfessors);
 
 // ============================================================================
 // ADMIN ROUTES - Transactions

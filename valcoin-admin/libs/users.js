@@ -530,6 +530,19 @@ router.delete('/:id', deleteUser);
 router.put('/:id/password', updateUserPassword);
 router.post('/change-password', changeUserPassword);
 
+const getProfessors = async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      "SELECT id, nome FROM users WHERE tipo_utilizador = 'PROFESSOR' AND ativo = true ORDER BY nome"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching professors:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -545,7 +558,8 @@ module.exports = {
   initializeAdminUser,
   getUnassignedStudents,
   updateUserPassword,
-  changeUserPassword
+  changeUserPassword,
+  getProfessors
 };
 
 // Default export for use with app.use()

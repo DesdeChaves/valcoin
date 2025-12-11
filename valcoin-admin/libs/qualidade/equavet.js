@@ -81,9 +81,10 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
         try {
             const { ativo = true, ano_inicio, area_educacao_formacao } = req.query;
             let query = `
-                SELECT cf.*, COUNT(tc.turma_id) as total_turmas
+                SELECT cf.*, COUNT(tc.turma_id) as total_turmas, u.nome as responsavel_nome
                 FROM eqavet_ciclos_formativos cf
                 LEFT JOIN eqavet_turma_ciclo tc ON tc.ciclo_formativo_id = cf.id
+                LEFT JOIN users u ON cf.responsavel_id = u.id -- Added join for responsavel_nome
                 WHERE cf.ativo = $1
             `;
             const params = [ativo]; // Changed from ativo === 'true' to ativo
@@ -96,30 +97,104 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
     });
 
     router.post('/ciclos', authenticateJWT, authenticateAdminOrProfessor, async (req, res) => {
-        const { designacao, codigo_curso, area_educacao_formacao, nivel_qnq, ano_inicio, ano_fim, observacoes } = req.body;
+        const { designacao, codigo_curso, area_educacao_formacao, nivel_qnq, ano_inicio, ano_fim, observacoes, ativo, responsavel_id } = req.body; // Add responsavel_id, ativo
         if (!designacao || !ano_inicio || !ano_fim || !nivel_qnq) return res.status(400).json({ error: 'Campos obrigatórios em falta' });
         try {
-            const result = await db.query(`
-                INSERT INTO eqavet_ciclos_formativos 
-                (designacao, codigo_curso, area_educacao_formacao, nivel_qnq, ano_inicio, ano_fim, observacoes)
-                VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *
-            `, [designacao, codigo_curso || null, area_educacao_formacao || null, nivel_qnq, ano_inicio, ano_fim, observacoes || null]);
-            res.status(201).json(result.rows[0]);
+            const newCiclo = await withTransaction(async (client) => {
+                const result = await client.query(`
+                    INSERT INTO eqavet_ciclos_formativos 
+                    (designacao, codigo_curso, area_educacao_formacao, nivel_qnq, ano_inicio, ano_fim, observacoes, ativo, responsavel_id)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+                `, [designacao, codigo_curso || null, area_educacao_formacao || null, nivel_qnq, ano_inicio, ano_fim, observacoes || null, ativo ?? true, responsavel_id || null]);
+
+                // If a responsavel was assigned, give them the role
+                if (responsavel_id) {
+                    const roleQuery = `
+                        INSERT INTO user_roles (user_id, role_id)
+                        VALUES ($1, (SELECT id FROM roles WHERE name = 'responsavel_ciclo'))
+                        ON CONFLICT (user_id, role_id) DO NOTHING;
+                    `;
+                    await client.query(roleQuery, [responsavel_id]);
+                }
+                return result.rows[0];
+            });
+            res.status(201).json(newCiclo);
         } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao criar ciclo' }); }
     });
 
     router.put('/ciclos/:id', authenticateJWT, authenticateAdminOrProfessor, async (req, res) => {
         const { id } = req.params;
-        const fields = req.body;
-        const allowed = ['designacao','codigo_curso','area_educacao_formacao','nivel_qnq','ano_inicio','ano_fim','observacoes','ativo'];
-        const set = Object.keys(fields).filter(k => allowed.includes(k)).map((k,i) => `${k}=$${i+1}`).join(', ');
-        const values = Object.values(fields).filter((_,i) => allowed.includes(Object.keys(fields)[i]));
-        values.push(id);
+        const { designacao, codigo_curso, area_educacao_formacao, nivel_qnq, ano_inicio, ano_fim, observacoes, ativo, responsavel_id } = req.body; // Destructure all fields
+
         try {
-            const result = await db.query(`UPDATE eqavet_ciclos_formativos SET ${set}, updated_at=NOW() WHERE id=$${values.length} RETURNING *`, values);
-            if (result.rowCount === 0) return res.status(404).json({ error: 'Ciclo não encontrado' });
-            res.json(result.rows[0]);
-        } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao atualizar ciclo' }); }
+            const updatedCiclo = await withTransaction(async (client) => {
+                // 1. Get the old responsavel_id before updating
+                const oldCicloQuery = await client.query('SELECT responsavel_id FROM eqavet_ciclos_formativos WHERE id = $1', [id]);
+                const oldResponsavelId = oldCicloQuery.rows[0]?.responsavel_id;
+
+                // 2. Update the ciclo_formativo
+                // Use explicit fields here instead of the generic approach, for clarity and control
+                const { rows } = await client.query(
+                    `UPDATE eqavet_ciclos_formativos 
+                     SET designacao = $1, codigo_curso = $2, area_educacao_formacao = $3, nivel_qnq = $4,
+                         ano_inicio = $5, ano_fim = $6, observacoes = $7, ativo = $8, responsavel_id = $9, updated_at = NOW()
+                     WHERE id = $10 RETURNING *`,
+                    [
+                        designacao, codigo_curso || null, area_educacao_formacao || null, nivel_qnq,
+                        ano_inicio, ano_fim, observacoes || null, ativo, responsavel_id || null, id
+                    ]
+                );
+
+                if (rows.length === 0) {
+                    const notFoundError = new Error('Ciclo Formativo não encontrado.');
+                    notFoundError.statusCode = 404;
+                    throw notFoundError;
+                }
+
+                const newResponsavelId = responsavel_id;
+
+                // 3. Update roles if the responsavel has changed
+                if (oldResponsavelId !== newResponsavelId) {
+                    // 3a. Assign role to the new responsavel (if one exists)
+                    if (newResponsavelId) {
+                        const addRoleQuery = `
+                            INSERT INTO user_roles (user_id, role_id)
+                            VALUES ($1, (SELECT id FROM roles WHERE name = 'responsavel_ciclo'))
+                            ON CONFLICT (user_id, role_id) DO NOTHING;
+                        `;
+                        await client.query(addRoleQuery, [newResponsavelId]);
+                    }
+
+                    // 3b. Remove role from the old responsavel if they no longer are responsible for any other ciclo
+                    if (oldResponsavelId) {
+                        const checkOtherCiclosQuery = await client.query(
+                            'SELECT 1 FROM eqavet_ciclos_formativos WHERE responsavel_id = $1 LIMIT 1',
+                            [oldResponsavelId]
+                        );
+
+                        if (checkOtherCiclosQuery.rows.length === 0) {
+                            const removeRoleQuery = `
+                                DELETE FROM user_roles
+                                WHERE user_id = $1
+                                  AND role_id = (SELECT id FROM roles WHERE name = 'responsavel_ciclo');
+                            `;
+                            await client.query(removeRoleQuery, [oldResponsavelId]);
+                        }
+                    }
+                }
+                return rows[0];
+            });
+            res.json(updatedCiclo);
+        } catch (err) {
+            console.error('Erro ao atualizar ciclo formativo:', err);
+            if (err.statusCode === 404) {
+                return res.status(404).json({ error: err.message });
+            }
+            if (err.code === '23505') { // unique_violation (e.g. duplicate code/designacao)
+                return res.status(400).json({ error: 'Já existe um ciclo formativo com essa designação ou código.' });
+            }
+            res.status(500).json({ error: 'Erro interno do servidor ao atualizar ciclo formativo.' });
+        }
     });
 
     // Rota para obter turmas de um ciclo
