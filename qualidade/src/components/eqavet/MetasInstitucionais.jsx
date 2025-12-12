@@ -98,6 +98,81 @@ const MetasInstitucionais = ({ currentUser }) => {
     { id: '6a', nome: 'Prosseguimento de Estudos (Ind. 6a)', unidade: '%' },
   ];
 
+  const handlePrintPDF = async () => {
+    if (loading || !selectedAno) {
+      alert('Aguarde o carregamento dos dados ou selecione um ano letivo.');
+      return;
+    }
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Metas Institucionais EQAVET - ${selectedAno}</title>
+          <style>
+            body { font-family: sans-serif; margin: 20px; }
+            h1 { color: #333; text-align: center; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .footer { font-size: 10px; text-align: center; margin-top: 30px; color: #777; }
+          </style>
+        </head>
+        <body>
+          <h1>Metas Institucionais EQAVET - Ano Letivo ${selectedAno}</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Indicador</th>
+                <th>Meta</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${indicadores.map(ind => `
+                <tr>
+                  <td>${ind.nome}</td>
+                  <td>${metas[ind.id] || 'N/A'} ${ind.unidade}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="footer">
+            Sistema EQAVET 2025 • Relatório gerado em ${new Date().toLocaleDateString()}
+          </div>
+        </body>
+      </html>
+    `;
+
+    try {
+      const response = await fetch('/gotenberg/forms/chromium/convert/html', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          html: htmlContent,
+          // You can add more Gotenberg specific options here, e.g., paper size, margins
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao gerar PDF: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Metas_EQAVET_${selectedAno}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao imprimir PDF:', error);
+      alert('Não foi possível gerar o PDF. Verifique a consola para mais detalhes.');
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto p-6">
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -192,7 +267,14 @@ const MetasInstitucionais = ({ currentUser }) => {
         </div>
 
         {/* Rodapé */}
-        <div className="bg-gray-50 px-8 py-5 border-t text-center text-sm text-gray-600">
+        <div className="bg-gray-50 px-8 py-5 border-t text-center text-sm text-gray-600 flex justify-center items-center gap-4">
+          <button
+            onClick={handlePrintPDF}
+            disabled={loading}
+            className="px-6 py-2 rounded-xl text-white font-bold bg-blue-600 hover:bg-blue-700 transition"
+          >
+            Imprimir PDF
+          </button>
           Sistema EQAVET 2025 • Metas definidas anualmente conforme Plano de Melhoria • Auditável ANQEP
         </div>
       </div>

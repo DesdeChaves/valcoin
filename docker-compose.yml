@@ -231,6 +231,15 @@ services:
       retries: 5
       start_period: 15s
 
+  gotenberg:
+    image: gotenberg/gotenberg:8.12.0
+    container_name: valcoin_gotenberg
+    ports:
+      - "3004:3000" # Map host port 3004 to Gotenberg's default port 3000
+    networks:
+      - valcoin-network
+    restart: unless-stopped
+
   watchtower:
     image: containrrr/watchtower
     container_name: valcoin_watchtower
