@@ -147,6 +147,7 @@ export const getUnassignedStudents = () => handleRequest(() => apiClient.get('/u
 export const getUser = (id) => handleRequest(() => apiClient.get(`/users/${id}`), 'getUser');
 export const createUser = (data) => handleRequest(() => apiClient.post('/users', data), 'createUser');
 export const updateUser = (id, data) => handleRequest(() => apiClient.put(`/users/${id}`, data), 'updateUser');
+export const updateUserRoles = (id, roles) => handleRequest(() => apiClient.put(`/users/${id}/roles`, { roles }), 'updateUserRoles');
 export const deleteUser = (id) => handleRequest(() => apiClient.delete(`/users/${id}`), 'deleteUser');
 
 export const getTransactions = (timeFilter = 'all', startDate, endDate) => {
@@ -187,6 +188,8 @@ export const deleteEnrollment = (id) => handleRequest(() => apiClient.delete(`/e
 
 export const getClasses = () => handleRequest(() => apiClient.get('/classes'), 'getClasses');
 export const getStudentsByClass = (classId) => handleRequest(() => apiClient.get(`/classes/${classId}/students`), 'getStudentsByClass');
+export const getTurmasByCiclo = (cicloId) => handleRequest(() => apiClient.get(`/classes?cicloId=${cicloId}`), 'getTurmasByCiclo');
+export const updateTurmasForCiclo = (cicloId, turmas) => handleRequest(() => apiClient.put(`/ciclos/${cicloId}/turmas`, { turmas }), 'updateTurmasForCiclo');
 export const createClass = (data) => handleRequest(() => apiClient.post('/classes', data), 'createClass');
 export const updateClass = (id, data) => handleRequest(() => apiClient.put(`/classes/${id}`, data), 'updateClass');
 export const deleteClass = (id) => handleRequest(() => apiClient.delete(`/classes/${id}`), 'deleteClass');
@@ -270,10 +273,7 @@ export const rejectStudentLoan = (id) => handleRequest(() => apiClient.patch(`/a
 
 // EQAVET Ciclos Formativos
 export const getEqavetCiclos = (ativo = 'all') => {
-  const params = {};
-  if (ativo !== 'all') {
-    params.ativo = ativo;
-  }
+  const params = { ativo: ativo }; // Always send the ativo parameter
   return handleRequest(() => apiClient.get('/qualidade/equavet/ciclos', { params }), 'getEqavetCiclos');
 };
 

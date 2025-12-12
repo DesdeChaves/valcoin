@@ -3,6 +3,7 @@ import { getSettings, updateSettings, getUsers } from '../services/api';
 import Categories from './Categories'; // Import the new component
 import Ciclos from './Ciclos';
 import Dominios from './Dominios';
+import Coordenadores from './Coordenadores';
 
 const Settings = () => {
   const [settings, setSettings] = useState(null);
@@ -125,6 +126,12 @@ const Settings = () => {
             className={`${activeTab === 'dominios' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
           >
             Domínios
+          </button>
+          <button
+            onClick={() => setActiveTab('coordenadores')}
+            className={`${activeTab === 'coordenadores' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+          >
+            Coordenadores
           </button>
         </nav>
       </div>
@@ -392,6 +399,12 @@ const Settings = () => {
       {activeTab === 'dominios' && (
         <div className="mt-6">
           <Dominios />
+        </div>
+      )}
+
+      {activeTab === 'coordenadores' && (
+        <div className="mt-6">
+          <Coordenadores />
         </div>
       )}
     </div>

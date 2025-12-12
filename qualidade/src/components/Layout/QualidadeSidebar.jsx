@@ -8,8 +8,11 @@ const QualidadeSidebar = ({ activeTab, setActiveTab, userType, currentUser }) =>
     { id: 'aplicacoes', label: 'Aplicações', icon: ClipboardList, path: '/aplicacoes' },
     { id: 'questionarios', label: 'Questionários', icon: FileCog, path: '/questionarios' },
     { id: 'empresas', label: 'Empresas', icon: Building, path: '/empresas' }, // New tab
-    { id: 'eqavet', label: 'Qualidade EQAVET', icon: Gauge, path: '/eqavet' },
   ];
+
+  if (currentUser && currentUser.roles && (currentUser.roles.includes('coordenador_cursos_profissionais') || currentUser.roles.includes('responsavel_ciclo'))) {
+    professorTabs.push({ id: 'eqavet', label: 'Qualidade EQAVET', icon: Gauge, path: '/eqavet' });
+  }
 
   const studentTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },

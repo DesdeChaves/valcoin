@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { getMetasInstitucionais, saveMetaInstitucional } from '../../services/api';
 
-const MetasInstitucionais = () => {
+const MetasInstitucionais = ({ currentUser }) => {
   const [anosLetivos, setAnosLetivos] = useState([]);
   const [selectedAno, setSelectedAno] = useState('');
   const [metas, setMetas] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const isResponsavelOnly = currentUser && currentUser.roles && currentUser.roles.includes('responsavel_ciclo') && !currentUser.roles.includes('coordenador_cursos_profissionais') && !currentUser.roles.includes('admin');
 
   // Lista de anos letivos dos últimos 6 anos + próximos 2 (ajusta se quiseres)
   useEffect(() => {
@@ -24,14 +25,19 @@ const MetasInstitucionais = () => {
   // Carregar metas quando muda o ano letivo
   useEffect(() => {
     if (selectedAno) {
-      loadMetas(selectedAno);
+      loadMetas(selectedAno, currentUser);
     }
-  }, [selectedAno]);
+  }, [selectedAno, currentUser]);
 
-  const loadMetas = async (anoLetivo) => {
+  const loadMetas = async (anoLetivo, user) => {
     setLoading(true);
+    let responsavelId = null;
+    if (isResponsavelOnly) {
+      responsavelId = user.id;
+    }
+
     try {
-      const data = await getMetasInstitucionais(anoLetivo);
+      const data = await getMetasInstitucionais(anoLetivo, responsavelId);
       const map = {};
       data.forEach(m => {
         map[m.indicador] = (
@@ -74,7 +80,7 @@ const MetasInstitucionais = () => {
 
       await Promise.all(promises);
       alert(`Metas do ano letivo ${selectedAno} guardadas com sucesso!`);
-      loadMetas(selectedAno); // recarrega para confirmar
+      loadMetas(selectedAno, currentUser); // recarrega para confirmar
     } catch (err) {
       console.error('Erro ao guardar:', err);
       alert('Erro ao guardar algumas metas. Verifique os valores.');
@@ -122,6 +128,23 @@ const MetasInstitucionais = () => {
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600"></div>
               <p className="mt-4 text-gray-600">A carregar metas do ano {selectedAno}...</p>
             </div>
+          ) : isResponsavelOnly ? (
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-4 font-semibold text-gray-700 border-b">Indicador</th>
+                  <th className="p-4 font-semibold text-gray-700 border-b">Meta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {indicadores.map(ind => (
+                  <tr key={ind.id} className="border-t hover:bg-gray-50">
+                    <td className="p-4">{ind.nome}</td>
+                    <td className="p-4 font-mono">{metas[ind.id] || 'N/A'} {ind.unidade}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : (
             <div className="grid gap-5">
               {indicadores.map(ind => (

@@ -38,12 +38,19 @@ const IndicadorCard = ({ label, resultado, meta, unidade = '%', isAbandono = fal
   );
 };
 
-const EqavetDashboard = () => {
+const EqavetDashboard = ({ currentUser }) => {
   const [dados, setDados] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getEqavetResumoAnual()
+    let responsavelId = null;
+    const isResponsavelOnly = currentUser && currentUser.roles && currentUser.roles.includes('responsavel_ciclo') && !currentUser.roles.includes('coordenador_cursos_profissionais') && !currentUser.roles.includes('admin');
+    
+    if (isResponsavelOnly) {
+      responsavelId = currentUser.id;
+    }
+
+    getEqavetResumoAnual(responsavelId)
       .then(response => {
         if (Array.isArray(response)) {
           setDados(response);
@@ -57,7 +64,7 @@ const EqavetDashboard = () => {
         setDados([]); // Also set to empty array on error
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [currentUser]);
 
   if (loading) {
     return (

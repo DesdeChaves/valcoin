@@ -1,15 +1,43 @@
-// src/components/eqavet/TrackingDiplomados.jsx
 import React, { useEffect, useState } from 'react';
-import { getTrackingDiplomados, updateTrackingDiplomado } from '../../services/api';
+import { getTrackingDiplomados, updateTrackingDiplomado, getCiclosFormativos } from '../../services/api';
 
-const TrackingDiplomados = ({ cicloId }) => {
+const TrackingDiplomados = ({ currentUser }) => {
+  const [ciclos, setCiclos] = useState([]);
+  const [selectedCiclo, setSelectedCiclo] = useState('');
   const [alunos, setAlunos] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (cicloId) loadTracking();
-  }, [cicloId]);
+    const fetchCiclos = async () => {
+      setLoading(true);
+      let responsavelId = null;
+      const isResponsavelOnly = currentUser && currentUser.roles && currentUser.roles.includes('responsavel_ciclo') && !currentUser.roles.includes('coordenador_cursos_profissionais') && !currentUser.roles.includes('admin');
+      if (isResponsavelOnly) {
+        responsavelId = currentUser.id;
+      }
+      try {
+        const ciclosData = await getCiclosFormativos('all', responsavelId);
+        setCiclos(ciclosData);
+        if (ciclosData.length > 0) {
+          setSelectedCiclo(ciclosData[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to fetch ciclos", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const loadTracking = async () => {
+    fetchCiclos();
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (selectedCiclo) {
+      loadTracking(selectedCiclo);
+    }
+  }, [selectedCiclo]);
+
+  const loadTracking = async (cicloId) => {
     const data = await getTrackingDiplomados(cicloId);
     setAlunos(data);
   };
@@ -18,18 +46,39 @@ const TrackingDiplomados = ({ cicloId }) => {
     const aluno = alunos.find(a => a.aluno_id === alunoId);
     const payload = {
       aluno_id: aluno.aluno_id,
-      ciclo_formativo_id: cicloId,
+      ciclo_formativo_id: selectedCiclo,
       [campo]: valor,
       profissao_relacionada: campo === 'situacao_atual' && ['EMPREGADO','CONTA_PROPRIA'].includes(valor) ? aluno.profissao_relacionada : null
     };
     await updateTrackingDiplomado(payload);
-    loadTracking(); // recarrega → recalcula indicadores automaticamente
+    loadTracking(selectedCiclo); // recarrega → recalcula indicadores automaticamente
   };
+
+  if (loading) {
+    return <p>A carregar...</p>;
+  }
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="p-6 border-b">
-        <h2 className="text-2xl font-bold">Tracking de Diplomados – Ciclo {cicloId}</h2>
+        <h2 className="text-2xl font-bold">Tracking de Diplomados</h2>
+        <div className="mt-4">
+          <label htmlFor="ciclo-select" className="block text-sm font-medium text-gray-700">
+            Selecione o Ciclo Formativo
+          </label>
+          <select
+            id="ciclo-select"
+            value={selectedCiclo}
+            onChange={(e) => setSelectedCiclo(e.target.value)}
+            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          >
+            {ciclos.map((ciclo) => (
+              <option key={ciclo.id} value={ciclo.id}>
+                {ciclo.designacao}
+              </option>
+            ))}
+          </select>
+        </div>
         <p className="text-sm text-gray-600 mt-1">Atualize a situação → indicadores 1, 4 e 6a recalculam automaticamente</p>
       </div>
       <div className="overflow-x-auto">

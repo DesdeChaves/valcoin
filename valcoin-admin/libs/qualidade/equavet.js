@@ -79,21 +79,50 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
     // ============================================================================
     router.get('/ciclos', authenticateJWT, async (req, res) => {
         try {
-            const { ativo = true, ano_inicio, area_educacao_formacao } = req.query;
+            const { ativo, ano_inicio, area_educacao_formacao, responsavel_id } = req.query; // Add responsavel_id
             let query = `
-                SELECT cf.*, COUNT(tc.turma_id) as total_turmas, u.nome as responsavel_nome
-                FROM eqavet_ciclos_formativos cf
-                LEFT JOIN eqavet_turma_ciclo tc ON tc.ciclo_formativo_id = cf.id
+                SELECT
+                    cf.*,
+                    u.nome AS responsavel_nome,
+                    COALESCE((SELECT COUNT(DISTINCT dt.disciplina_id) 
+                        FROM eqavet_turma_ciclo etc
+                        JOIN disciplina_turma dt ON etc.turma_id = dt.turma_id
+                        WHERE etc.ciclo_formativo_id = cf.id), 0) as total_disciplinas,
+                    COALESCE((SELECT COUNT(DISTINCT turma_id) 
+                        FROM eqavet_turma_ciclo etc
+                        WHERE etc.ciclo_formativo_id = cf.id), 0) as total_turmas
+                FROM
+                    eqavet_ciclos_formativos cf
                 LEFT JOIN users u ON cf.responsavel_id = u.id
-                WHERE cf.ativo = $1
+                WHERE 1=1
             `;
-            const params = [ativo]; // Changed from ativo === 'true' to ativo
-            if (ano_inicio) { query += ` AND cf.ano_inicio = $${params.length + 1}`; params.push(ano_inicio); }
-            if (area_educacao_formacao) { query += ` AND cf.area_educacao_formacao = $${params.length + 1}`; params.push(area_educacao_formacao); }
-            query += ` GROUP BY cf.id, u.nome ORDER BY cf.ano_inicio DESC, cf.designacao`;
+
+            const params = [];
+            let paramIndex = 1;
+
+            if (ativo !== undefined && ativo !== 'all') {
+                query += ` AND cf.ativo = $${paramIndex++}`;
+                params.push(ativo === 'true');
+            }
+            if (ano_inicio) {
+                query += ` AND cf.ano_inicio = $${paramIndex++}`;
+                params.push(ano_inicio);
+            }
+            if (area_educacao_formacao) {
+                query += ` AND cf.area_educacao_formacao = $${paramIndex++}`;
+                params.push(area_educacao_formacao);
+            }
+            if (responsavel_id) {
+                query += ` AND cf.responsavel_id = $${paramIndex++}`;
+                params.push(responsavel_id);
+            }
+            query += ` ORDER BY cf.ano_inicio DESC, cf.designacao`;
             const result = await db.query(query, params);
             res.json(result.rows);
-        } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao listar ciclos' }); }
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: 'Erro ao listar ciclos' });
+        }
     });
 
     router.post('/ciclos', authenticateJWT, authenticateAdminOrProfessor, async (req, res) => {
@@ -348,7 +377,18 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
         }
     });
 
-const getCachedOrFreshData = async () => {
+const getCachedOrFreshData = async (responsavelId = null) => {
+  if (responsavelId) {
+    // If filtering by responsible person, fetch directly from DB without caching
+    console.log(`[EQAVET] Fetching dashboard from database for responsavel_id: ${responsavelId}`);
+    const query = `
+      SELECT * FROM vw_eqavet_resumo_anual 
+      WHERE responsavel_id = $1
+      ORDER BY ano_letivo DESC
+    `;
+    const { rows } = await db.query(query, [responsavelId]);
+    return rows;
+  }
   try {
     const client = await connect(); // Ensure Redis connection is established
     const cachedData = await client.get(DASHBOARD_CACHE_KEY);
@@ -413,7 +453,8 @@ const getCachedOrFreshInstrumentoAnaliseData = async () => {
 router.get('/resumo-anual', async (req, res) => {
   console.log('[EQAVET] Received request for /resumo-anual');
   try {
-    const data = await getCachedOrFreshData();
+    const { responsavel_id } = req.query;
+    const data = await getCachedOrFreshData(responsavel_id);
     res.json(data);
   } catch (err) {
     console.error('Erro ao obter resumo anual EQAVET:', err);

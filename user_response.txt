@@ -1,0 +1,40 @@
+The error you're seeing in the `qualidade-client` build (`Attempted import error: 'getProfessors' is not exported from '../../services/api'`) is almost certainly due to a Docker build cache issue.
+
+I have verified the code:
+-   The `getProfessors` function is correctly defined and exported in `qualidade/src/services/api.js`.
+-   It is correctly imported and used in `qualidade/src/components/eqavet/CiclosFormativos.jsx`.
+
+To resolve this build error, you need to force a rebuild of the `qualidade-client` service without using the Docker cache.
+
+**Instructions to fix `qualidade-client` build:**
+
+1.  **Stop your Docker Compose services:**
+    ```bash
+    docker-compose down
+    ```
+2.  **Force a clean build of `qualidade-client`:**
+    ```bash
+    docker-compose build --no-cache qualidade-client
+    ```
+3.  **Bring up your services again:**
+    ```bash
+    docker-compose up -d
+    ```
+
+---
+
+Regarding your question about `valcoin-admin`:
+
+**Backend for `valcoin-admin`:** All the necessary backend changes are implemented. This includes:
+*   Adding the `responsavel_id` column (via the migration script `migration_add_responsavel_id_to_eqavet_ciclos_formativos.sql`, which you need to execute manually).
+*   Updating `valcoin-admin/libs/qualidade/equavet.js` to handle CRUD operations for training cycles with responsible professors, and managing the associated `responsavel_ciclo` role.
+*   Adding the `getProfessors` function and its API route.
+*   Adding the `getProfessors` API call to `valcoin-admin/src/services/api.js`.
+
+**Frontend UI for `valcoin-admin`:** The frontend UI for managing training cycles in the `valcoin-admin` application is **not yet implemented**. This still needs:
+*   Adding a link to the sidebar.
+*   Creating the main component for listing training cycles.
+*   Creating a modal for creating/editing training cycles.
+*   Adding the corresponding route in `valcoin-admin`'s `App.js`.
+
+Do you want me to proceed with implementing the frontend UI for managing training cycles in the `valcoin-admin` application?

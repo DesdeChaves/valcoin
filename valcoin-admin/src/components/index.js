@@ -31,3 +31,5 @@ export { default as Houses } from './Houses';
 export { default as HouseModal } from './HouseModal';
 export { default as CiclosFormativosManager } from './CiclosFormativosManager';
 export { default as CicloFormativoModal } from './CicloFormativoModal';
+export { default as AssociarTurmasModal } from './AssociarTurmasModal';
+

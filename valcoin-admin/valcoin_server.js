@@ -20,6 +20,7 @@ const {
   updateUserPassword,
   changeUserPassword,
   getProfessors,
+  updateUserRoles,
 } = require('./libs/users');
 
 const { 
@@ -838,6 +839,7 @@ app.get('/api/unassigned-students', authenticateAnyUserJWT, getUnassignedStudent
 app.get('/api/users/:id', authenticateAnyUserJWT, getUserById);
 app.post('/api/users', authenticateAdminOrProfessor, createUser);
 app.put('/api/users/:id', authenticateAdminOrProfessor, updateUser);
+app.put('/api/users/:id/roles', authenticateAdminOrProfessor, updateUserRoles);
 app.put('/api/admin/users/:id/password', authenticateAdminJWT, updateUserPassword);
 app.delete('/api/users/:id', authenticateAdminOrProfessor, deleteUser);
 

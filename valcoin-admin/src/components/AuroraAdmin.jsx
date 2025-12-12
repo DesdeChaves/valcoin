@@ -159,7 +159,7 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
 
   const fetchEqavetCiclos = useCallback(async () => {
     try {
-      const data = await getEqavetCiclos();
+      const data = await getEqavetCiclos('all');
       setEqavetCiclos(data || []);
     } catch (err) {
       console.error('❌ Error fetching EQAVET ciclos:', err);
@@ -732,38 +732,38 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
     }
   };
 
-  const handleSaveCicloFormativo = async (formData) => {
-    try {
-      let updatedCiclos;
-      if (modalType === 'createCicloFormativo') {
-        const newCiclo = await createCicloFormativoAdmin(formData);
-        updatedCiclos = [...eqavetCiclos, newCiclo];
-        toast.success('Ciclo Formativo criado com sucesso!');
-      } else {
-        const updatedCiclo = await updateCicloFormativoAdmin(selectedItem.id, formData);
-        updatedCiclos = eqavetCiclos.map((c) => (c.id === selectedItem.id ? updatedCiclo : c));
-        toast.success('Ciclo Formativo atualizado com sucesso!');
-      }
-      setEqavetCiclos(updatedCiclos);
-      closeModal();
-    } catch (error) {
-      console.error('Error saving ciclo formativo:', error);
-      toast.error('Erro ao salvar ciclo formativo.');
+ // Remova o useCallback dessas funções
+const handleSaveCicloFormativo = async (formData) => {
+  try {
+    let updatedCiclos;
+    if (modalType === 'createCicloFormativo') {
+      const newCiclo = await createCicloFormativoAdmin(formData);
+      updatedCiclos = [...eqavetCiclos, newCiclo];
+      toast.success('Ciclo Formativo criado com sucesso!');
+    } else {
+      const updatedCiclo = await updateCicloFormativoAdmin(selectedItem.id, formData);
+      updatedCiclos = eqavetCiclos.map((c) => (c.id === selectedItem.id ? updatedCiclo : c));
+      toast.success('Ciclo Formativo atualizado com sucesso!');
     }
-  }, [modalType, selectedItem, eqavetCiclos, fetchEqavetCiclos]);
+    setEqavetCiclos(updatedCiclos);
+    closeModal();
+  } catch (error) {
+    console.error('Error saving ciclo formativo:', error);
+    toast.error('Erro ao salvar ciclo formativo.');
+  }
+};
 
-  const handleDeleteCicloFormativo = useCallback(async (item) => {
-    try {
-      await deleteCicloFormativoAdmin(item.id);
-      setEqavetCiclos(eqavetCiclos.filter((c) => c.id !== item.id));
-      toast.success('Ciclo Formativo apagado com sucesso!');
-      closeModal();
-    } catch (error) {
-      console.error('Error deleting ciclo formativo:', error);
-      toast.error('Erro ao apagar ciclo formativo.');
-    }
-  }, [eqavetCiclos, fetchEqavetCiclos]);
-
+const handleDeleteCicloFormativo = async (item) => {
+  try {
+    await deleteCicloFormativoAdmin(item.id);
+    setEqavetCiclos(eqavetCiclos.filter((c) => c.id !== item.id));
+    toast.success('Ciclo Formativo apagado com sucesso!');
+    closeModal();
+  } catch (error) {
+    console.error('Error deleting ciclo formativo:', error);
+    toast.error('Erro ao apagar ciclo formativo.');
+  }
+};
   const handleToggleCicloFormativoAtivo = useCallback(async (ciclo) => {
     try {
       // Pass all fields to avoid them being nulled out by the generic backend PUT
@@ -813,6 +813,7 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
       dashboardMetrics: !!dashboardMetrics,
       dashboardMetricsType: typeof dashboardMetrics,
       isDashboardLoading: isLoading,
+      handleManageClassesForCiclo,
       dashboardError: error,
       isReloading,
     });
@@ -880,7 +881,7 @@ case 'tapTransactions':
     transactionRules: transactionRules?.length || 0,
     tapOrigem,
     tapDestino,
-    tapCategoria,
+    tapCategoria,handleManageClassesForCiclo
   });
   return (
     <TapTransactions
@@ -997,7 +998,7 @@ case 'tapTransactions':
             openModal={openModal}
             onToggleAtivo={handleToggleCicloFormativoAtivo}
             onDelete={handleDeleteCicloFormativo}
-            onManageClasses={handleManageClasses}
+            onManageClasses={handleManageClassesForCiclo}
           />
         );
       case 'school-revenues':

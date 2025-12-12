@@ -4,7 +4,7 @@ import { getCiclosFormativos, getIndicador, saveIndicador } from '../../services
 
 const INDICADORES = ['1', '2', '3', '4', '5b', '6a'];
 
-const IndicadoresForm = () => {
+const IndicadoresForm = ({ currentUser }) => {
   const [ciclos, setCiclos] = useState([]);
   const [selectedCiclo, setSelectedCiclo] = useState('');
   const [ano, setAno] = useState(new Date().getFullYear());
@@ -22,7 +22,12 @@ const IndicadoresForm = () => {
     const fetchCiclos = async () => {
       try {
         setLoading(true);
-        const ciclosData = await getCiclosFormativos();
+        let responsavelId = null;
+        const isResponsavelOnly = currentUser && currentUser.roles && currentUser.roles.includes('responsavel_ciclo') && !currentUser.roles.includes('coordenador_cursos_profissionais') && !currentUser.roles.includes('admin');
+        if (isResponsavelOnly) {
+          responsavelId = currentUser.id;
+        }
+        const ciclosData = await getCiclosFormativos('all', responsavelId);
         setCiclos(ciclosData);
         if (ciclosData.length > 0) {
           setSelectedCiclo(ciclosData[0].id);
@@ -35,7 +40,7 @@ const IndicadoresForm = () => {
       }
     };
     fetchCiclos();
-  }, []);
+  }, [currentUser]);
 
   // Carregar dados dos indicadores quando o ciclo ou ano muda
   const carregarDadosIndicadores = useCallback(async () => {

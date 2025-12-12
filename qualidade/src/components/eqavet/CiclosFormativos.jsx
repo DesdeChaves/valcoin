@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { getCiclosFormativos, createCicloFormativo, updateCicloFormativo, getProfessors } from '../../services/api';
 import AssociarTurmasModal from './AssociarTurmasModal';
 
-const CiclosFormativos = () => {
+const CiclosFormativos = ({ currentUser }) => {
   const [ciclos, setCiclos] = useState([]);
   const [professors, setProfessors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,16 +15,21 @@ const CiclosFormativos = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCiclo, setSelectedCiclo] = useState(null);
   const [filterAtivo, setFilterAtivo] = useState('true'); // 'true', 'false', 'all'
+  const isResponsavelOnly = currentUser && currentUser.roles && currentUser.roles.includes('responsavel_ciclo') && !currentUser.roles.includes('coordenador_cursos_profissionais') && !currentUser.roles.includes('admin');
 
   useEffect(() => {
-    loadCiclos(filterAtivo);
+    loadCiclos(filterAtivo, currentUser);
     loadProfessors();
-  }, [filterAtivo]);
+  }, [filterAtivo, currentUser]);
 
-  const loadCiclos = async (filter) => {
+  const loadCiclos = async (filter, user) => {
     setLoading(true);
+    let responsavelId = null;
+    if (isResponsavelOnly) {
+      responsavelId = user.id;
+    }
     try {
-      const data = await getCiclosFormativos(filter);
+      const data = await getCiclosFormativos(filter, responsavelId);
       setCiclos(data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -54,7 +59,7 @@ const CiclosFormativos = () => {
       setShowForm(false);
       setEditingId(null);
       setForm({ designacao: '', codigo_curso: '', area_educacao_formacao: '', nivel_qnq: 4, ano_inicio: '', ano_fim: '', observacoes: '', ativo: true, responsavel_id: '' });
-      loadCiclos(filterAtivo);
+      loadCiclos(filterAtivo, currentUser);
     } catch (err) { alert('Erro ao gravar ciclo'); }
   };
 
@@ -68,7 +73,7 @@ const CiclosFormativos = () => {
     try {
       // Pass all fields to avoid them being nulled out by the generic backend PUT
       await updateCicloFormativo(ciclo.id, { ...ciclo, ativo: !ciclo.ativo });
-      loadCiclos(filterAtivo);
+      loadCiclos(filterAtivo, currentUser);
     } catch (err) {
       alert('Erro ao alterar o estado do ciclo');
     }
@@ -83,7 +88,7 @@ const CiclosFormativos = () => {
     setIsModalOpen(false);
     setSelectedCiclo(null);
     if (shouldReload) {
-      loadCiclos(filterAtivo);
+      loadCiclos(filterAtivo, currentUser);
     }
   };
   
@@ -118,7 +123,11 @@ const CiclosFormativos = () => {
           >
             Inativos
           </button>
-          <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ designacao: '', codigo_curso: '', area_educacao_formacao: '', nivel_qnq: 4, ano_inicio: '', ano_fim: '', observacoes: '', ativo: true, responsavel_id: '' }); }} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          <button 
+            onClick={() => { setShowForm(true); setEditingId(null); setForm({ designacao: '', codigo_curso: '', area_educacao_formacao: '', nivel_qnq: 4, ano_inicio: '', ano_fim: '', observacoes: '', ativo: true, responsavel_id: '' }); }} 
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
+            disabled={isResponsavelOnly}
+          >
             + Novo Ciclo
           </button>
         </div>
@@ -145,7 +154,8 @@ const CiclosFormativos = () => {
                 id="responsavel_id"
                 value={form.responsavel_id}
                 onChange={e => setForm({ ...form, responsavel_id: e.target.value })}
-                className="mt-1 block w-full border rounded px-3 py-2"
+                className="mt-1 block w-full border rounded px-3 py-2 disabled:bg-gray-200"
+                disabled={isResponsavelOnly}
               >
                 <option value="">-- Selecione um Professor --</option>
                 {professors.map(prof => (

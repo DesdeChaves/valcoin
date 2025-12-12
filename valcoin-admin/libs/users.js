@@ -517,6 +517,95 @@ router.get('/professor/my-students', async (req, res) => {
 });
 
 
+const getProfessors = async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT 
+        u.id, 
+        u.nome, 
+        json_agg(r.name) FILTER (WHERE r.name IS NOT NULL) as roles
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE u.tipo_utilizador = 'PROFESSOR' AND u.ativo = true 
+      GROUP BY u.id
+      ORDER BY u.nome`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching professors:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+const updateUserRoles = async (req, res) => {
+  const { id } = req.params;
+  const { roles } = req.body;
+  const roleNameToEnforce = 'coordenador_cursos_profissionais';
+
+  if (!Array.isArray(roles)) {
+    return res.status(400).json({ error: 'Roles must be an array of role names.' });
+  }
+
+  const client = await db.getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    // If the role to enforce is being assigned, remove it from all other users first.
+    if (roles.includes(roleNameToEnforce)) {
+      const roleResult = await client.query('SELECT id FROM roles WHERE name = $1', [roleNameToEnforce]);
+      const roleIdToEnforce = roleResult.rows[0]?.id;
+
+      if (roleIdToEnforce) {
+        // Remove this specific role from all users *except* the current one.
+        await client.query(
+          'DELETE FROM user_roles WHERE role_id = $1 AND user_id != $2',
+          [roleIdToEnforce, id]
+        );
+      }
+    }
+
+    // 1. Delete existing roles for the current user
+    await client.query('DELETE FROM user_roles WHERE user_id = $1', [id]);
+
+    // 2. Get role IDs from role names
+    const rolesResult = await client.query('SELECT id, name FROM roles WHERE name = ANY($1::varchar[])', [roles]);
+    const roleMap = rolesResult.rows.reduce((acc, row) => {
+      acc[row.name] = row.id;
+      return acc;
+    }, {});
+
+    // 3. Insert new roles for the current user
+    if (roles.length > 0) {
+      const insertValues = roles.map(roleName => {
+        const roleId = roleMap[roleName];
+        if (!roleId) {
+          throw new Error(`Role '${roleName}' not found.`);
+        }
+        return [id, roleId];
+      });
+      
+      const insertQuery = 'INSERT INTO user_roles (user_id, role_id) VALUES ' + insertValues.map((_, i) => `($${2*i+1}, $${2*i+2})`).join(',');
+      await client.query(insertQuery, insertValues.flat());
+    }
+    
+    await client.query('COMMIT');
+    
+    await clearUsersCache();
+    await clearAdminDashboardCache();
+
+    res.status(200).json({ message: 'User roles updated successfully.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error updating user roles:', err);
+    res.status(500).json({ error: 'Internal server error', details: err.message });
+  } finally {
+    client.release();
+  }
+};
+
+
 // ============================================================================
 // ROUTER - Basic CRUD routes
 // ============================================================================
@@ -529,18 +618,7 @@ router.put('/:id', updateUser);
 router.delete('/:id', deleteUser);
 router.put('/:id/password', updateUserPassword);
 router.post('/change-password', changeUserPassword);
-
-const getProfessors = async (req, res) => {
-  try {
-    const { rows } = await db.query(
-      "SELECT id, nome FROM users WHERE tipo_utilizador = 'PROFESSOR' AND ativo = true ORDER BY nome"
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error('Error fetching professors:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
+router.put('/:id/roles', updateUserRoles);
 
 
 // ============================================================================
@@ -559,7 +637,8 @@ module.exports = {
   getUnassignedStudents,
   updateUserPassword,
   changeUserPassword,
-  getProfessors
+  getProfessors,
+  updateUserRoles
 };
 
 // Default export for use with app.use()

@@ -194,10 +194,13 @@ export const submeterRespostaAutenticada = async (aplicacaoId, payload) => {
 // ============================================================
 
 // Ciclos Formativos
-export const getCiclosFormativos = async (ativo = 'true') => {
+export const getCiclosFormativos = async (ativo = 'true', responsavelId = null) => {
   const params = {};
   if (ativo !== 'all') {
     params.ativo = ativo;
+  }
+  if (responsavelId) {
+    params.responsavel_id = responsavelId;
   }
   const res = await apiClient.get('/qualidade/equavet/ciclos', { params });
   return res.data;
@@ -224,8 +227,12 @@ export const updateTurmasForCiclo = async (id, turmas) => {
 };
 
 // Metas Institucionais
-export const getMetasInstitucionais = async (ano_letivo) => {
-  const res = await apiClient.get('/qualidade/equavet/metas', { params: { ano_letivo } });
+export const getMetasInstitucionais = async (ano_letivo, responsavelId = null) => {
+  const params = { ano_letivo };
+  if (responsavelId) {
+    params.responsavel_id = responsavelId;
+  }
+  const res = await apiClient.get('/qualidade/equavet/metas', { params });
   return res.data;
 };
 
@@ -268,8 +275,12 @@ export const updateTrackingDiplomado = async (data) => {
 };
 
 // Adiciona esta função ao teu api.js
-export const getEqavetResumoAnual = async () => {
-  const response = await apiClient.get('/qualidade/equavet/resumo-anual');
+export const getEqavetResumoAnual = async (responsavelId = null) => {
+  const params = {};
+  if (responsavelId) {
+    params.responsavel_id = responsavelId;
+  }
+  const response = await apiClient.get('/qualidade/equavet/resumo-anual', { params });
   return response.data;
 };
 

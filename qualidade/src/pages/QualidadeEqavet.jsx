@@ -1,5 +1,5 @@
-// src/pages/QualidadeEQAVET.jsx
 import React, { useState } from 'react';
+import useAuth from '../hooks/useAuth'; // Import the useAuth hook
 import EqavetDashboard from '../components/eqavet/EqavetDashboard';
 import CiclosFormativos from '../components/eqavet/CiclosFormativos';
 import MetasInstitucionais from '../components/eqavet/MetasInstitucionais';
@@ -8,6 +8,7 @@ import TrackingDiplomados from '../components/eqavet/TrackingDiplomados';
 
 const QualidadeEQAVET = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const { user: currentUser } = useAuth(); // Get the current user
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -33,11 +34,11 @@ const QualidadeEQAVET = () => {
         ))}
       </div>
 
-      {activeTab === 'dashboard' && <EqavetDashboard />}
-      {activeTab === 'ciclos' && <CiclosFormativos />}
-      {activeTab === 'metas' && <MetasInstitucionais />}
-      {activeTab === 'indicadores' && <Indicadores />}
-      {activeTab === 'tracking' && <TrackingDiplomados />}
+      {activeTab === 'dashboard' && <EqavetDashboard currentUser={currentUser} />}
+      {activeTab === 'ciclos' && <CiclosFormativos currentUser={currentUser} />}
+      {activeTab === 'metas' && <MetasInstitucionais currentUser={currentUser} />}
+      {activeTab === 'indicadores' && <Indicadores currentUser={currentUser} />}
+      {activeTab === 'tracking' && <TrackingDiplomados currentUser={currentUser} />}
     </div>
   );
 };
