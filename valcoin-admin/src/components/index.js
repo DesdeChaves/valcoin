@@ -29,3 +29,5 @@ export { default as StudentLoans } from './StudentLoans';
 export { default as LoanApplicationModal } from './student/LoanApplicationModal';
 export { default as Houses } from './Houses';
 export { default as HouseModal } from './HouseModal';
+export { default as CiclosFormativosManager } from './CiclosFormativosManager';
+export { default as CicloFormativoModal } from './CicloFormativoModal';

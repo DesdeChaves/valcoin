@@ -268,6 +268,27 @@ export const getAllStudentLoans = () => handleRequest(() => apiClient.get('/admi
 export const approveStudentLoan = (id) => handleRequest(() => apiClient.patch(`/admin/student-loans/${id}/approve`), 'approveStudentLoan');
 export const rejectStudentLoan = (id) => handleRequest(() => apiClient.patch(`/admin/student-loans/${id}/reject`), 'rejectStudentLoan');
 
+// EQAVET Ciclos Formativos
+export const getEqavetCiclos = (ativo = 'all') => {
+  const params = {};
+  if (ativo !== 'all') {
+    params.ativo = ativo;
+  }
+  return handleRequest(() => apiClient.get('/qualidade/equavet/ciclos', { params }), 'getEqavetCiclos');
+};
+
+export const createCicloFormativoAdmin = (data) => {
+  return handleRequest(() => apiClient.post('/qualidade/equavet/ciclos', data), 'createCicloFormativoAdmin');
+};
+
+export const updateCicloFormativoAdmin = (id, data) => {
+  return handleRequest(() => apiClient.put(`/qualidade/equavet/ciclos/${id}`, data), 'updateCicloFormativoAdmin');
+};
+
+export const deleteCicloFormativoAdmin = (id) => {
+  return handleRequest(() => apiClient.delete(`/qualidade/equavet/ciclos/${id}`), 'deleteCicloFormativoAdmin');
+};
+
 // ============================================================================
 // FEEDBACK SYSTEM - Professor
 // ============================================================================

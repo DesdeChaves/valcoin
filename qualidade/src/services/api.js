@@ -273,6 +273,11 @@ export const getEqavetResumoAnual = async () => {
   return response.data;
 };
 
+export const getProfessors = async () => {
+  const res = await apiClient.get('/professors');
+  return res.data;
+};
+
 // ============================================================
 // TODAS AS FUNÇÕES ANTIGAS – MANTIDAS SÓ PARA NÃO DAR ERRO DE IMPORT
 // (Podes apagar depois de limpar o código)

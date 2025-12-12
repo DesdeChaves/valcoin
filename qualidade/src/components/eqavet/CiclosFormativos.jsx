@@ -1,16 +1,16 @@
 // src/components/eqavet/CiclosFormativos.jsx
 import React, { useState, useEffect } from 'react';
-import { getCiclosFormativos, createCicloFormativo, updateCicloFormativo, getProfessors } from '../../services/api'; // Import getProfessors
+import { getCiclosFormativos, createCicloFormativo, updateCicloFormativo, getProfessors } from '../../services/api';
 import AssociarTurmasModal from './AssociarTurmasModal';
 
 const CiclosFormativos = () => {
   const [ciclos, setCiclos] = useState([]);
-  const [professors, setProfessors] = useState([]); // New state for professors
+  const [professors, setProfessors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
-    designacao: '', codigo_curso: '', area_educacao_formacao: '', nivel_qnq: 4, ano_inicio: '', ano_fim: '', observacoes: '', ativo: true, responsavel_id: '' // Add responsavel_id and ativo
+    designacao: '', codigo_curso: '', area_educacao_formacao: '', nivel_qnq: 4, ano_inicio: '', ano_fim: '', observacoes: '', ativo: true, responsavel_id: ''
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCiclo, setSelectedCiclo] = useState(null);
@@ -18,7 +18,7 @@ const CiclosFormativos = () => {
 
   useEffect(() => {
     loadCiclos(filterAtivo);
-    loadProfessors(); // Load professors when component mounts
+    loadProfessors();
   }, [filterAtivo]);
 
   const loadCiclos = async (filter) => {
@@ -42,8 +42,8 @@ const CiclosFormativos = () => {
     try {
       const payload = {
         ...form,
-        responsavel_id: form.responsavel_id === '' ? null : form.responsavel_id, // Send null if no professor selected
-        ativo: form.ativo // Ensure ativo is passed for creation/update
+        responsavel_id: form.responsavel_id === '' ? null : form.responsavel_id,
+        ativo: form.ativo
       };
 
       if (editingId) {
@@ -60,13 +60,14 @@ const CiclosFormativos = () => {
 
   const editCiclo = (ciclo) => {
     setEditingId(ciclo.id);
-    setForm({ ...ciclo, responsavel_id: ciclo.responsavel_id || '' }); // Ensure responsavel_id is set for editing
+    setForm({ ...ciclo, responsavel_id: ciclo.responsavel_id || '' });
     setShowForm(true);
   };
 
   const toggleAtivo = async (ciclo) => {
     try {
-      await updateCicloFormativo(ciclo.id, { ...ciclo, ativo: !ciclo.ativo }); // Pass all current fields
+      // Pass all fields to avoid them being nulled out by the generic backend PUT
+      await updateCicloFormativo(ciclo.id, { ...ciclo, ativo: !ciclo.ativo });
       loadCiclos(filterAtivo);
     } catch (err) {
       alert('Erro ao alterar o estado do ciclo');
@@ -85,6 +86,12 @@ const CiclosFormativos = () => {
       loadCiclos(filterAtivo);
     }
   };
+  
+  const handleCancelForm = () => {
+      setShowForm(false); 
+      setEditingId(null); 
+      setForm({ designacao: '', codigo_curso: '', area_educacao_formacao: '', nivel_qnq: 4, ano_inicio: '', ano_fim: '', observacoes: '', ativo: true, responsavel_id: '' });
+  }
 
   if (loading) return <p>Carregando ciclos formativos...</p>;
 
@@ -120,7 +127,7 @@ const CiclosFormativos = () => {
       {showForm && (
         <div className="p-6 bg-gray-50 border-b">
           <h3 className="text-lg font-semibold mb-4">{editingId ? 'Editar' : 'Novo'} Ciclo Formativo</h3>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <input placeholder="Designação" value={form.designacao} onChange={e => setForm({ ...form, designacao: e.target.value })} required className="border rounded px-3 py-2" />
             <input placeholder="Código Curso" value={form.codigo_curso} onChange={e => setForm({ ...form, codigo_curso: e.target.value })} className="border rounded px-3 py-2" />
             <input placeholder="Área Educação Formação" value={form.area_educacao_formacao} onChange={e => setForm({ ...form, area_educacao_formacao: e.target.value })} className="border rounded px-3 py-2" />
@@ -132,8 +139,7 @@ const CiclosFormativos = () => {
             <input type="number" placeholder="Ano Início" value={form.ano_inicio} onChange={e => setForm({ ...form, ano_inicio: Number(e.target.value) })} required className="border rounded px-3 py-2" />
             <input type="number" placeholder="Ano Fim" value={form.ano_fim} onChange={e => setForm({ ...form, ano_fim: Number(e.target.value) })} required className="border rounded px-3 py-2" />
             
-            {/* Responsável Professor Dropdown */}
-            <div>
+            <div className="lg:col-span-2">
               <label htmlFor="responsavel_id" className="block text-sm font-medium text-gray-700">Professor Responsável</label>
               <select
                 id="responsavel_id"
@@ -148,7 +154,7 @@ const CiclosFormativos = () => {
               </select>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-end">
                 <input
                     type="checkbox"
                     id="ativo"
@@ -159,10 +165,10 @@ const CiclosFormativos = () => {
                 <label htmlFor="ativo" className="text-sm font-medium text-gray-700">Ativo</label>
             </div>
 
-            <textarea placeholder="Observações" value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} className="border rounded px-3 py-2 md:col-span-2" rows={3} />
-            <div className="flex gap-3 md:col-span-2">
+            <textarea placeholder="Observações" value={form.observacoes} onChange={e => setForm({ ...form, observacoes: e.target.value })} className="border rounded px-3 py-2 md:col-span-2 lg:col-span-3" rows={3} />
+            <div className="flex gap-3 md:col-span-2 lg:col-span-3">
               <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Gravar</button>
-              <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setForm({ designacao: '', codigo_curso: '', area_educacao_formacao: '', nivel_qnq: 4, ano_inicio: '', ano_fim: '', observacoes: '', ativo: true, responsavel_id: '' }); }} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Cancelar</button>
+              <button type="button" onClick={handleCancelForm} className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Cancelar</button>
             </div>
           </form>
         </div>
@@ -177,7 +183,7 @@ const CiclosFormativos = () => {
               <th className="text-left p-4">AEF</th>
               <th className="text-left p-4">Nível</th>
               <th className="text-left p-4">Período</th>
-              <th className="text-left p-4">Responsável</th> {/* New column header */}
+              <th className="text-left p-4">Responsável</th>
               <th className="text-left p-4">Turmas</th>
               <th className="text-left p-4">Ativo</th>
               <th className="p-4">Ações</th>
@@ -186,7 +192,7 @@ const CiclosFormativos = () => {
           <tbody>
             {ciclos.length === 0 && (
               <tr>
-                <td colSpan="9" className="p-4 text-center text-gray-500"> {/* colspan increased */}
+                <td colSpan="9" className="p-4 text-center text-gray-500">
                   Nenhum ciclo formativo encontrado.
                 </td>
               </tr>
@@ -198,7 +204,7 @@ const CiclosFormativos = () => {
                 <td className="p-4">{c.area_educacao_formacao}</td>
                 <td className="p-4">Nível {c.nivel_qnq}</td>
                 <td className="p-4">{c.ano_inicio}/{c.ano_fim}</td>
-                <td className="p-4">{c.responsavel_nome || 'N/A'}</td> {/* Display responsible name */}
+                <td className="p-4">{c.responsavel_nome || 'N/A'}</td>
                 <td className="p-4 text-center">{c.total_turmas || 0}</td>
                 <td className="p-4 text-center">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${c.ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>

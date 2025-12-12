@@ -46,6 +46,10 @@ import {
   createHouse,
   updateHouse,
   manageHouseMembers,
+  getEqavetCiclos,
+  createCicloFormativoAdmin,
+  updateCicloFormativoAdmin,
+  deleteCicloFormativoAdmin,
 } from '../services';
 import {
   Users,
@@ -64,6 +68,7 @@ import {
   CreditProducts,
   StudentLoans,
   Houses,
+  CiclosFormativosManager,
 } from './';
 import CrisucessoFeedback from './CrisucessoFeedback';
 import ProfessorHouse from './ProfessorHouse';
@@ -78,6 +83,8 @@ import {
   StudentEnrollmentModal,
   SchoolRevenueModal,
   HouseModal,
+  CicloFormativoModal,
+  AssociarTurmasModal,
 } from './';
 import { TrendingUp, Users as UsersIcon, Coins, BookOpen, GraduationCap, UserPlus, Zap, Settings as SettingsIcon, DollarSign, PiggyBank, Shield } from 'lucide-react';
 import ChangePasswordModal from './ChangePasswordModal';
@@ -97,6 +104,7 @@ const tabs = [
     { id: 'transactions', label: 'Transações', icon: Coins, roles: ['ADMIN', 'PROFESSOR'] },
     { id: 'subjects', label: 'Disciplinas', icon: BookOpen, roles: ['ADMIN'] },
     { id: 'departments', label: 'Departamentos', icon: BookOpen, roles: ['ADMIN'] },
+    { id: 'ciclos-formativos', label: 'Ciclos Formativos', icon: BookOpen, roles: ['ADMIN'] },
     { id: 'criterios', label: 'Critérios de Sucesso', icon: BookOpen, roles: ['ADMIN'] },
     { id: 'crisucessoFeedback', label: 'Critérios de Sucesso (Feedback)', icon: BookOpen, roles: ['ADMIN', 'PROFESSOR'] },
     { id: 'classes', label: 'Turmas', icon: GraduationCap, roles: ['ADMIN'] },
@@ -128,6 +136,7 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
   const [disciplinaTurma, setDisciplinaTurma] = useState([]);
   const [schoolRevenues, setSchoolRevenues] = useState([]);
   const [houses, setHouses] = useState([]); // Add houses state
+  const [eqavetCiclos, setEqavetCiclos] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('create');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -147,6 +156,17 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
   const [dashboardMetrics, setDashboardMetrics] = useState(null);
   const [isReloading, setIsReloading] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+
+  const fetchEqavetCiclos = useCallback(async () => {
+    try {
+      const data = await getEqavetCiclos();
+      setEqavetCiclos(data || []);
+    } catch (err) {
+      console.error('❌ Error fetching EQAVET ciclos:', err);
+      toast.error('Erro ao carregar ciclos formativos.');
+      setEqavetCiclos([]);
+    }
+  }, []);
 
   const visibleTabs = tabs.filter(tab => {
     if (tab.id === 'crisucessoFeedback') {
@@ -293,6 +313,7 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
           settingsData,
           schoolRevenuesData,
           dashboardData,
+          eqavetCiclosData,
         ] = await Promise.all([
           getUsers().catch((e) => {
             console.error('❌ getUsers failed:', e);
@@ -348,7 +369,6 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
           }),
         ]);
 
-        console.log('Ciclos data from API:', ciclosData);
         console.log('📊 AuroraAdmin: Data lengths:', {
           users: usersData?.length || 0,
           subjects: subjectsData?.length || 0,
@@ -379,10 +399,14 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
         setSettings(settingsData);
         setSchoolRevenues(schoolRevenuesData || []);
         setDashboardMetrics(dashboardData);
+        // setEqavetCiclos(eqavetCiclosData || []); // This will be handled by fetchEqavetCiclos call
 
-        // Fetch houses
-        await fetchHouses();
-
+        // Fetch houses and EQAVET Ciclos
+        await Promise.all([
+          fetchHouses(),
+          fetchEqavetCiclos(),
+        ]);
+        
         if (transactionRulesData?.length && usersData?.length && !tapOrigem && !tapCategoria) {
           const firstRule = transactionRulesData.find((rule) => rule.ativo);
           if (firstRule) {
@@ -415,7 +439,7 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
       }
     };
     fetchData();
-  }, [timeFilter, fetchHouses]);
+  }, [timeFilter, fetchHouses, fetchEqavetCiclos]);
 
   useEffect(() => {
     console.log('🔄 AuroraAdmin: activeTab changed:', activeTab);
@@ -431,7 +455,11 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
       console.log('🔄 AuroraAdmin: Triggering fetchHouses for Houses tab');
       fetchHouses();
     }
-  }, [activeTab, fetchUsers, fetchDashboardMetrics, fetchHouses]);
+    if (activeTab === 'ciclos-formativos') {
+      console.log('🔄 AuroraAdmin: Triggering fetchEqavetCiclos for Ciclos Formativos tab');
+      fetchEqavetCiclos();
+    }
+  }, [activeTab, fetchUsers, fetchDashboardMetrics, fetchHouses, fetchEqavetCiclos]);
 
   const handleSaveUser = async (formData) => {
     try {
@@ -704,6 +732,56 @@ const AuroraAdmin = ({ onLogout, currentUser }) => {
     }
   };
 
+  const handleSaveCicloFormativo = async (formData) => {
+    try {
+      let updatedCiclos;
+      if (modalType === 'createCicloFormativo') {
+        const newCiclo = await createCicloFormativoAdmin(formData);
+        updatedCiclos = [...eqavetCiclos, newCiclo];
+        toast.success('Ciclo Formativo criado com sucesso!');
+      } else {
+        const updatedCiclo = await updateCicloFormativoAdmin(selectedItem.id, formData);
+        updatedCiclos = eqavetCiclos.map((c) => (c.id === selectedItem.id ? updatedCiclo : c));
+        toast.success('Ciclo Formativo atualizado com sucesso!');
+      }
+      setEqavetCiclos(updatedCiclos);
+      closeModal();
+    } catch (error) {
+      console.error('Error saving ciclo formativo:', error);
+      toast.error('Erro ao salvar ciclo formativo.');
+    }
+  }, [modalType, selectedItem, eqavetCiclos, fetchEqavetCiclos]);
+
+  const handleDeleteCicloFormativo = useCallback(async (item) => {
+    try {
+      await deleteCicloFormativoAdmin(item.id);
+      setEqavetCiclos(eqavetCiclos.filter((c) => c.id !== item.id));
+      toast.success('Ciclo Formativo apagado com sucesso!');
+      closeModal();
+    } catch (error) {
+      console.error('Error deleting ciclo formativo:', error);
+      toast.error('Erro ao apagar ciclo formativo.');
+    }
+  }, [eqavetCiclos, fetchEqavetCiclos]);
+
+  const handleToggleCicloFormativoAtivo = useCallback(async (ciclo) => {
+    try {
+      // Pass all fields to avoid them being nulled out by the generic backend PUT
+      const updatedCiclo = await updateCicloFormativoAdmin(ciclo.id, { ...ciclo, ativo: !ciclo.ativo });
+      setEqavetCiclos(eqavetCiclos.map(c => c.id === ciclo.id ? updatedCiclo : c));
+      toast.success(`Ciclo Formativo ${updatedCiclo.ativo ? 'ativado' : 'desativado'} com sucesso!`);
+    } catch (error) {
+      console.error('Error toggling ciclo formativo activo status:', error);
+      toast.error('Erro ao alterar o estado do ciclo formativo.');
+    }
+  }, [eqavetCiclos, fetchEqavetCiclos]);
+  
+  const handleManageClassesForCiclo = useCallback((ciclo) => {
+    setSelectedItem(ciclo);
+    setCustomModal('manageCicloTurmas');
+    setShowModal(true);
+  }, [setSelectedItem, setCustomModal, setShowModal]);
+
   const openModal = (type, item = null) => {
     console.log('Opening modal:', { type, item });
     setModalType(type);
@@ -911,6 +989,17 @@ case 'tapTransactions':
             currentUser={currentUser}
           />
         );
+      case 'ciclos-formativos':
+        return (
+          <CiclosFormativosManager
+            ciclos={eqavetCiclos}
+            users={users}
+            openModal={openModal}
+            onToggleAtivo={handleToggleCicloFormativoAtivo}
+            onDelete={handleDeleteCicloFormativo}
+            onManageClasses={handleManageClasses}
+          />
+        );
       case 'school-revenues':
         return (
           <SchoolRevenues
@@ -960,6 +1049,20 @@ case 'tapTransactions':
           setAlunoDisciplina={setAlunoDisciplina}
           disciplinaTurma={disciplinaTurma}
           setDisciplinaTurma={setDisciplinaTurma}
+        />
+      );
+    }
+
+    if (customModal === 'manageCicloTurmas') {
+      return (
+        <AssociarTurmasModal
+          ciclo={selectedItem}
+          onClose={(shouldReload) => {
+            closeModal();
+            if (shouldReload) {
+              fetchEqavetCiclos();
+            }
+          }}
         />
       );
     }
@@ -1072,6 +1175,18 @@ case 'tapTransactions':
           );
         }
         return null;
+      case 'ciclos-formativos':
+        return (
+          <CicloFormativoModal
+            showModal={showModal}
+            closeModal={closeModal}
+            modalType={modalType}
+            selectedItem={selectedItem}
+            onSave={handleSaveCicloFormativo}
+            onDelete={handleDeleteCicloFormativo}
+            professors={users.filter(u => u.tipo_utilizador === 'PROFESSOR')}
+          />
+        );
       default:
         return null;
     }

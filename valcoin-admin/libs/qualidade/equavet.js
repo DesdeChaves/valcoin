@@ -84,13 +84,13 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
                 SELECT cf.*, COUNT(tc.turma_id) as total_turmas, u.nome as responsavel_nome
                 FROM eqavet_ciclos_formativos cf
                 LEFT JOIN eqavet_turma_ciclo tc ON tc.ciclo_formativo_id = cf.id
-                LEFT JOIN users u ON cf.responsavel_id = u.id -- Added join for responsavel_nome
+                LEFT JOIN users u ON cf.responsavel_id = u.id
                 WHERE cf.ativo = $1
             `;
             const params = [ativo]; // Changed from ativo === 'true' to ativo
             if (ano_inicio) { query += ` AND cf.ano_inicio = $${params.length + 1}`; params.push(ano_inicio); }
             if (area_educacao_formacao) { query += ` AND cf.area_educacao_formacao = $${params.length + 1}`; params.push(area_educacao_formacao); }
-            query += ` GROUP BY cf.id ORDER BY cf.ano_inicio DESC, cf.designacao`;
+            query += ` GROUP BY cf.id, u.nome ORDER BY cf.ano_inicio DESC, cf.designacao`;
             const result = await db.query(query, params);
             res.json(result.rows);
         } catch (err) { console.error(err); res.status(500).json({ error: 'Erro ao listar ciclos' }); }
@@ -134,7 +134,7 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
 
                 // 2. Update the ciclo_formativo
                 // Use explicit fields here instead of the generic approach, for clarity and control
-                const { rows } = await client.query(
+                const { rows: updatedRows } = await client.query(
                     `UPDATE eqavet_ciclos_formativos 
                      SET designacao = $1, codigo_curso = $2, area_educacao_formacao = $3, nivel_qnq = $4,
                          ano_inicio = $5, ano_fim = $6, observacoes = $7, ativo = $8, responsavel_id = $9, updated_at = NOW()
@@ -145,13 +145,28 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
                     ]
                 );
 
-                if (rows.length === 0) {
+                if (updatedRows.length === 0) {
                     const notFoundError = new Error('Ciclo Formativo não encontrado.');
                     notFoundError.statusCode = 404;
                     throw notFoundError;
                 }
 
                 const newResponsavelId = responsavel_id;
+
+                // Fetch the full updated record including responsavel_nome
+                const { rows: finalUpdatedCicloRows } = await client.query(`
+                    SELECT cf.*, u.nome as responsavel_nome
+                    FROM eqavet_ciclos_formativos cf
+                    LEFT JOIN users u ON cf.responsavel_id = u.id
+                    WHERE cf.id = $1
+                `, [id]);
+
+                if (finalUpdatedCicloRows.length === 0) {
+                     // Should not happen if previous update was successful, but good for robustness
+                    const notFoundError = new Error('Erro ao obter ciclo formativo atualizado.');
+                    notFoundError.statusCode = 500;
+                    throw notFoundError;
+                }
 
                 // 3. Update roles if the responsavel has changed
                 if (oldResponsavelId !== newResponsavelId) {
@@ -182,7 +197,7 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
                         }
                     }
                 }
-                return rows[0];
+                return finalUpdatedCicloRows[0]; // Return the fully populated object
             });
             res.json(updatedCiclo);
         } catch (err) {
@@ -227,6 +242,51 @@ module.exports = (authenticateJWT, authenticateAdminOrProfessor) => {
         } catch (err) {
             console.error(err);
             res.status(500).json({ error: 'Erro ao associar turmas' });
+        }
+    });
+
+    router.delete('/ciclos/:id', authenticateJWT, authenticateAdminOrProfessor, async (req, res) => {
+        const { id } = req.params;
+        try {
+            // A transaction is good practice here to also handle potential orphaned data if needed in the future
+            await withTransaction(async (client) => {
+                // Before deleting, we might need to remove the 'responsavel_ciclo' role from the assigned professor
+                const oldCicloQuery = await client.query('SELECT responsavel_id FROM eqavet_ciclos_formativos WHERE id = $1', [id]);
+                const oldResponsavelId = oldCicloQuery.rows[0]?.responsavel_id;
+
+                const deleteResponse = await client.query('DELETE FROM eqavet_ciclos_formativos WHERE id = $1', [id]);
+
+                if (deleteResponse.rowCount === 0) {
+                    const notFoundError = new Error('Ciclo Formativo não encontrado.');
+                    notFoundError.statusCode = 404;
+                    throw notFoundError;
+                }
+
+                // If the deleted cycle had a responsible professor, check if they are still responsible for any other cycle
+                if (oldResponsavelId) {
+                    const checkOtherCiclosQuery = await client.query(
+                        'SELECT 1 FROM eqavet_ciclos_formativos WHERE responsavel_id = $1 LIMIT 1',
+                        [oldResponsavelId]
+                    );
+
+                    if (checkOtherCiclosQuery.rows.length === 0) {
+                        const removeRoleQuery = `
+                            DELETE FROM user_roles
+                            WHERE user_id = $1
+                              AND role_id = (SELECT id FROM roles WHERE name = 'responsavel_ciclo');
+                        `;
+                        await client.query(removeRoleQuery, [oldResponsavelId]);
+                    }
+                }
+            });
+
+            res.status(204).send(); // 204 No Content
+        } catch (err) {
+            console.error('Erro ao apagar ciclo formativo:', err);
+            if (err.statusCode === 404) {
+                return res.status(404).json({ error: err.message });
+            }
+            res.status(500).json({ error: 'Erro interno do servidor ao apagar ciclo formativo.' });
         }
     });
 
