@@ -119,7 +119,7 @@ const MetasInstitucionais = ({ currentUser }) => {
         </head>
         <body>
           <div class="header" style="text-align: center; margin-bottom: 20px;">
-            <img src="/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 150px; height: auto;">
+            <img src="http://nginx/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 150px; height: auto;">
           </div>
           <h1>Metas Institucionais EQAVET - Ano Letivo ${selectedAno}</h1>
           <table>
@@ -138,6 +138,12 @@ const MetasInstitucionais = ({ currentUser }) => {
               `).join('')}
             </tbody>
           </table>
+          <div style="margin-top: 30px; padding: 15px; border: 1px solid #eee; background-color: #f9f9f9; border-radius: 5px; font-size: 14px; line-height: 1.5;">
+            <strong>Nota Informativa:</strong> As metas institucionais no âmbito do Quadro EQAVET (Quadro de Referência Europeu de Garantia da Qualidade para o Ensino e Formação Profissionais) são definidas anualmente, por ano letivo, no Plano de Melhoria ou no Plano Anual de Atividades da escola, após discussão e aprovação pelo Conselho Pedagógico.
+            Estas metas aplicam-se exclusivamente aos ciclos formativos (cursos profissionais) que terminam no ano letivo em causa, servindo como referência para monitorização dos resultados dos alunos concluintes.
+            No ano letivo seguinte, procede-se à recolha dos dados reais relativos aos indicadores (taxas de conclusão, abandono, colocação no mercado de trabalho, utilização da qualificação, entre outros), permitindo a comparação com as metas previamente estabelecidas. Esta análise integra o relatório de autoavaliação e de progresso anual, contribuindo para a identificação de desvios, a implementação de ações corretivas e a definição de novas metas, em conformidade com o ciclo de melhoria contínua preconizado pelo EQAVET.
+            O registo formal das metas pode ser efetuado pela Direção da escola ou pelo Coordenador de Curso Profissional, garantindo o alinhamento com as orientações da ANQEP (Agência Nacional para a Qualificação e o Ensino Profissional).
+          </div>
           <div class="footer">
             Sistema EQAVET 2025 • Relatório gerado em ${new Date().toLocaleDateString()}
           </div>
