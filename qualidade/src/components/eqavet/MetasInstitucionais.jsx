@@ -143,15 +143,13 @@ const MetasInstitucionais = ({ currentUser }) => {
     `;
 
     try {
+      const formData = new FormData();
+      const htmlFile = new Blob([htmlContent], { type: 'text/html' });
+      formData.append('files', htmlFile, 'index.html'); // Gotenberg expects 'files' as the field name for the HTML file
+
       const response = await fetch('/gotenberg/forms/chromium/convert/html', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          html: htmlContent,
-          // You can add more Gotenberg specific options here, e.g., paper size, margins
-        }),
+        body: formData, // No Content-Type header needed, fetch sets it automatically for FormData
       });
 
       if (!response.ok) {
