@@ -119,7 +119,7 @@ const MetasInstitucionais = ({ currentUser }) => {
         </head>
         <body>
           <div class="header" style="text-align: center; margin-bottom: 20px;">
-            <img src="http://nginx/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 150px; height: auto;">
+            <img src="http://nginx/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 718px; height: auto;">
           </div>
           <h1>Metas Institucionais EQAVET - Ano Letivo ${selectedAno}</h1>
           <table>

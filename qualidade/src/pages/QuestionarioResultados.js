@@ -1,6 +1,7 @@
 // src/pages/QuestionarioResultados.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Printer } from 'lucide-react';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement, RadialLinearScale } from 'chart.js';
 import { Bar, Pie, Doughnut } from 'react-chartjs-2';
 import { getAplicacaoById, getRespostasByAplicacao } from '../services/api';
@@ -25,24 +26,6 @@ const QuestionarioResultados = () => {
         ]);
         console.log('Dados da aplicação:', appData);
         console.log('Respostas recebidas:', respostasData);
-        console.log('=== FRONTEND: Total de respostas:', respostasData.length);
-        
-        if (respostasData.length > 0) {
-          console.log('=== FRONTEND: Primeira resposta completa:', JSON.stringify(respostasData[0], null, 2));
-          
-          if (respostasData[0].itens && respostasData[0].itens.length > 0) {
-            console.log('=== FRONTEND: Total de itens na primeira resposta:', respostasData[0].itens.length);
-            respostasData[0].itens.forEach((item, idx) => {
-              console.log(`=== FRONTEND: Item ${idx}:`, {
-                pergunta_id: item.pergunta_id,
-                tipo: item.tipo,
-                resposta_texto: item.resposta_texto,
-                valor_numerico: item.valor_numerico,
-                opcoes_selecionadas: item.opcoes_selecionadas
-              });
-            });
-          }
-        }
         
         setDados(appData);
         setRespostas(respostasData);
@@ -61,66 +44,41 @@ const QuestionarioResultados = () => {
     ? Math.round((numRespostas / dados.total_destinatarios) * 100)
     : 0;
 
-  // Função melhorada para obter valor da resposta
   const getRespostaValor = useCallback((item) => {
-    console.log('=== getRespostaValor ===');
-    console.log('Item completo:', JSON.stringify(item, null, 2));
-    console.log('Tipo da pergunta:', item.tipo);
-    console.log('valor_numerico:', item.valor_numerico, 'tipo:', typeof item.valor_numerico);
-    
-    // Texto curto/longo/email - ATENÇÃO: o campo é "resposta_texto" não "texto"
     if (item.resposta_texto !== null && item.resposta_texto !== undefined && item.resposta_texto !== '') {
-      console.log('✓ Retornando resposta_texto:', item.resposta_texto);
       return item.resposta_texto;
     }
     
-    // Também verificar o campo "texto" por compatibilidade
     if (item.texto !== null && item.texto !== undefined && item.texto !== '') {
-      console.log('✓ Retornando texto:', item.texto);
       return item.texto;
     }
     
-    // Opções selecionadas (radiobutton, checkbox, dropdown)
     if (item.opcoes_selecionadas && item.opcoes_selecionadas.length > 0) {
-      // Usar opcoes_texto que vem do backend
       if (item.opcoes_texto && item.opcoes_texto.length > 0) {
-        console.log('✓ Retornando opcoes_texto:', item.opcoes_texto);
         return item.opcoes_texto.join(', ');
       }
-      // Fallback caso opcoes_texto não exista
-      console.log('⚠ Opcoes sem texto, retornando contagem');
       return `${item.opcoes_selecionadas.length} opção(ões) selecionada(s)`;
     }
     
-    // Valores numéricos (número, escala, likert)
     if (item.valor_numerico !== null && item.valor_numerico !== undefined) {
-      console.log('✓ Retornando valor_numerico:', item.valor_numerico);
       return String(item.valor_numerico);
     }
     
-    // Data
     if (item.valor_data) {
-      console.log('✓ Retornando valor_data:', item.valor_data);
       return item.valor_data;
     }
     
-    // Hora
     if (item.valor_hora) {
-      console.log('✓ Retornando valor_hora:', item.valor_hora);
       return item.valor_hora;
     }
     
-    // Ficheiros
     if (item.ficheiros_url && item.ficheiros_url.length > 0) {
-      console.log('✓ Retornando ficheiros:', item.ficheiros_url.length);
       return `Ficheiros (${item.ficheiros_url.length})`;
     }
     
-    console.log('✗ Sem resposta para item');
     return 'Sem resposta';
   }, []);
 
-  // Dados agregados para gráficos
   const aggregatedPerguntasData = useMemo(() => {
     if (!dados?.perguntas || respostas.length === 0) return [];
 
@@ -174,7 +132,6 @@ const QuestionarioResultados = () => {
     }).filter(data => data.pergunta.tipo !== 'secao');
   }, [dados, respostas, getRespostaValor]);
 
-  // Exportar para CSV
   const exportarCSV = () => {
     const csvRows = [];
     csvRows.push(['Pergunta', 'Tipo', 'Resposta']);
@@ -184,7 +141,6 @@ const QuestionarioResultados = () => {
         const pergunta = dados.perguntas.find(p => p.id === item.pergunta_id);
         if (pergunta) {
           const valorFormatado = getRespostaValor(item);
-          // Escapar aspas no CSV
           const escapedEnunciado = `"${pergunta.enunciado.replace(/"/g, '""')}"`;
           const escapedValor = `"${valorFormatado.replace(/"/g, '""')}"`;
           csvRows.push([escapedEnunciado, pergunta.tipo, escapedValor]);
@@ -202,6 +158,201 @@ const QuestionarioResultados = () => {
     URL.revokeObjectURL(url);
   };
 
+  const exportarPDF = async () => {
+    if (!dados || !aggregatedPerguntasData || aggregatedPerguntasData.length === 0) {
+      alert('Não há dados suficientes para gerar o relatório PDF.');
+      return;
+    }
+
+    const tiposLabel = {
+      'texto_curto': 'Texto Curto',
+      'texto_longo': 'Parágrafo',
+      'escolha_unica': 'Escolha Única',
+      'escolha_multipla': 'Múltipla Escolha',
+      'lista_suspensa': 'Lista Suspensa',
+      'escala_linear': 'Escala Linear',
+      'escala_likert': 'Escala Likert',
+      'data': 'Data',
+      'hora': 'Hora',
+      'email': 'Email',
+      'numero': 'Número',
+      'upload_ficheiro': 'Upload de Ficheiro',
+      'secao': 'Seção'
+    };
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Resultados - ${dados.titulo_customizado || dados.questionario_titulo}</title>
+          <style>
+            body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
+            h1 { color: #4F46E5; text-align: center; margin-bottom: 10px; }
+            .subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+            .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 40px; }
+            .stat-card { background-color: #f0f0f0; padding: 20px; border-radius: 8px; text-center; }
+            .stat-value { font-size: 36px; font-weight: bold; color: #4F46E5; }
+            .stat-label { font-size: 14px; color: #666; margin-top: 8px; }
+            .question { margin-bottom: 40px; page-break-inside: avoid; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #fafafa; }
+            .question-header { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 10px; border-bottom: 2px solid #4F46E5; padding-bottom: 10px; }
+            .question-type { font-size: 12px; color: #666; background-color: #e0e0e0; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
+            .stats-numeric { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+            .stat-box { background-color: #EEF2FF; padding: 15px; border-radius: 8px; text-center; }
+            .stat-box-label { font-size: 12px; color: #666; }
+            .stat-box-value { font-size: 24px; font-weight: bold; color: #4F46E5; margin-top: 5px; }
+            .frequency-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+            .frequency-table th, .frequency-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+            .frequency-table th { background-color: #4F46E5; color: white; font-weight: 600; }
+            .frequency-table tr:nth-child(even) { background-color: #f9f9f9; }
+            .text-responses { max-height: 400px; background-color: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-top: 10px; }
+            .text-response { padding: 10px; margin-bottom: 8px; background-color: #f5f5f5; border-left: 3px solid #4F46E5; border-radius: 4px; }
+            .footer { font-size: 10px; text-align: center; margin-top: 40px; color: #777; border-top: 1px solid #ddd; padding-top: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header" style="text-align: center; margin-bottom: 20px;">
+            <img src="http://nginx/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 718px; height: auto;">
+          </div>
+          
+          <h1>Resultados do Questionário</h1>
+          <div class="subtitle">${dados.titulo_customizado || dados.questionario_titulo}</div>
+          
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value">${numRespostas}</div>
+              <div class="stat-label">Respostas Recebidas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${dados.total_destinatarios || 0}</div>
+              <div class="stat-label">Total de Destinatários</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value">${taxaResposta}%</div>
+              <div class="stat-label">Taxa de Resposta</div>
+            </div>
+          </div>
+
+          ${aggregatedPerguntasData.map(({ pergunta, respostasPergunta, contagem, labels, valores, stats }, idx) => `
+            <div class="question">
+              <div class="question-header">
+                ${idx + 1}. ${pergunta.enunciado}
+                ${pergunta.obrigatoria ? '<span style="color: #e53e3e; font-size: 14px;"> (Obrigatória)</span>' : ''}
+              </div>
+              <div class="question-type">${tiposLabel[pergunta.tipo] || pergunta.tipo}</div>
+              ${pergunta.descricao ? `<p style="color: #666; font-size: 13px; margin: 10px 0;">${pergunta.descricao}</p>` : ''}
+              
+              <p style="margin: 15px 0; font-weight: 600;">Total de respostas: ${respostasPergunta.length}</p>
+              
+              ${(pergunta.tipo === 'texto_curto' || pergunta.tipo === 'texto_longo' || pergunta.tipo === 'email') ? `
+                <div class="text-responses">
+                  <strong>Respostas de Texto:</strong>
+                  ${respostasPergunta.slice(0, 20).map(item => `
+                    <div class="text-response">${getRespostaValor(item)}</div>
+                  `).join('')}
+                  ${respostasPergunta.length > 20 ? `<p style="color: #666; font-style: italic; margin-top: 10px;">... e mais ${respostasPergunta.length - 20} respostas</p>` : ''}
+                </div>
+              ` : (pergunta.tipo === 'numero' || pergunta.tipo === 'escala_linear' || pergunta.tipo === 'escala_likert') ? `
+                <div class="stats-numeric">
+                  <div class="stat-box">
+                    <div class="stat-box-label">Mínimo</div>
+                    <div class="stat-box-value">${stats.min !== undefined ? stats.min : '-'}</div>
+                  </div>
+                  <div class="stat-box">
+                    <div class="stat-box-label">Máximo</div>
+                    <div class="stat-box-value">${stats.max !== undefined ? stats.max : '-'}</div>
+                  </div>
+                  <div class="stat-box">
+                    <div class="stat-box-label">Média</div>
+                    <div class="stat-box-value">${stats.avg !== undefined ? stats.avg : '-'}</div>
+                  </div>
+                  <div class="stat-box">
+                    <div class="stat-box-label">Mediana</div>
+                    <div class="stat-box-value">${stats.median !== undefined ? stats.median : '-'}</div>
+                  </div>
+                </div>
+                <table class="frequency-table">
+                  <thead>
+                    <tr>
+                      <th>Valor</th>
+                      <th>Frequência</th>
+                      <th>Percentagem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${labels.map((label, i) => `
+                      <tr>
+                        <td>${label}</td>
+                        <td>${valores[i]}</td>
+                        <td>${((valores[i] / respostasPergunta.length) * 100).toFixed(1)}%</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              ` : pergunta.tipo === 'upload_ficheiro' ? `
+                <div style="text-align: center; padding: 30px; background-color: #EEF2FF; border-radius: 8px;">
+                  <div style="font-size: 48px; font-weight: bold; color: #4F46E5;">${respostasPergunta.length}</div>
+                  <div style="font-size: 18px; color: #666; margin-top: 10px;">Ficheiros Carregados</div>
+                </div>
+              ` : `
+                <table class="frequency-table">
+                  <thead>
+                    <tr>
+                      <th>Opção</th>
+                      <th>Frequência</th>
+                      <th>Percentagem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${labels.map((label, i) => `
+                      <tr>
+                        <td>${label}</td>
+                        <td>${valores[i]}</td>
+                        <td>${((valores[i] / respostasPergunta.length) * 100).toFixed(1)}%</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              `}
+            </div>
+          `).join('')}
+
+          <div class="footer">
+            Sistema de Questionários 2025 • Relatório gerado em ${new Date().toLocaleDateString()} às ${new Date().toLocaleTimeString()}<br>
+            Total de ${numRespostas} respostas analisadas
+          </div>
+        </body>
+      </html>
+    `;
+
+    try {
+      const formData = new FormData();
+      const htmlFile = new Blob([htmlContent], { type: 'text/html' });
+      formData.append('files', htmlFile, 'index.html');
+
+      const response = await fetch('/gotenberg/forms/chromium/convert/html', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao gerar PDF: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const fileName = `Resultados_${(dados?.titulo_customizado || dados?.questionario_titulo || 'questionario').replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().getTime()}.pdf`;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Não foi possível gerar o PDF. Verifique a consola para mais detalhes.');
+    }
+  };
+
   if (loading) return <div className="p-20 text-center text-2xl">A carregar resultados...</div>;
   if (erro) return <div className="p-20 text-center text-red-600 text-2xl">{erro}</div>;
 
@@ -217,12 +368,21 @@ const QuestionarioResultados = () => {
           >
             ← Voltar
           </button>
-          <button
-            onClick={exportarCSV}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg transition"
-          >
-            Exportar CSV
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={exportarPDF}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg transition"
+            >
+              <Printer className="w-5 h-5" />
+              Exportar PDF
+            </button>
+            <button
+              onClick={exportarCSV}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold shadow-lg transition"
+            >
+              Exportar CSV
+            </button>
+          </div>
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl p-12 mb-12">
@@ -301,7 +461,6 @@ const QuestionarioResultados = () => {
                     <p className="text-gray-600 text-sm mb-4 text-center">{pergunta.descricao}</p>
                   )}
 
-                  {/* Renderização condicional para diferentes tipos de pergunta */}
                   {(pergunta.tipo === 'texto_curto' || pergunta.tipo === 'texto_longo' || pergunta.tipo === 'email') ? (
                     <div className="space-y-4 max-h-96 overflow-y-auto p-4 bg-gray-50 rounded-lg border border-gray-200">
                       {respostasPergunta.map((rItem, rIdx) => (

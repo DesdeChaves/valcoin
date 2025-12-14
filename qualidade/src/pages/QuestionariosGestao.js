@@ -14,7 +14,8 @@ const QuestionariosGestao = () => {
     const carregar = async () => {
       try {
         const data = await getQuestionarios(); // backend devolve tudo
-        setQuestionarios(data);
+        const activeQuestionnaires = data.filter(q => q.ativo !== false);
+        setQuestionarios(activeQuestionnaires);
       } catch (err) {
         alert('Erro ao carregar questionários');
       } finally {

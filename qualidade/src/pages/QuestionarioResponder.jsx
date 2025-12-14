@@ -192,14 +192,14 @@ const QuestionarioResponder = () => {
 
       // Mostrar mensagem de conclusão
       if (dados.mensagem_conclusao) {
-        navigate('/qualidade/obrigado', { 
+        navigate('/obrigado', { 
           state: { 
             mensagem: dados.mensagem_conclusao,
             mostrarResultados: dados.mostrar_resultados_apos_submissao 
           } 
         });
       } else {
-        navigate('/qualidade/obrigado');
+        navigate('/obrigado');
       }
 
     } catch (err) {

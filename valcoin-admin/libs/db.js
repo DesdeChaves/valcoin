@@ -131,7 +131,10 @@ const withTransaction = async (callback) => {
 
 // Função básica para queries simples (usa o pool interno)
 const query = (text, params) => {
-    console.log(`🔍 Executando query: ${text.substring(0, 50)}...`);
+    console.log(`🔍 Executando query: ${text}`);
+    if (params && params.length > 0) {
+        console.log(`🔍 Com parâmetros:`, params);
+    }
     return pool.query(text, params);
 };
 

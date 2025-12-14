@@ -1098,6 +1098,32 @@ app.use((err, req, res, next) => {
   });
 });
 
+
+
+
+// ============================================================================
+// MÓDULO MEMÓRIA - Repetição Espaçada (Anki-like)
+// ============================================================================
+
+const memoriaRouter = require('./libs/memoria/memoria.routes');
+
+app.use(
+  '/api/memoria',
+  authenticateJWT,                     // todos precisam de login
+  (req, res, next) => {
+    // Autorização por tipo de utilizador
+    if (req.user.tipo_utilizador === 'PROFESSOR') {
+      return authorizeProfessor(req, res, next);
+    } else if (req.user.tipo_utilizador === 'ALUNO') {
+      return authorizeStudent(req, res, next);
+    } else {
+      return res.status(403).json({ success: false, message: 'Acesso negado' });
+    }
+  },
+  memoriaRouter
+);
+
+console.log('[DEBUG] Módulo memória montado em /api/memoria');
 // ============================================================================
 // START SERVER
 // ============================================================================

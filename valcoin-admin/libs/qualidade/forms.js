@@ -26,7 +26,7 @@ async function createAplicacaoQuestionario(data) {
     notificar_destinatarios = true,
     lembrar_nao_respondidos = false,
     ativo = true,
-    token_acesso // Add token_acesso here
+    token_acesso
   } = data;
 
   const query = `
@@ -200,6 +200,109 @@ async function deleteAplicacao(aplicacaoId) {
   }
 }
 
+/**
+ * Obtém um questionário pelo seu ID
+ */
+async function getQuestionarioById(questionarioId) {
+  const query = `
+    SELECT 
+      q.*,
+      json_agg(
+        json_build_object(
+          'id', p.id,
+          'enunciado', p.enunciado,
+          'descricao', p.descricao,
+          'tipo', p.tipo,
+          'obrigatoria', p.obrigatoria,
+          'ordem', p.ordem,
+          'pagina', p.pagina,
+          'config', p.config,
+          'opcoes', COALESCE(
+            (SELECT json_agg(
+              json_build_object(
+                'id', o.id,
+                'texto', o.texto,
+                'ordem', o.ordem,
+                'e_correta', o.e_correta
+              ) ORDER BY o.ordem
+            ) FROM public.opcoes_resposta o WHERE o.pergunta_id = p.id), '[]'
+          )
+        ) ORDER BY p.ordem
+      ) AS perguntas
+    FROM public.questionarios q
+    LEFT JOIN public.perguntas p ON p.questionario_id = q.id
+    WHERE q.id = $1
+    GROUP BY q.id;
+  `;
+
+  try {
+    const { rows } = await db.query(query, [questionarioId]);
+    return rows[0] || null;
+  } catch (error) {
+    console.error('Erro ao obter questionário:', error);
+    throw error;
+  }
+}
+
+/**
+ * Atualiza um questionário pelo seu ID
+ */
+async function updateQuestionario(questionarioId, updateData) {
+  const allowedFields = [
+    'titulo', 'descricao', 'categoria', 'visibilidade', 
+    'permite_anonimo', 'permite_multiplas_respostas', 'ativo'
+  ];
+
+  const sets = [];
+  const values = [];
+  let idx = 1;
+
+  for (const field of allowedFields) {
+    if (updateData[field] !== undefined) {
+      sets.push(`${field} = $${idx++}`);
+      values.push(updateData[field]);
+    }
+  }
+
+  if (sets.length === 0) return await getQuestionarioById(questionarioId);
+
+  values.push(questionarioId);
+  const query = `
+    UPDATE public.questionarios
+    SET ${sets.join(', ')}, data_atualizacao = NOW()
+    WHERE id = $${idx}
+    RETURNING *;
+  `;
+
+  try {
+    const { rows } = await db.query(query, values);
+    return rows[0];
+  } catch (error) {
+    console.error('Erro ao atualizar questionário:', error);
+    throw error;
+  }
+}
+
+/**
+ * Elimina (soft-delete) um questionário
+ */
+async function deleteQuestionario(questionarioId) {
+  const query = `
+    UPDATE public.questionarios
+    SET ativo = false, data_atualizacao = NOW()
+    WHERE id = $1
+    RETURNING *;
+  `;
+
+  try {
+    const { rows } = await db.query(query, [questionarioId]);
+    return rows[0];
+  } catch (error) {
+    console.error('Erro ao eliminar questionário:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createAplicacaoQuestionario,
   getQuestionariosTemplates,
@@ -207,4 +310,7 @@ module.exports = {
   getAplicacoes,
   updateAplicacao,
   deleteAplicacao,
+  getQuestionarioById,
+  updateQuestionario,
+  deleteQuestionario,
 };

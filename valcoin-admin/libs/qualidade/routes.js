@@ -20,102 +20,11 @@ function generateAccessToken() {
 
 const publicRouter = express.Router();
 
-// ROTA PÚBLICA PARA RESPONDER VIA TOKEN
-publicRouter.get('/responder/:token', async (req, res) => {
-  try {
-    const { token } = req.params;
-    
-    console.log('🔓 Public route accessed - token:', token);
-
-    // 1. Buscar a aplicação pelo token_acesso
-    const appResult = await db.query(`
-      SELECT 
-        a.id AS aplicacao_id,
-        a.questionario_id,
-        a.titulo_customizado,
-        COALESCE(a.titulo_customizado, q.titulo) AS titulo,
-        a.mensagem_introducao,
-        a.data_abertura,
-        a.data_fecho,
-        q.permite_anonimo
-      FROM public.aplicacoes_questionario a
-      JOIN public.questionarios q ON q.id = a.questionario_id
-      WHERE a.token_acesso = $1
-        AND a.ativo = true
-        AND (a.data_abertura IS NULL OR a.data_abertura <= NOW())
-        AND (a.data_fecho IS NULL OR a.data_fecho >= NOW())
-      LIMIT 1
-    `, [token]);
-
-    if (appResult.rows.length === 0) {
-      return res.status(404).json({ 
-        message: 'Link inválido, expirado ou questionário desativado.' 
-      });
-    }
-
-    const aplicacao = appResult.rows[0];
-
-    // 2. Buscar perguntas + opções
-    const perguntasResult = await db.query(`
-      SELECT 
-        p.id,
-        p.enunciado,
-        p.descricao,
-        p.tipo,
-        p.obrigatoria,
-        p.ordem,
-        p.pagina,
-        p.config,
-        COALESCE(
-          (SELECT json_agg(
-            json_build_object(
-              'id', o.id,
-              'texto', o.texto,
-              'ordem', o.ordem,
-              'e_correta', o.e_correta
-            )
-            ORDER BY o.ordem
-          )
-          FROM public.opcoes_resposta o 
-          WHERE o.pergunta_id = p.id
-          ), '[]'
-        ) AS opcoes
-      FROM public.perguntas p
-      WHERE p.questionario_id = $1
-      ORDER BY p.ordem
-    `, [aplicacao.questionario_id]);
-
-    console.log('✅ Found', perguntasResult.rows.length, 'questions');
-
-    res.json({
-      aplicacao: {
-        id: aplicacao.aplicacao_id,
-        titulo: aplicacao.titulo,
-        mensagem_introducao: aplicacao.mensagem_introducao,
-        permite_anonimo: aplicacao.permite_anonimo
-      },
-      perguntas: perguntasResult.rows
-    });
-
-  } catch (error) {
-    console.error('❌ Error in /responder/:token:', error);
-    res.status(500).json({ message: 'Erro interno do servidor.' });
-  }
-});
-
-
-
-
 // ============================================================
 // ROTAS PÚBLICAS - Responder questionários (não requer auth)
 // ============================================================
 
-
-
-
 publicRouter.get('/responder/:token', qualidadeController.getQuestionarioByToken);
-publicRouter.post('/responder/:token', qualidadeController.submeterRespostaQuestionario);
-
 publicRouter.post('/responder/:token', qualidadeController.submeterRespostaQuestionario);
 
 // ========================================================
@@ -145,6 +54,7 @@ router.get('/questionarios', async (req, res) => {
         q.categoria,
         q.visibilidade,
         q.data_criacao,
+        q.ativo,
         u.nome AS criador_nome,
         COUNT(p.id) AS total_perguntas
       FROM public.questionarios q
@@ -211,6 +121,87 @@ router.post('/questionarios', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(400).json({ message: error.message });
+  }
+});
+
+// OBTER UM QUESTIONÁRIO POR ID
+router.get('/questionarios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const isAdmin = req.user.tipo_utilizador === 'ADMIN';
+
+    const questionario = await qualidadeService.getQuestionarioById(id);
+
+    if (!questionario) {
+      return res.status(404).json({ message: 'Questionário não encontrado.' });
+    }
+
+    // Authorization check
+    if (!isAdmin && questionario.criador_id !== userId && questionario.visibilidade === 'privado') {
+      return res.status(403).json({ message: 'Acesso não autorizado a este questionário.' });
+    }
+
+    res.json(questionario);
+  } catch (error) {
+    console.error('Erro ao obter questionário por ID:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+});
+
+// ATUALIZAR QUESTIONÁRIO
+router.put('/questionarios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    const userId = req.user.id;
+    const isAdmin = req.user.tipo_utilizador === 'ADMIN';
+
+    // First, get the questionnaire to check ownership
+    const existingQuestionario = await qualidadeService.getQuestionarioById(id);
+
+    if (!existingQuestionario) {
+      return res.status(404).json({ message: 'Questionário não encontrado.' });
+    }
+
+    // Authorization check: Only creator or admin can update
+    if (!isAdmin && existingQuestionario.criador_id !== userId) {
+      return res.status(403).json({ message: 'Acesso não autorizado para atualizar este questionário.' });
+    }
+
+    const updatedQuestionario = await qualidadeService.updateQuestionario(id, updateData);
+
+    res.json(updatedQuestionario);
+  } catch (error) {
+    console.error('Erro ao atualizar questionário:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+});
+
+// APAGAR QUESTIONÁRIO (SOFT-DELETE)
+router.delete('/questionarios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const isAdmin = req.user.tipo_utilizador === 'ADMIN';
+
+    // First, get the questionnaire to check ownership
+    const existingQuestionario = await qualidadeService.getQuestionarioById(id);
+
+    if (!existingQuestionario) {
+      return res.status(404).json({ message: 'Questionário não encontrado.' });
+    }
+
+    // Authorization check: Only creator or admin can delete
+    if (!isAdmin && existingQuestionario.criador_id !== userId) {
+      return res.status(403).json({ message: 'Acesso não autorizado para apagar este questionário.' });
+    }
+
+    await qualidadeService.deleteQuestionario(id);
+    res.status(204).send(); // No Content
+  } catch (error) {
+    console.error('Erro ao apagar questionário:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
   }
 });
 

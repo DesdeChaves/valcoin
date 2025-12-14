@@ -114,7 +114,7 @@ const AplicacaoCreate = () => {
       // LINK ABERTO
       if (form.tipo_aplicacao === 'link_aberto') {
         const token = novaAplicacao.token_acesso;
-        const link = `${window.location.origin}/qualidade/responder/${token}`;
+        const link = `${window.location.origin}/qualidade/public/responder/${token}`;
 
         if (navigator.clipboard) {
           await navigator.clipboard.writeText(link);

@@ -8,47 +8,71 @@ const { query, withTransaction } = require('../../db.js'); // Usar o wrapper da 
 exports.getQuestionarioByToken = async (req, res) => {
   try {
     const { token } = req.params;
-    console.log('Token recebido:', token);
+    console.log('✅ Controller getQuestionarioByToken | Token recebido:', token);
 
-    // 1. Buscar a aplicação e o destinatário pelo token
-    const aplicacaoQuery = `
+    let aplicacao;
+    let destinatario = null;
+
+    // TENTATIVA 1: Procurar aplicação diretamente por token (para links públicos)
+    const publicLinkQuery = `
       SELECT 
         a.id as aplicacao_id, a.questionario_id, a.titulo_customizado, a.mensagem_introducao,
         a.mensagem_conclusao, a.data_abertura, a.data_fecho, a.ativo, a.tipo_aplicacao,
         a.publico_alvo, q.titulo, q.descricao, q.categoria, q.permite_anonimo,
-        q.permite_multiplas_respostas, q.embaralhar_perguntas, q.mostrar_resultados_apos_submissao,
-        d.id as destinatario_id, d.user_id, d.encarregado_id, d.empresa_id, d.email_externo,
-        d.nome_destinatario, d.tipo_destinatario, d.respondido_em, d.visualizado_em
+        q.permite_multiplas_respostas, q.embaralhar_perguntas, q.mostrar_resultados_apos_submissao
       FROM aplicacoes_questionario a
       JOIN questionarios q ON a.questionario_id = q.id
-      JOIN destinatarios_aplicacao d ON d.aplicacao_id = a.id
-      WHERE d.token_acesso = $1 AND a.ativo = true
+      WHERE a.token_acesso = $1 AND a.tipo_aplicacao = 'link_aberto' AND a.ativo = true
     `;
-    const aplicacaoResult = await query(aplicacaoQuery, [token]);
+    const publicLinkResult = await query(publicLinkQuery, [token]);
 
-    if (aplicacaoResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Link inválido, expirado ou aplicação inativa.' });
+    if (publicLinkResult.rows.length > 0) {
+      console.log('✅ Found public link application.');
+      aplicacao = publicLinkResult.rows[0];
+    } else {
+      // TENTATIVA 2: Procurar destinatário por token (para links de destinatários específicos)
+      console.log('Public link not found, trying specific recipient...');
+      const recipientLinkQuery = `
+        SELECT 
+          a.id as aplicacao_id, a.questionario_id, a.titulo_customizado, a.mensagem_introducao,
+          a.mensagem_conclusao, a.data_abertura, a.data_fecho, a.ativo, a.tipo_aplicacao,
+          a.publico_alvo, q.titulo, q.descricao, q.categoria, q.permite_anonimo,
+          q.permite_multiplas_respostas, q.embaralhar_perguntas, q.mostrar_resultados_apos_submissao,
+          d.id as destinatario_id, d.user_id, d.encarregado_id, d.empresa_id, d.email_externo,
+          d.nome_destinatario, d.tipo_destinatario, d.respondido_em, d.visualizado_em
+        FROM aplicacoes_questionario a
+        JOIN questionarios q ON a.questionario_id = q.id
+        JOIN destinatarios_aplicacao d ON d.aplicacao_id = a.id
+        WHERE d.token_acesso = $1 AND a.ativo = true
+      `;
+      const recipientLinkResult = await query(recipientLinkQuery, [token]);
+
+      if (recipientLinkResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Link inválido, expirado ou aplicação inativa.' });
+      }
+      
+      console.log('✅ Found specific recipient application.');
+      aplicacao = recipientLinkResult.rows[0];
+      destinatario = recipientLinkResult.rows[0]; // All fields from d are in aplicacao now
     }
-
-    const aplicacao = aplicacaoResult.rows[0];
 
     // 2. Verificar período de resposta
     const agora = new Date();
-    if (agora < new Date(aplicacao.data_abertura)) {
+    if (aplicacao.data_abertura && agora < new Date(aplicacao.data_abertura)) {
       return res.status(403).json({ error: 'Este questionário ainda não está disponível.', data_abertura: aplicacao.data_abertura });
     }
     if (aplicacao.data_fecho && agora > new Date(aplicacao.data_fecho)) {
       return res.status(403).json({ error: 'Este questionário já encerrou.', data_fecho: aplicacao.data_fecho });
     }
 
-    // 3. Verificar se já respondeu
-    if (aplicacao.respondido_em && !aplicacao.permite_multiplas_respostas) {
-      return res.status(403).json({ error: 'Já respondeste a este questionário.', data_resposta: aplicacao.respondido_em });
+    // 3. Verificar se já respondeu (apenas para destinatários específicos)
+    if (destinatario && destinatario.respondido_em && !aplicacao.permite_multiplas_respostas) {
+      return res.status(403).json({ error: 'Já respondeste a este questionário.', data_resposta: destinatario.respondido_em });
     }
 
-    // 4. Atualizar visualizado_em
-    if (!aplicacao.visualizado_em) {
-      await query('UPDATE destinatarios_aplicacao SET visualizado_em = NOW() WHERE id = $1', [aplicacao.destinatario_id]);
+    // 4. Atualizar visualizado_em (apenas para destinatários específicos)
+    if (destinatario && !destinatario.visualizado_em) {
+      await query('UPDATE destinatarios_aplicacao SET visualizado_em = NOW() WHERE id = $1', [destinatario.destinatario_id]);
     }
 
     // 5. Buscar perguntas
@@ -57,7 +81,7 @@ exports.getQuestionarioByToken = async (req, res) => {
       FROM perguntas p WHERE p.questionario_id = $1 ORDER BY p.pagina, p.ordem
     `;
     const perguntasResult = await query(perguntasQuery, [aplicacao.questionario_id]);
-    const perguntas = perguntasResult.rows;
+    let perguntas = perguntasResult.rows;
 
     // 6. Buscar opções
     const perguntasComOpcoes = perguntas.filter(p => ['escolha_unica', 'escolha_multipla', 'lista_suspensa'].includes(p.tipo));
@@ -78,18 +102,18 @@ exports.getQuestionarioByToken = async (req, res) => {
 
     // 7. Embaralhar perguntas
     if (aplicacao.embaralhar_perguntas) {
-      perguntas.sort(() => Math.random() - 0.5);
+      perguntas = perguntas.sort(() => Math.random() - 0.5);
     }
 
-    // 8. Resposta
+    // 8. Resposta (estrutura plana que o frontend espera)
     res.json({
       aplicacao_id: aplicacao.aplicacao_id,
       questionario_id: aplicacao.questionario_id,
-      destinatario_id: aplicacao.destinatario_id,
-      user_id: aplicacao.user_id,
-      encarregado_id: aplicacao.encarregado_id,
-      empresa_id: aplicacao.empresa_id,
-      email_respondente: aplicacao.email_externo,
+      destinatario_id: destinatario ? destinatario.destinatario_id : null,
+      user_id: destinatario ? destinatario.user_id : null,
+      encarregado_id: destinatario ? destinatario.encarregado_id : null,
+      empresa_id: destinatario ? destinatario.empresa_id : null,
+      email_respondente: destinatario ? destinatario.email_externo : null,
       titulo: aplicacao.titulo_customizado || aplicacao.titulo,
       descricao: aplicacao.descricao,
       categoria: aplicacao.categoria,

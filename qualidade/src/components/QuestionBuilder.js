@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 const QuestionBuilder = ({ pergunta, onUpdate, onDelete, onDuplicate }) => {
   const [data, setData] = useState({
     enunciado: pergunta.enunciado || '',
-    tipo: pergunta.tipo || 'texto_curto',
+    tipo: pergunta.tipo || pergunta.tipo_pergunta || 'texto_curto',
     descricao: pergunta.descricao || '',
     obrigatoria: pergunta.obrigatoria !== false,
     config: pergunta.config || {},
@@ -193,7 +193,7 @@ const QuestionBuilder = ({ pergunta, onUpdate, onDelete, onDuplicate }) => {
 
       {/* Configurações especiais (ex: escala) */}
       {data.tipo === 'escala_linear' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 p-6 mt-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mt-6">
           <h4 className="font-semibold mb-4">Configuração da Escala (1 a 10)</h4>
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -227,6 +227,73 @@ const QuestionBuilder = ({ pergunta, onUpdate, onDelete, onDuplicate }) => {
           </div>
         </div>
       )}
+
+      {/* Preview visual do tipo de pergunta */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6 mt-6">
+        <h4 className="text-sm font-semibold text-gray-700 mb-3">Preview da Resposta:</h4>
+        
+        {data.tipo === 'texto_curto' && (
+          <input type="text" placeholder="Resposta curta..." className="w-full border rounded px-3 py-2" disabled />
+        )}
+        
+        {data.tipo === 'texto_longo' && (
+          <textarea placeholder="Resposta longa..." rows="4" className="w-full border rounded px-3 py-2" disabled></textarea>
+        )}
+        
+        {data.tipo === 'escolha_unica' && data.opcoes.length > 0 && (
+          <div className="space-y-2">
+            {data.opcoes.map((op, i) => (
+              <label key={i} className="flex items-center gap-2">
+                <input type="radio" name="preview" disabled />
+                <span>{op.texto || `Opção ${i + 1}`}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        
+        {data.tipo === 'escolha_multipla' && data.opcoes.length > 0 && (
+          <div className="space-y-2">
+            {data.opcoes.map((op, i) => (
+              <label key={i} className="flex items-center gap-2">
+                <input type="checkbox" disabled />
+                <span>{op.texto || `Opção ${i + 1}`}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        
+        {data.tipo === 'escala_linear' && (
+          <div className="flex justify-between items-center">
+            <span className="text-sm">{data.config?.label_min || '1'}</span>
+            <div className="flex gap-2">
+              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                <button key={n} className="w-10 h-10 border rounded hover:bg-blue-100" disabled>{n}</button>
+              ))}
+            </div>
+            <span className="text-sm">{data.config?.label_max || '10'}</span>
+          </div>
+        )}
+        
+        {data.tipo === 'data' && (
+          <input type="date" className="w-full border rounded px-3 py-2" disabled />
+        )}
+        
+        {data.tipo === 'hora' && (
+          <input type="time" className="w-full border rounded px-3 py-2" disabled />
+        )}
+        
+        {data.tipo === 'email' && (
+          <input type="email" placeholder="email@exemplo.com" className="w-full border rounded px-3 py-2" disabled />
+        )}
+        
+        {data.tipo === 'numero' && (
+          <input type="number" placeholder="0" className="w-full border rounded px-3 py-2" disabled />
+        )}
+        
+        {data.tipo === 'upload_ficheiro' && (
+          <input type="file" className="w-full border rounded px-3 py-2" disabled />
+        )}
+      </div>
     </div>
   );
 };

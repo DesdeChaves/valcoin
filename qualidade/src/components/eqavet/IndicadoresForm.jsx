@@ -196,6 +196,230 @@ const IndicadoresForm = ({ currentUser }) => {
     }
   };
 
+
+  const handlePrintPDF = async () => {
+    if (loading || !selectedCiclo) {
+      alert('Aguarde o carregamento dos dados ou selecione um ciclo formativo.');
+      return;
+    }
+
+    const cicloInfo = ciclos.find(c => c.id === selectedCiclo);
+    const cicloNome = cicloInfo ? cicloInfo.designacao : 'Ciclo Formativo';
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Indicadores EQAVET - ${cicloNome} - ${ano}</title>
+          <style>
+            body { font-family: sans-serif; margin: 20px; }
+            h1 { color: #333; text-align: center; margin-bottom: 10px; }
+            h2 { color: #666; text-align: center; margin-bottom: 30px; font-weight: normal; }
+            .section { margin-bottom: 30px; page-break-inside: avoid; }
+            .section-title { background-color: #f2f2f2; padding: 10px; font-weight: bold; font-size: 16px; margin-bottom: 10px; border-left: 4px solid #4F46E5; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f9f9f9; font-weight: 600; }
+            .highlight { background-color: #EEF2FF; font-weight: bold; }
+            .footer { font-size: 10px; text-align: center; margin-top: 30px; color: #777; }
+            .nota { margin-top: 30px; padding: 15px; border: 1px solid #eee; background-color: #f9f9f9; border-radius: 5px; font-size: 12px; line-height: 1.5; }
+          </style>
+        </head>
+        <body>
+          <div class="header" style="text-align: center; margin-bottom: 20px;">
+            <img src="http://nginx/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 718px; height: auto;">
+          </div>
+          <h1>Indicadores EQAVET</h1>
+          <h2>${cicloNome} • Ano de Recolha: ${ano}</h2>
+
+          <!-- Indicador 1 -->
+          <div class="section">
+            <div class="section-title">Indicador 1 - Colocação no Mercado de Trabalho</div>
+            <table>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Valor</th>
+              </tr>
+              <tr>
+                <td>Total de Conclusões (base)</td>
+                <td>${dados['1']?.total_conclusoes_globais || 0}</td>
+              </tr>
+              <tr>
+                <td>Total de Diplomados Inquiridos</td>
+                <td>${dados['1']?.total_diplomados || 0}</td>
+              </tr>
+              <tr>
+                <td>Empregados</td>
+                <td>${dados['1']?.empregados || 0}</td>
+              </tr>
+              <tr>
+                <td>Conta Própria</td>
+                <td>${dados['1']?.conta_propria || 0}</td>
+              </tr>
+              <tr>
+                <td>Estágios Profissionais</td>
+                <td>${dados['1']?.estagios_profissionais || 0}</td>
+              </tr>
+              <tr>
+                <td>Prosseguimento de Estudos</td>
+                <td>${dados['1']?.prosseguimento_estudos || 0}</td>
+              </tr>
+              <tr>
+                <td>Procura de Emprego</td>
+                <td>${dados['1']?.procura_emprego || 0}</td>
+              </tr>
+              <tr>
+                <td>Outra Situação</td>
+                <td>${dados['1']?.outra_situacao || 0}</td>
+              </tr>
+              <tr>
+                <td>Situação Desconhecida</td>
+                <td>${dados['1']?.situacao_desconhecida || 0}</td>
+              </tr>
+              <tr class="highlight">
+                <td><strong>Taxa de Colocação</strong></td>
+                <td><strong>${dados['1']?.taxa_colocacao_global || '0.00'}%</strong></td>
+              </tr>
+            </table>
+            ${justificativaInd1 ? `<p style="margin-top: 10px;"><strong>Observações:</strong> ${justificativaInd1}</p>` : ''}
+          </div>
+
+          <!-- Indicador 2 -->
+          <div class="section">
+            <div class="section-title">Indicador 2 - Taxa de Conclusão</div>
+            <table>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Valor</th>
+              </tr>
+              <tr>
+                <td>Ingressos</td>
+                <td>${dados['2']?.ingressos || 0}</td>
+              </tr>
+              <tr>
+                <td>Conclusões</td>
+                <td>${dados['2']?.conclusoes_global || 0}</td>
+              </tr>
+              <tr class="highlight">
+                <td><strong>Taxa de Conclusão</strong></td>
+                <td><strong>${dados['2']?.taxa_conclusao_global || '0.00'}%</strong></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Indicador 3 -->
+          <div class="section">
+            <div class="section-title">Indicador 3 - Taxa de Abandono</div>
+            <table>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Valor</th>
+              </tr>
+              <tr>
+                <td>Desistências</td>
+                <td>${dados['3']?.desistencias || 0}</td>
+              </tr>
+              <tr class="highlight">
+                <td><strong>Taxa de Abandono</strong></td>
+                <td><strong>${dados['3']?.taxa_abandono_global || '0.00'}%</strong></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Indicador 4 -->
+          <div class="section">
+            <div class="section-title">Indicador 4 - Utilização das Competências</div>
+            <table>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Valor</th>
+              </tr>
+              <tr class="highlight">
+                <td><strong>Taxa de Utilização</strong></td>
+                <td><strong>${dados['4']?.taxa_utilizacao_global || '0.00'}%</strong></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Indicador 5b -->
+          <div class="section">
+            <div class="section-title">Indicador 5b - Satisfação dos Empregadores</div>
+            <table>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Valor</th>
+              </tr>
+              <tr class="highlight">
+                <td><strong>Média de Satisfação (escala 1-4)</strong></td>
+                <td><strong>${dados['5b']?.media_satisfacao_global || '0.00'}</strong></td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Indicador 6a -->
+          <div class="section">
+            <div class="section-title">Indicador 6a - Prosseguimento de Estudos</div>
+            <table>
+              <tr>
+                <th>Parâmetro</th>
+                <th>Valor</th>
+              </tr>
+              <tr>
+                <td>Total de Diplomados (base)</td>
+                <td>${dados['6a']?.total_diplomados || 0}</td>
+              </tr>
+              <tr>
+                <td>Prosseguiram Estudos</td>
+                <td>${dados['6a']?.prosseguimento_estudos || 0}</td>
+              </tr>
+              <tr class="highlight">
+                <td><strong>Taxa de Prosseguimento</strong></td>
+                <td><strong>${dados['6a']?.taxa_prosseguimento_global || '0.00'}%</strong></td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="nota">
+            <strong>Nota Informativa:</strong> Os indicadores EQAVET (Quadro de Referência Europeu de Garantia da Qualidade para o Ensino e Formação Profissionais) são recolhidos anualmente para monitorização da qualidade dos ciclos formativos. Os dados são recolhidos aproximadamente 6 meses após a conclusão do ciclo formativo, permitindo avaliar a inserção profissional e o prosseguimento de estudos dos diplomados. Esta informação integra o relatório de autoavaliação da escola e serve de base para a definição de ações de melhoria, em conformidade com o ciclo de qualidade preconizado pela ANQEP (Agência Nacional para a Qualificação e o Ensino Profissional).
+          </div>
+
+          <div class="footer">
+            Sistema EQAVET 2025 • Relatório gerado em ${new Date().toLocaleDateString()} • ${cicloNome}
+          </div>
+        </body>
+      </html>
+    `;
+
+    try {
+      const formData = new FormData();
+      const htmlFile = new Blob([htmlContent], { type: 'text/html' });
+      formData.append('files', htmlFile, 'index.html');
+
+      const response = await fetch('/gotenberg/forms/chromium/convert/html', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao gerar PDF: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Indicadores_EQAVET_${cicloNome.replace(/[^a-zA-Z0-9]/g, '_')}_${ano}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao imprimir PDF:', error);
+      alert('Não foi possível gerar o PDF. Verifique a consola para mais detalhes.');
+    }
+  };
+
+
+
   const tabs = [
     { id: '1', label: 'Ind. 1 - Colocação', color: 'blue' },
     { id: '2', label: 'Ind. 2 - Conclusão', color: 'green' },
@@ -609,6 +833,21 @@ const IndicadoresForm = ({ currentUser }) => {
             </div>
         )}
       </div>
+      
+      
+              {/* Rodapé */}
+        <div className="bg-gray-50 px-8 py-5 border-t text-center text-sm text-gray-600 flex justify-center items-center gap-4">
+          <button
+            onClick={handlePrintPDF}
+            disabled={loading}
+            className="px-6 py-2 rounded-xl text-white font-bold bg-blue-600 hover:bg-blue-700 transition"
+          >
+            Imprimir PDF
+          </button>
+          Sistema EQAVET 2025 • Indicadores • Auditável ANQEP
+        </div>
+      
+      
     </div>
   );
 };

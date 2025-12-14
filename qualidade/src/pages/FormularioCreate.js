@@ -1,11 +1,12 @@
 // src/pages/FormularioCreate.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Printer } from 'lucide-react';
 import QuestionBuilder from '../components/QuestionBuilder';
 import {
   getQuestionariosTemplates,
-  createQuestionario,        // NOVA FUNÇÃO
-  createPergunta,            // NOVA FUNÇÃO
+  createQuestionario,
+  createPergunta,
   createAplicacaoQuestionario,
   getClasses,
   getDisciplinaTurma,
@@ -17,7 +18,7 @@ const FormularioCreate = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [mode, setMode] = useState('scratch'); // 'scratch' ou 'template'
+  const [mode, setMode] = useState('scratch');
   const [templates, setTemplates] = useState([]);
   const [classes, setClasses] = useState([]);
   const [disciplinaTurmas, setDisciplinaTurmas] = useState([]);
@@ -30,7 +31,7 @@ const FormularioCreate = () => {
     titulo: '',
     descricao: '',
     categoria: 'avaliacao',
-    visibilidade: 'privado', // privado por defeito para professores
+    visibilidade: 'privado',
     turma_id: '',
     disciplina_turma_id: '',
     tipo_aplicacao: 'turma',
@@ -70,15 +71,21 @@ const FormularioCreate = () => {
   };
 
   const addPergunta = () => {
-    setPerguntas(prev => [...prev, {
+    const novaPergunta = {
       tempId: Date.now(),
       enunciado: '',
       tipo_pergunta: 'escolha_unica',
       obrigatoria: true,
-      ordem: prev.length + 1,
+      ordem: 1,
       pagina: 1,
       opcoes: []
-    }]);
+    };
+    
+    // Adiciona no início e reordena as existentes
+    setPerguntas(prev => [
+      novaPergunta,
+      ...prev.map((p, i) => ({ ...p, ordem: i + 2 }))
+    ]);
   };
 
   const updatePergunta = (index, novaPergunta) => {
@@ -89,81 +96,231 @@ const FormularioCreate = () => {
     setPerguntas(prev => prev.filter((_, i) => i !== index).map((p, i) => ({ ...p, ordem: i + 1 })));
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!details.titulo.trim()) return setError('O título é obrigatório.');
-  if (mode === 'scratch' && perguntas.length === 0) return setError('Adicione pelo menos uma pergunta.');
-
-  setSubmitting(true);
-  setError(null);
-
-  try {
-    let questionarioId;
-
-    if (mode === 'template') {
-      questionarioId = selectedTemplate;
-      if (!questionarioId) throw new Error('Selecione um template.');
-    } else {
-      // 1. Criar questionário + perguntas num único pedido
-      const payload = {
-        titulo: details.titulo,
-        descricao: details.descricao || '',
-        categoria: details.categoria,
-        visibilidade: details.visibilidade,
-        perguntas: perguntas.map((p, i) => ({
-          enunciado: p.enunciado,
-          tipo: p.tipo_pergunta || p.tipo,
-          obrigatoria: p.obrigatoria,
-          ordem: i + 1,
-          pagina: 1,
-          descricao: p.descricao || null,
-          opcoes: (p.opcoes || []).map((op, j) => ({
-            texto: op.texto || '',
-            ordem: j + 1,
-            e_correta: op.e_correta || false
-          }))
-        }))
-      };
-
-      const novoQuestionario = await createQuestionario(payload);
-      questionarioId = novoQuestionario.id;
+  const handlePrintPDF = async () => {
+    if (!details.titulo.trim()) {
+      alert('Por favor, defina um título para o questionário antes de gerar o PDF.');
+      return;
     }
 
-    // 2. Criar aplicação com data_abertura OBRIGATÓRIA
-    const aplicacaoPayload = {
-      questionario_id: questionarioId,
-      aplicador_id: user.id,
-      titulo_customizado: mode === 'scratch' ? details.titulo : null,
-      tipo_aplicacao: details.tipo_aplicacao,
-      publico_alvo: details.publico_alvo,
-      turma_id: details.turma_id || null,
-      disciplina_turma_id: details.disciplina_turma_id || null,
-      // DATA DE ABERTURA OBRIGATÓRIA → usa agora se vazio
-      data_abertura: details.data_abertura 
-        ? new Date(details.data_abertura).toISOString() 
-        : new Date().toISOString(), // ← NUNCA NULL
-      data_fecho: details.data_fecho 
-        ? new Date(details.data_fecho).toISOString() 
-        : null,
-      notificar_destinatarios: details.notificar_destinatarios,
-      lembrar_nao_respondidos: details.lembrar_nao_respondidos,
+    if (perguntas.length === 0) {
+      alert('Adicione pelo menos uma pergunta antes de gerar o PDF.');
+      return;
+    }
+
+    const tiposLabel = {
+      'texto_curto': 'Texto Curto',
+      'texto_longo': 'Parágrafo',
+      'escolha_unica': 'Escolha Única',
+      'escolha_multipla': 'Múltipla Escolha',
+      'lista_suspensa': 'Lista Suspensa',
+      'escala_linear': 'Escala Linear (1-10)',
+      'escala_likert': 'Escala Likert',
+      'data': 'Data',
+      'hora': 'Hora',
+      'email': 'Email',
+      'numero': 'Número',
+      'upload_ficheiro': 'Upload de Ficheiro',
+      'secao': 'Seção'
     };
 
-    await createAplicacaoQuestionario(aplicacaoPayload);
+    const htmlContent = `
+      <html>
+        <head>
+          <title>${details.titulo}</title>
+          <style>
+            body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
+            h1 { color: #333; text-align: center; margin-bottom: 10px; }
+            .subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+            .description { background-color: #f9f9f9; padding: 15px; border-left: 4px solid #4F46E5; margin-bottom: 30px; }
+            .question { margin-bottom: 30px; page-break-inside: avoid; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; }
+            .question-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+            .question-number { font-weight: bold; color: #4F46E5; font-size: 16px; }
+            .question-type { font-size: 12px; color: #666; background-color: #f0f0f0; padding: 4px 8px; border-radius: 4px; }
+            .question-text { font-size: 15px; font-weight: 600; margin: 10px 0; color: #333; }
+            .question-help { font-size: 13px; color: #666; font-style: italic; margin-bottom: 15px; }
+            .required { color: #e53e3e; font-weight: bold; }
+            .options { margin-left: 20px; }
+            .option { padding: 8px 0; font-size: 14px; }
+            .option::before { content: "○ "; color: #4F46E5; font-weight: bold; margin-right: 8px; }
+            .scale-info { background-color: #fffbeb; padding: 10px; border-radius: 4px; font-size: 13px; margin-top: 10px; }
+            .footer { font-size: 10px; text-align: center; margin-top: 40px; color: #777; border-top: 1px solid #ddd; padding-top: 10px; }
+            .metadata { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 20px; padding: 10px; background-color: #f5f5f5; border-radius: 4px; }
+          </style>
+        </head>
+        <body>
+          <div class="header" style="text-align: center; margin-bottom: 20px;">
+            <img src="http://nginx/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 718px; height: auto;">
+          </div>
+          
+          <h1>${details.titulo}</h1>
+          <div class="subtitle">Categoria: ${details.categoria} | Público-Alvo: ${details.publico_alvo}</div>
+          
+          ${details.descricao ? `<div class="description"><strong>Descrição:</strong> ${details.descricao}</div>` : ''}
+          
+          <div class="metadata">
+            <span><strong>Total de perguntas:</strong> ${perguntas.length}</span>
+            <span><strong>Data de criação:</strong> ${new Date().toLocaleDateString()}</span>
+          </div>
 
-    alert('Questionário criado e aplicado com sucesso!');
-    navigate('/qualidade');
-  } catch (err) {
-    console.error(err);
-    setError(err.response?.data?.message || err.message || 'Erro ao criar questionário.');
-  } finally {
-    setSubmitting(false);
-  }
-};
+          ${perguntas.map((p, index) => `
+            <div class="question">
+              <div class="question-header">
+                <span class="question-number">Pergunta ${index + 1}</span>
+                <span class="question-type">${tiposLabel[p.tipo_pergunta || p.tipo] || 'Desconhecido'}</span>
+              </div>
+              
+              <div class="question-text">
+                ${p.enunciado || 'Sem enunciado'}
+                ${p.obrigatoria ? '<span class="required">*</span>' : ''}
+              </div>
+              
+              ${p.descricao ? `<div class="question-help">${p.descricao}</div>` : ''}
+              
+              ${(p.opcoes && p.opcoes.length > 0) ? `
+                <div class="options">
+                  ${p.opcoes.map(op => `<div class="option">${op.texto}</div>`).join('')}
+                </div>
+              ` : ''}
+              
+              ${(p.tipo_pergunta === 'escala_linear' || p.tipo === 'escala_linear') ? `
+                <div class="scale-info">
+                  <strong>Escala de 1 a 10</strong><br>
+                  ${p.config?.label_min ? `1: ${p.config.label_min}` : '1: Mínimo'} | 
+                  ${p.config?.label_max ? `10: ${p.config.label_max}` : '10: Máximo'}
+                </div>
+              ` : ''}
+              
+              ${(p.tipo_pergunta === 'texto_curto' || p.tipo === 'texto_curto') ? `
+                <div style="border-bottom: 1px solid #ccc; width: 100%; height: 30px; margin-top: 10px;"></div>
+              ` : ''}
+              
+              ${(p.tipo_pergunta === 'texto_longo' || p.tipo === 'texto_longo') ? `
+                <div style="border: 1px solid #ccc; width: 100%; height: 100px; margin-top: 10px; border-radius: 4px;"></div>
+              ` : ''}
+            </div>
+          `).join('')}
+
+          <div class="footer">
+            Sistema de Questionários 2025 • Documento gerado em ${new Date().toLocaleDateString()} às ${new Date().toLocaleTimeString()}
+          </div>
+        </body>
+      </html>
+    `;
+
+    try {
+      const formData = new FormData();
+      const htmlFile = new Blob([htmlContent], { type: 'text/html' });
+      formData.append('files', htmlFile, 'index.html');
+
+      const response = await fetch('/gotenberg/forms/chromium/convert/html', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ao gerar PDF: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Questionario_${details.titulo.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().getTime()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert('Não foi possível gerar o PDF. Verifique a consola para mais detalhes.');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!details.titulo.trim()) return setError('O título é obrigatório.');
+    if (mode === 'scratch' && perguntas.length === 0) return setError('Adicione pelo menos uma pergunta.');
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      let questionarioId;
+
+      if (mode === 'template') {
+        questionarioId = selectedTemplate;
+        if (!questionarioId) throw new Error('Selecione um template.');
+      } else {
+        const payload = {
+          titulo: details.titulo,
+          descricao: details.descricao || '',
+          categoria: details.categoria,
+          visibilidade: details.visibilidade,
+          perguntas: perguntas.map((p, i) => ({
+            enunciado: p.enunciado,
+            tipo: p.tipo_pergunta || p.tipo,
+            obrigatoria: p.obrigatoria,
+            ordem: i + 1,
+            pagina: 1,
+            descricao: p.descricao || null,
+            opcoes: (p.opcoes || []).map((op, j) => ({
+              texto: op.texto || '',
+              ordem: j + 1,
+              e_correta: op.e_correta || false
+            }))
+          }))
+        };
+
+        const novoQuestionario = await createQuestionario(payload);
+        questionarioId = novoQuestionario.id;
+      }
+
+      const aplicacaoPayload = {
+        questionario_id: questionarioId,
+        aplicador_id: user.id,
+        titulo_customizado: mode === 'scratch' ? details.titulo : null,
+        tipo_aplicacao: details.tipo_aplicacao,
+        publico_alvo: details.publico_alvo,
+        turma_id: details.turma_id || null,
+        disciplina_turma_id: details.disciplina_turma_id || null,
+        data_abertura: details.data_abertura 
+          ? new Date(details.data_abertura).toISOString() 
+          : new Date().toISOString(),
+        data_fecho: details.data_fecho 
+          ? new Date(details.data_fecho).toISOString() 
+          : null,
+        notificar_destinatarios: details.notificar_destinatarios,
+        lembrar_nao_respondidos: details.lembrar_nao_respondidos,
+      };
+
+      await createAplicacaoQuestionario(aplicacaoPayload);
+
+      alert('Questionário criado e aplicado com sucesso!');
+      navigate('/qualidade');
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || err.message || 'Erro ao criar questionário.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 max-w-5xl">
-      <h1 className="text-3xl font-bold mb-6">Criar Questionário</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Criar Questionário</h1>
+        {mode === 'scratch' && perguntas.length > 0 && (
+          <button
+            type="button"
+            onClick={handlePrintPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            <Printer className="w-5 h-5" />
+            Gerar PDF
+          </button>
+        )}
+      </div>
+
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">{error}</div>}
 
       <div className="bg-gray-50 p-5 rounded-lg mb-6">
@@ -181,8 +338,6 @@ const handleSubmit = async (e) => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-
-        {/* Dados gerais */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block font-semibold mb-1">Título do Questionário *</label>
@@ -240,11 +395,27 @@ const handleSubmit = async (e) => {
           </div>
         )}
 
-        {/* Configurações da aplicação (comuns) */}
         <div className="bg-blue-50 p-5 rounded-lg">
           <h3 className="font-bold mb-4">Distribuição (quem responde?)</h3>
-          {/* ... aqui os campos de turma, tipo_aplicacao, datas, etc. (iguais ao anterior) */}
-          {/* Copia a parte de "Público-Alvo", "Tipo de Aplicação", "Turma", "Datas", etc. do exemplo anterior */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-semibold mb-1">Público-Alvo</label>
+              <select name="publico_alvo" value={details.publico_alvo} onChange={handleChange} className="w-full border rounded px-3 py-2">
+                <option value="alunos">Alunos</option>
+                <option value="professores">Professores</option>
+                <option value="encarregados">Encarregados de Educação</option>
+                <option value="funcionarios">Funcionários</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-semibold mb-1">Tipo de Aplicação</label>
+              <select name="tipo_aplicacao" value={details.tipo_aplicacao} onChange={handleChange} className="w-full border rounded px-3 py-2">
+                <option value="turma">Por Turma</option>
+                <option value="disciplina">Por Disciplina/Turma</option>
+                <option value="geral">Geral (toda a escola)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="flex justify-end gap-4 pt-6">

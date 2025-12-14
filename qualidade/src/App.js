@@ -13,6 +13,7 @@ import QuestionarioEditor from './pages/QuestionarioEditor'; // Ver respostas
 import AplicacoesGestao from './pages/AplicacoesGestao'; // Ver respostas
 import AplicacaoEdit from './pages/AplicacaoEdit'; // Ver respostas
 import AplicacaoCreate from './pages/AplicacaoCreate';
+import Obrigado from './pages/Obrigado';
 
 // Import Empresa Components
 import EmpresasList from './pages/Empresas/EmpresasList';
@@ -58,8 +59,9 @@ function App() {
   return (
     <Router basename="/qualidade">
       <Routes>
-        {/* Public Route */}
+        {/* Public Routes */}
         <Route path="public/responder/:token" element={<QuestionarioResponder />} />
+        <Route path="obrigado" element={<Obrigado />} />
 
         {/* Private Routes */}
         <Route element={<PrivateRoutes />}>
