@@ -10,10 +10,17 @@ const EditFlashcardModal = ({ flashcard, onClose, onSave }) => {
 
     useEffect(() => {
         if (!flashcard) return;
+        console.log("EditFlashcardModal - Initial flashcard prop:", flashcard); // Added log
         setFormData({ ...flashcard });
 
         const fetchAssuntos = async () => {
             try {
+                // Check discipline_id here again
+                console.log("EditFlashcardModal - Fetching assuntos for discipline_id:", flashcard.discipline_id); // Added log
+                if (!flashcard.discipline_id) {
+                    console.error("EditFlashcardModal: flashcard.discipline_id is missing when fetching assuntos.");
+                    return;
+                }
                 const response = await api.get(`/assuntos/disciplina/${flashcard.discipline_id}`);
                 setAssuntosList(response.data.data);
             } catch (err) {
@@ -32,6 +39,7 @@ const EditFlashcardModal = ({ flashcard, onClose, onSave }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        console.log("EditFlashcardModal - Submitting formData:", formData); // Added log
         await onSave(formData);
         setLoading(false);
     };
