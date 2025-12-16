@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { Brain, PlusCircle, List, LogOut, Menu, X } from 'lucide-react';
+import { Brain, PlusCircle, List, LogOut, Menu, X, PieChart } from 'lucide-react';
 
 const MemoriaLayout = ({ user, onLogout }) => {
   const location = useLocation();
@@ -19,7 +19,8 @@ const MemoriaLayout = ({ user, onLogout }) => {
   };
 
   const professorLinks = [
-    { path: '/dashboard', label: 'Dashboard', icon: Brain, tab: null },
+    { path: '/dashboard', label: 'Dashboard', icon: Brain, tab: null }, // Existing dashboard
+    { path: '/memoria/analytics', label: 'Analíticas', icon: PieChart, tab: null }, // New Analytics Dashboard link
     { path: '/create', label: 'Criar Flashcard', icon: PlusCircle, tab: 'create' },
     { path: '/manage', label: 'Gerir Flashcards', icon: List, tab: 'manage' },
   ];

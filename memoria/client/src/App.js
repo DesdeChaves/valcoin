@@ -9,6 +9,7 @@ import MemoriaStudentPage from './components/Student/MemoriaStudentPage';
 import useAuth from './hooks/useAuth';
 import CreateFlashcardPage from './components/Professor/CreateFlashcardPage';
 import ManageFlashcardsPage from './components/Professor/ManageFlashcardsPage';
+import ProfessorAnalyticsDashboard from './components/Professor/ProfessorAnalyticsDashboard'; // New Import
 
 function App() {
   const { user, loading, logout } = useAuth();
@@ -57,6 +58,7 @@ function App() {
           {user.tipo_utilizador === 'PROFESSOR' && (
             <>
                 <Route path="dashboard" element={<MemoriaProfessorDashboard />} />
+                <Route path="analytics" element={<ProfessorAnalyticsDashboard />} /> {/* New Route */}
                 <Route path="create" element={<CreateFlashcardPage />} />
                 <Route path="manage" element={<ManageFlashcardsPage />} />
             </>

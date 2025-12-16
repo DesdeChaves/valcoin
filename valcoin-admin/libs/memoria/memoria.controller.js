@@ -656,6 +656,108 @@ const uploadImage = async (req, res) => {
   }
 };
 
+const getProfessorAnalytics = async (req, res) => {
+  try {
+    const { discipline_id } = req.params;
+    const professor_id = req.user.id;
+
+    // Total Flashcards
+    const totalFlashcardsRes = await db.query(
+      `SELECT COUNT(id) FROM flashcards
+       WHERE creator_id = $1 AND discipline_id = $2;`,
+      [professor_id, discipline_id]
+    );
+    const totalFlashcards = parseInt(totalFlashcardsRes.rows[0].count, 10);
+
+    // Total Reviews
+    const totalReviewsRes = await db.query(
+      `SELECT COUNT(frl.id) FROM flashcard_review_log frl
+       JOIN flashcards f ON frl.flashcard_id = f.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2;`,
+      [professor_id, discipline_id]
+    );
+    const totalReviews = parseInt(totalReviewsRes.rows[0].count, 10);
+
+    // Average Rating
+    const averageRatingRes = await db.query(
+      `SELECT AVG(frl.rating) FROM flashcard_review_log frl
+       JOIN flashcards f ON frl.flashcard_id = f.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2;`,
+      [professor_id, discipline_id]
+    );
+    const averageRating = parseFloat(averageRatingRes.rows[0].avg || 0);
+
+    // Rating Distribution
+    const ratingDistributionRes = await db.query(
+      `SELECT rating, COUNT(frl.id) as count FROM flashcard_review_log frl
+       JOIN flashcards f ON frl.flashcard_id = f.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2
+       GROUP BY rating ORDER BY rating;`,
+      [professor_id, discipline_id]
+    );
+    const ratingDistribution = ratingDistributionRes.rows.reduce((acc, row) => {
+      let label = '';
+      if (row.rating === 1) label = 'again';
+      else if (row.rating === 2) label = 'hard';
+      else if (row.rating === 3) label = 'good';
+      else if (row.rating === 4) label = 'easy';
+      acc[label] = parseInt(row.count, 10);
+      return acc;
+    }, { again: 0, hard: 0, good: 0, easy: 0 });
+
+
+    // Flashcards by Subject
+    const flashcardsBySubjectRes = await db.query(
+      `SELECT a.name as assunto_name, COUNT(f.id) as count
+       FROM flashcards f
+       JOIN assuntos a ON f.assunto_id = a.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2
+       GROUP BY a.name ORDER BY count DESC;`,
+      [professor_id, discipline_id]
+    );
+    const flashcardsBySubject = flashcardsBySubjectRes.rows.map(row => ({
+      name: row.assunto_name,
+      count: parseInt(row.count, 10)
+    }));
+
+    // Reviews by Subject
+    const reviewsBySubjectRes = await db.query(
+      `SELECT a.name as assunto_name, COUNT(frl.id) as count
+       FROM flashcard_review_log frl
+       JOIN flashcards f ON frl.flashcard_id = f.id
+       JOIN assuntos a ON f.assunto_id = a.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2
+       GROUP BY a.name ORDER BY count DESC;`,
+      [professor_id, discipline_id]
+    );
+    const reviewsBySubject = reviewsBySubjectRes.rows.map(row => ({
+      name: row.assunto_name,
+      count: parseInt(row.count, 10)
+    }));
+
+
+    res.json({
+      success: true,
+      data: {
+        totalFlashcards,
+        totalReviews,
+        averageRating,
+        ratingDistribution,
+        flashcardsBySubject,
+        reviewsBySubject,
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro ao obter analíticas do professor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao obter analíticas do professor'
+    });
+  }
+};
+
+
 module.exports = {
   criarFlashcard,
   listarFlashcardsProfessor,
@@ -666,4 +768,5 @@ module.exports = {
   getAssuntos,
   editarFlashcard,
   apagarFlashcard,
+  getProfessorAnalytics,
 };

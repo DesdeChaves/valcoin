@@ -13,6 +13,7 @@ const {
   getAssuntos,
   editarFlashcard,
   apagarFlashcard,
+  getProfessorAnalytics, // New import
 } = require('./memoria.controller');
 
 const {
@@ -40,6 +41,16 @@ router.get(
 // ============================================================================
 // ROTAS PARA PROFESSORES
 // ============================================================================
+
+/**
+ * GET /api/memoria/analytics/disciplina/:discipline_id
+ * Obter dados analíticos dos flashcards de um professor para uma disciplina
+ */
+router.get(
+  '/analytics/disciplina/:discipline_id',
+  validarProfessorDisciplina,
+  getProfessorAnalytics
+);
 
 /**
  * POST /api/memoria/flashcards
