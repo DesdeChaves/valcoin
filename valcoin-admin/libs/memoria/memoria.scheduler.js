@@ -1,123 +1,169 @@
 // libs/memoria/memoria.scheduler.js
-/// npm install @open-spaced-repetition/fsrs-browser
+// Versão compatível com CommonJS (require) e Node.js
 
-const { Scheduler, Rating, Card, RecordLogItem } = require('@open-spaced-repetition/fsrs-browser');
+const { FSRS, Rating, State, createEmptyCard, generatorParameters } = require('ts-fsrs');
 
 /**
- * Parâmetros FSRS default (os mais recentes e otimizados de 2025)
- * Baseados em estudos com milhões de revisões reais do Anki
+ * Parâmetros FSRS recomendados (2025)
  */
 const DEFAULT_PARAMS = {
-  // Retention desejada (90% é o padrão recomendado)
-  request_retention: 0.9,
-
-  // Tamanho máximo do intervalo (em dias)
+  request_retention: 0.9,        // 90% de retenção desejada
   maximum_interval: 36500,
-
-  // Pesos do modelo (otimizados em 2024/2025)
   w: [
-    0.4197, 1.1869, 4.1905, 1.0841, 3.167, 
-    0.0835, 1.6244, 0.1358, 1.0328, 2.0058, 
-    0.0831, 0.3559, 1.0185, 0.1069, 1.1981, 
-    0.1342, 2.3059, 0.0, 0.0
+    0.4197, 1.1869, 4.1905, 10.1484, 5.0371,
+    1.2948, 0.8013, 0.0464, 1.6276, 0.1552,
+    1.0546, 0.1402, 1.0417, 0.0382, 1.6093,
+    0.1468, 2.9669, 0.5319, 0.6965, 0.4324
   ],
-
-  // Decaimento e fator de dificuldade
-  decay: -0.5,
-  factor: 0.9
+  enable_fuzz: true,
+  enable_short_term: false
 };
 
-/**
- * Cria um scheduler FSRS com parâmetros personalizados ou default
- */
 class MemoriaScheduler {
   constructor(customParams = {}) {
-    this.params = { ...DEFAULT_PARAMS, ...customParams };
-    this.scheduler = new Scheduler();
-    this.scheduler.setParams(this.params);
+    this.params = generatorParameters({ ...DEFAULT_PARAMS, ...customParams });
+    this.fsrs = new FSRS(this.params);
   }
 
   /**
-   * Calcula o próximo estado de um card com base na revisão atual
-   * @param {Object} currentCard - Estado atual do card (pode ser null para novo)
-   * @param {Date} now - Data atual da revisão
+   * Calcula o próximo estado do card
+   * @param {Object|null} currentState - Estado atual (difficulty, stability, etc.) ou null para novo
+   * @param {Date} now - Data da revisão (default: agora)
    * @param {number} rating - 1=Again, 2=Hard, 3=Good, 4=Easy
-   * @returns {Object} Novo estado + data de próxima revisão
+   * @returns {Object}
    */
-  next(currentCard, now = new Date(), rating) {
-    const fsrsRating = this._mapRating(rating);
-
-    // Criar objeto Card do FSRS
-    const card = new Card();
-    if (currentCard) {
-      card.difficulty = currentCard.difficulty || undefined;
-      card.stability = currentCard.stability || undefined;
-      card.reps = currentCard.reps || 0;
-      card.lapses = currentCard.lapses || 0;
-      card.last_review = currentCard.last_review ? new Date(currentCard.last_review) : undefined;
+  next(currentState = null, now = new Date(), rating) {
+    // Validar rating
+    if (![1, 2, 3, 4].includes(rating)) {
+      throw new Error(`Rating inválido: ${rating}. Deve ser 1-4.`);
     }
 
-    // Calcular próximo estado
-    const schedulingCards = this.scheduler.next(card, now, fsrsRating);
+    // Mapear rating para enum do ts-fsrs (valores do enum são 1,2,3,4)
+    const fsrsRating = rating;
 
-    // Escolher o card correspondente ao rating dado
-    const nextCard = schedulingCards.get(fsrsRating);
+    // Criar ou adaptar card para o formato ts-fsrs
+    let card;
+    if (currentState && currentState.last_review) {
+      // Card existente - converter do nosso formato para ts-fsrs
+      const lastReviewDate = new Date(currentState.last_review);
+      const elapsed_days = Math.max(0, Math.floor((now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      card = {
+        due: lastReviewDate,
+        stability: currentState.stability || 0,
+        difficulty: currentState.difficulty || 5.0,
+        elapsed_days: elapsed_days,
+        scheduled_days: Math.round(currentState.stability || 0),
+        reps: currentState.reps || 0,
+        lapses: currentState.lapses || 0,
+        state: currentState.reps === 0 ? State.New : (currentState.lapses > 0 ? State.Relearning : State.Review),
+        last_review: lastReviewDate
+      };
+    } else {
+      // Card novo
+      card = createEmptyCard(now);
+    }
 
-    // Calcular data de próxima revisão
-    const nextDueDate = new Date(now);
-    nextDueDate.setDate(now.getDate() + Math.round(nextCard.card.stability));
+    // Aplicar FSRS - retorna um objeto RecordLog
+    const schedulingCards = this.fsrs.repeat(card, now);
+    
+    // Obter o card correspondente ao rating (os valores do enum são 1,2,3,4)
+    const recordLog = schedulingCards[fsrsRating];
+
+    const nextCard = recordLog.card;
+    const reviewLog = recordLog.log;
+
+    // Calcular próxima data de revisão
+    const nextDue = new Date(nextCard.due);
+
+    // Calcular intervalo em dias
+    const intervalDays = Math.max(1, Math.round((nextDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 
     return {
       card: {
-        difficulty: parseFloat(nextCard.card.difficulty.toFixed(4)),
-        stability: parseFloat(nextCard.card.stability.toFixed(4)),
-        reps: nextCard.card.reps,
-        lapses: nextCard.card.lapses,
-        last_review: now.toISOString()
+        difficulty: parseFloat(nextCard.difficulty.toFixed(4)),
+        stability: parseFloat(nextCard.stability.toFixed(4)),
+        reps: nextCard.reps,
+        lapses: nextCard.lapses,
+        last_review: now.toISOString(),
+        state: nextCard.state
       },
+      next_due_date: nextDue.toISOString(),
+      next_interval_days: intervalDays,
       review_log: {
-        rating: rating,
-        elapsed_days: nextCard.log.elapsed_days,
-        scheduled_days: nextCard.log.scheduled_days
-      },
-      next_due_date: nextDueDate.toISOString(),
-      next_interval_days: Math.round(nextCard.card.stability)
+        rating: reviewLog.rating,
+        state: reviewLog.state,
+        due: reviewLog.due,
+        stability: reviewLog.stability,
+        difficulty: reviewLog.difficulty,
+        elapsed_days: reviewLog.elapsed_days,
+        last_elapsed_days: reviewLog.last_elapsed_days,
+        scheduled_days: reviewLog.scheduled_days,
+        review: reviewLog.review
+      }
     };
   }
 
   /**
-   * Calcula se um card está devido para revisão hoje
-   * @param {number} stability - Estabilidade atual (dias)
-   * @param {Date|string} last_review - Última revisão
-   * @param {Date} today - Data de referência (default: hoje)
-   * @returns {boolean}
+   * Verifica se o card está devido hoje
    */
   isDue(stability, last_review, today = new Date()) {
-    if (!last_review || !stability) return true; // novo card = sempre devido
-
+    if (!last_review || stability <= 0) return true;
     const last = new Date(last_review);
     const due = new Date(last);
     due.setDate(last.getDate() + Math.round(stability));
-
     return today >= due;
   }
 
   /**
-   * Mapeia rating do teu sistema (1-4) para Rating do FSRS
+   * Obtém preview dos 4 possíveis resultados (Again, Hard, Good, Easy)
+   * Útil para mostrar ao utilizador quanto tempo até próxima revisão
    */
-  _mapRating(rating) {
-    const map = {
-      1: Rating.Again,
-      2: Rating.Hard,
-      3: Rating.Good,
-      4: Rating.Easy
+  getSchedulingCards(currentState, now = new Date()) {
+    let card;
+    if (currentState && currentState.last_review) {
+      const lastReviewDate = new Date(currentState.last_review);
+      const elapsed_days = Math.max(0, Math.floor((now.getTime() - lastReviewDate.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      card = {
+        due: lastReviewDate,
+        stability: currentState.stability || 0,
+        difficulty: currentState.difficulty || 5.0,
+        elapsed_days: elapsed_days,
+        scheduled_days: Math.round(currentState.stability || 0),
+        reps: currentState.reps || 0,
+        lapses: currentState.lapses || 0,
+        state: currentState.reps === 0 ? State.New : (currentState.lapses > 0 ? State.Relearning : State.Review),
+        last_review: lastReviewDate
+      };
+    } else {
+      card = createEmptyCard(now);
+    }
+
+    const schedulingCards = this.fsrs.repeat(card, now);
+
+    return {
+      again: this.formatSchedulingCard(schedulingCards[1], now),
+      hard: this.formatSchedulingCard(schedulingCards[2], now),
+      good: this.formatSchedulingCard(schedulingCards[3], now),
+      easy: this.formatSchedulingCard(schedulingCards[4], now)
     };
-    return map[rating] || Rating.Good;
+  }
+
+  formatSchedulingCard(recordLog, now) {
+    const nextDue = new Date(recordLog.card.due);
+    const intervalDays = Math.max(1, Math.round((nextDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
+    return {
+      interval_days: intervalDays,
+      due: nextDue.toISOString(),
+      stability: parseFloat(recordLog.card.stability.toFixed(4)),
+      difficulty: parseFloat(recordLog.card.difficulty.toFixed(4))
+    };
   }
 }
 
 module.exports = {
   MemoriaScheduler,
-  DEFAULT_PARAMS,
-  Rating // export para uso externo se necessário
+  DEFAULT_PARAMS
 };
