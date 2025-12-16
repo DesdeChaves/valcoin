@@ -26,11 +26,11 @@ const validarProfessorDisciplina = async (req, res, next) => {
       discipline_id = req.body.discipline_id;
     }
 
-    // 2. Tentativa: params.flashcard_id → buscar discipline_id do flashcard
+    // 2. Tentativa: params.id (assumindo que 'id' é um flashcard_id)
     if (!discipline_id && req.params && req.params.id) {
       const flashcardResult = await db.query(
-        `SELECT discipline_id 
-         FROM flashcards 
+        `SELECT discipline_id
+         FROM flashcards
          WHERE id = $1 AND active = true`,
         [req.params.id]
       );
@@ -43,6 +43,11 @@ const validarProfessorDisciplina = async (req, res, next) => {
       }
 
       discipline_id = flashcardResult.rows[0].discipline_id;
+    }
+
+    // 3. Tentativa: params.discipline_id (usado em rotas como analytics)
+    if (!discipline_id && req.params && req.params.discipline_id) {
+      discipline_id = req.params.discipline_id;
     }
 
     // Se ainda não encontrou discipline_id
