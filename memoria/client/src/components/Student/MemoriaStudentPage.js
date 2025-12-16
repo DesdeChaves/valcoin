@@ -25,9 +25,9 @@ const MemoriaStudentPage = () => {
 
   useEffect(() => {
     if (currentCard?.type === 'image_occlusion' && currentCard.image_url && !isFlipped) {
-      drawImageOcclusion();
+      drawImageOcclusion(currentCard);
     }
-  }, [currentCard, isFlipped]);
+  }, [currentCard, isFlipped, drawImageOcclusion]);
 
   useEffect(() => {
     const fetchReviewTimePercentiles = async () => {
@@ -95,9 +95,9 @@ const MemoriaStudentPage = () => {
     }
   };
 
-  const drawImageOcclusion = () => {
+  const drawImageOcclusion = useCallback((cardToDraw) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !cardToDraw) return;
 
     const ctx = canvas.getContext('2d');
     const img = new Image();
@@ -111,8 +111,34 @@ const MemoriaStudentPage = () => {
       ctx.drawImage(img, 0, 0);
       
       // Desenhar máscara preta sobre a região atual
-      if (currentCard.sub_data) {
-        const mask = currentCard.sub_data;
+      // Stricter check for sub_data and mask structure
+      if (cardToDraw.sub_data && typeof cardToDraw.sub_data === 'object' && cardToDraw.sub_data !== null) {
+        const mask = cardToDraw.sub_data;
+        if (mask.coords && Array.isArray(mask.coords) && mask.coords.length === 4) {
+          const [x, y, width, height] = mask.coords;
+          
+          // Máscara preta
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+          ctx.fillRect(x, y, width, height);
+          
+          // Borda vermelha
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(x, y, width, height);
+          
+          // Label
+          ctx.fillStyle = '#dc2626';
+          ctx.fillRect(x, y + height - 30, width, 30);
+          ctx.font = 'bold 14px sans-serif';
+          ctx.fillStyle = 'white';
+          ctx.textAlign = 'center';
+          ctx.fillText('?', x + width / 2, y + height - 10);
+        }
+      }
+    };
+    
+    img.src = cardToDraw.image_url;
+  }, []); // Dependencies for useCallback. currentCard is passed as an argument.
         if (mask.coords && Array.isArray(mask.coords) && mask.coords.length === 4) {
           const [x, y, width, height] = mask.coords;
           
