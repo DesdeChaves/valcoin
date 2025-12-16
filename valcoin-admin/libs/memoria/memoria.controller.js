@@ -136,6 +136,7 @@ const listarFlashcardsProfessor = async (req, res) => {
       SELECT 
         f.id, f.type, f.front, f.back, f.cloze_text, f.image_url, 
         f.occlusion_data, f.hints, f.scheduled_date, f.active, f.created_at,
+        f.discipline_id,
         s.nome as discipline_name,
         a.name as assunto_name
       FROM flashcards f
