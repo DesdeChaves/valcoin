@@ -62,13 +62,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
-    # healthcheck:
-    #   test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 5
-    #   start_period: 20s
+    volumes:
+      - memoria_images:/usr/src/app/uploads
 
   valcoin-admin-client:
     build:
@@ -157,6 +152,8 @@ services:
         condition: service_healthy
       qualidade-client:
         condition: service_healthy
+      memoria-client:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
@@ -203,6 +200,28 @@ services:
     depends_on:
       valcoin-admin-server:
         condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  memoria-client:
+    build:
+      context: ./memoria/client
+      dockerfile: Dockerfile.client
+      args:
+        PUBLIC_URL: /memoria
+    container_name: memoria_client
+    networks:
+      - valcoin-network
+    volumes:
+      - memoria_images:/usr/share/nginx/html/images
+    depends_on:
+      valcoin-admin-server:
+        condition: service_healthy # Assuming it needs the admin server for auth
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/"]
@@ -271,6 +290,12 @@ volumes:
       type: none
       o: bind
       device: ./data/pgadmin
+  memoria_images:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./memoria/images
 
 networks:
   valcoin-network:

@@ -78,6 +78,16 @@ const LandingPage = ({ onSelectApp }) => {
       hoverGradient: 'from-orange-600 to-orange-700',
       path: '/qualidade',
       features: ['Controlo de processos', 'Auditorias internas', 'Indicadores de desempenho']
+    },
+    {
+      id: 'memoria',
+      name: 'Memoria',
+      description: 'Sistema de recordação espaçada para estudo',
+      icon: BookOpen,
+      gradient: 'from-cyan-500 to-cyan-600',
+      hoverGradient: 'from-cyan-600 to-cyan-700',
+      path: '/memoria',
+      features: ['Flashcards personalizáveis', 'Algoritmo de repetição inteligente', 'Acompanhamento de progresso']
     }
   ];
 
@@ -403,7 +413,8 @@ const AppSwitcher = ({ currentApp, user, onSwitchApp, onLogout }) => {
     { id: 'admin', name: 'Aurora Admin', icon: DollarSign, gradient: 'from-blue-600 to-blue-700', path: '/admin' },
     { id: 'store', name: 'Aurora Store', icon: Store, gradient: 'from-emerald-600 to-emerald-700', path: '/store' },
     { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, gradient: 'from-purple-600 to-purple-700', path: '/feedback' },
-    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, gradient: 'from-orange-500 to-orange-600', path: '/qualidade' }
+    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, gradient: 'from-orange-500 to-orange-600', path: '/qualidade' },
+    { id: 'memoria', name: 'Memoria', icon: BookOpen, gradient: 'from-cyan-500 to-cyan-600', path: '/memoria' }
   ];
 
   return (

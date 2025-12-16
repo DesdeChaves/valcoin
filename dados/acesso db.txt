@@ -7,3 +7,5 @@ docker exec -it valcoin_postgres psql -U user -d valcoin
 
 docker exec -it valcoin_redis redis-cli DEL dashboard:equavet
 
+sudo chown -R 1001:1001 memoria/images 
+
