@@ -1,6 +1,6 @@
 // src/components/Student/MemoriaStudentPage.js
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../api';
 import { Brain, CheckCircle, XCircle, AlertCircle, Lightbulb } from 'lucide-react';
 
