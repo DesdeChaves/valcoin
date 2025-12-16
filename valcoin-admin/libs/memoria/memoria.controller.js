@@ -736,6 +736,167 @@ const getProfessorAnalytics = async (req, res) => {
     }));
 
 
+const getProfessorAnalytics = async (req, res) => {
+  try {
+    const { discipline_id } = req.params;
+    const professor_id = req.user.id;
+
+    // Helper to determine student status
+    const getStudentStatus = (avgRating, avgDifficulty, totalLapses, totalReviews) => {
+      if (totalReviews === 0) return 'inactive';
+      if (avgRating >= 3.5 && avgDifficulty < 6 && totalLapses <= 1) return 'excellent';
+      if (avgRating >= 2.5 && avgDifficulty < 8 && totalLapses <= 2) return 'good';
+      return 'struggling';
+    };
+
+    // Total Flashcards
+    const totalFlashcardsRes = await db.query(
+      `SELECT COUNT(id) FROM flashcards
+       WHERE creator_id = $1 AND discipline_id = $2;`,
+      [professor_id, discipline_id]
+    );
+    const totalFlashcards = parseInt(totalFlashcardsRes.rows[0].count, 10);
+
+    // Total Reviews
+    const totalReviewsRes = await db.query(
+      `SELECT COUNT(frl.id) FROM flashcard_review_log frl
+       JOIN flashcards f ON frl.flashcard_id = f.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2;`,
+      [professor_id, discipline_id]
+    );
+    const totalReviews = parseInt(totalReviewsRes.rows[0].count, 10);
+
+    // Average Rating
+    const averageRatingRes = await db.query(
+      `SELECT AVG(frl.rating) FROM flashcard_review_log frl
+       JOIN flashcards f ON frl.flashcard_id = f.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2;`,
+      [professor_id, discipline_id]
+    );
+    const averageRating = parseFloat(averageRatingRes.rows[0].avg || 0);
+
+    // Rating Distribution
+    const ratingDistributionRes = await db.query(
+      `SELECT rating, COUNT(frl.id) as count FROM flashcard_review_log frl
+       JOIN flashcards f ON frl.flashcard_id = f.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2
+       GROUP BY rating ORDER BY rating;`,
+      [professor_id, discipline_id]
+    );
+    const ratingDistribution = ratingDistributionRes.rows.reduce((acc, row) => {
+      let label = '';
+      if (row.rating === 1) label = 'again';
+      else if (row.rating === 2) label = 'hard';
+      else if (row.rating === 3) label = 'good';
+      else if (row.rating === 4) label = 'easy';
+      acc[label] = parseInt(row.count, 10);
+      return acc;
+    }, { again: 0, hard: 0, good: 0, easy: 0 });
+
+
+    // Flashcards by Subject
+    const flashcardsBySubjectRes = await db.query(
+      `SELECT a.name as assunto_name, COUNT(f.id) as count
+       FROM flashcards f
+       JOIN assuntos a ON f.assunto_id = a.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2
+       GROUP BY a.name ORDER BY count DESC;`,
+      [professor_id, discipline_id]
+    );
+    const flashcardsBySubject = flashcardsBySubjectRes.rows.map(row => ({
+      name: row.assunto_name,
+      count: parseInt(row.count, 10)
+    }));
+
+    // Reviews by Subject
+    const reviewsBySubjectRes = await db.query(
+      `SELECT a.name as assunto_name, COUNT(frl.id) as count
+       FROM flashcard_review_log frl
+       JOIN flashcards f ON frl.flashcard_id = f.id
+       JOIN assuntos a ON f.assunto_id = a.id
+       WHERE f.creator_id = $1 AND f.discipline_id = $2
+       GROUP BY a.name ORDER BY count DESC;`,
+      [professor_id, discipline_id]
+    );
+    const reviewsBySubject = reviewsBySubjectRes.rows.map(row => ({
+      name: row.assunto_name,
+      count: parseInt(row.count, 10)
+    }));
+
+    // Student Analysis
+    const studentAnalysisRes = await db.query(
+        `SELECT
+            u.id AS student_id,
+            u.nome AS student_name,
+            u.numero_mecanografico AS student_numero,
+            COUNT(frl.id) AS total_reviews,
+            COALESCE(AVG(frl.rating), 0) AS avg_rating,
+            COALESCE(AVG(fms.difficulty), 0) AS avg_difficulty,
+            COALESCE(AVG(fms.stability), 0) AS avg_stability,
+            COUNT(CASE WHEN frl.rating = 1 THEN 1 ELSE NULL END) AS total_lapses,
+            COALESCE(AVG(frl.time_spent), 0) AS avg_time_spent
+        FROM users u
+        LEFT JOIN (
+            SELECT frl.*
+            FROM flashcard_review_log frl
+            JOIN flashcards f ON frl.flashcard_id = f.id
+            WHERE f.creator_id = $1 AND f.discipline_id = $2
+        ) frl ON u.id = frl.student_id
+        LEFT JOIN (
+            SELECT fms.*
+            FROM flashcard_memory_state fms
+            JOIN flashcards f ON fms.flashcard_id = f.id
+            WHERE f.creator_id = $1 AND f.discipline_id = $2
+        ) fms ON u.id = fms.student_id AND frl.flashcard_id = fms.flashcard_id AND (frl.sub_id = fms.sub_id OR (frl.sub_id IS NULL AND fms.sub_id IS NULL))
+        WHERE u.tipo_utilizador = 'ALUNO'
+          AND EXISTS (SELECT 1 FROM aluno_disciplina ad JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id WHERE ad.aluno_id = u.id AND dt.disciplina_id = $2)
+        GROUP BY u.id, u.nome, u.numero_mecanografico
+        HAVING COUNT(frl.id) > 0;`,
+        [professor_id, discipline_id]
+    );
+
+    const studentAnalysis = studentAnalysisRes.rows.map(row => ({
+        id: row.student_id,
+        name: row.student_name,
+        numero: row.student_numero,
+        totalReviews: parseInt(row.total_reviews, 10),
+        avgRating: parseFloat(row.avg_rating).toFixed(2),
+        avgDifficulty: parseFloat(row.avg_difficulty).toFixed(2),
+        avgStability: parseFloat(row.avg_stability).toFixed(0),
+        totalLapses: parseInt(row.total_lapses, 10),
+        avgTimeSpent: parseFloat(row.avg_time_spent).toFixed(0),
+        status: getStudentStatus(parseFloat(row.avg_rating), parseFloat(row.avg_difficulty), parseInt(row.total_lapses, 10), parseInt(row.total_reviews, 10)),
+    }));
+
+    // Subject Analysis
+    const assuntoAnalysisRes = await db.query(
+        `SELECT
+            a.id AS assunto_id,
+            a.name AS assunto_name,
+            COUNT(frl.id) AS total_reviews,
+            COALESCE(AVG(frl.rating), 0) AS avg_rating,
+            COALESCE(AVG(fms.difficulty), 0) AS avg_difficulty,
+            COUNT(DISTINCT CASE WHEN frl.rating = 1 THEN frl.student_id ELSE NULL END) AS struggling_students_count
+        FROM assuntos a
+        JOIN flashcards f ON a.id = f.assunto_id
+        LEFT JOIN flashcard_review_log frl ON f.id = frl.flashcard_id
+        LEFT JOIN flashcard_memory_state fms ON f.id = fms.flashcard_id AND (frl.student_id = fms.student_id OR frl.student_id IS NULL) AND (frl.sub_id = fms.sub_id OR (frl.sub_id IS NULL AND fms.sub_id IS NULL))
+        WHERE f.creator_id = $1 AND f.discipline_id = $2
+        GROUP BY a.id, a.name
+        HAVING COUNT(frl.id) > 0;`,
+        [professor_id, discipline_id]
+    );
+
+    const assuntoAnalysis = assuntoAnalysisRes.rows.map(row => ({
+        id: row.assunto_id,
+        name: row.assunto_name,
+        totalReviews: parseInt(row.total_reviews, 10),
+        avgRating: parseFloat(row.avg_rating).toFixed(2),
+        avgDifficulty: parseFloat(row.avg_difficulty).toFixed(2),
+        strugglingStudents: parseInt(row.struggling_students_count, 10),
+    }));
+
+
     res.json({
       success: true,
       data: {
@@ -745,6 +906,8 @@ const getProfessorAnalytics = async (req, res) => {
         ratingDistribution,
         flashcardsBySubject,
         reviewsBySubject,
+        studentAnalysis, // New data
+        assuntoAnalysis, // New data
       }
     });
 
