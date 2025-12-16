@@ -54,8 +54,8 @@ CREATE INDEX IF NOT EXISTS idx_review_log_student_date ON flashcard_review_log(s
 -- Trigger updated_at
 CREATE TRIGGER update_flashcards_updated_at
     BEFORE UPDATE ON flashcards
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    FOR EACH ROW EXECUTE FUNCTION update_generic_updated_at_column();
 
 CREATE TRIGGER update_memory_state_updated_at
     BEFORE UPDATE ON flashcard_memory_state
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    FOR EACH ROW EXECUTE FUNCTION update_generic_updated_at_column();

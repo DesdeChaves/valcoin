@@ -87,6 +87,20 @@ $$;
 
 ALTER FUNCTION public.update_updated_at_column() OWNER TO "user";
 
+--
+-- Name: update_generic_updated_at_column(); Type: FUNCTION; Schema: public; Owner: user
+--
+CREATE FUNCTION public.update_generic_updated_at_column() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+ALTER FUNCTION public.update_generic_updated_at_column() OWNER TO "user";
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;

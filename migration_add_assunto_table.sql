@@ -16,7 +16,7 @@ CREATE INDEX IF NOT EXISTS idx_assuntos_discipline ON public.assuntos(discipline
 -- Trigger for updated_at
 CREATE TRIGGER update_assuntos_updated_at
     BEFORE UPDATE ON public.assuntos
-    FOR EACH ROW EXECUTE PROCEDURE public.update_updated_at_column();
+    FOR EACH ROW EXECUTE PROCEDURE public.update_generic_updated_at_column();
 
 -- 2. Add 'assunto_id' to the 'flashcards' table
 ALTER TABLE public.flashcards
