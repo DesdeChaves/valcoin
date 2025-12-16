@@ -12,8 +12,12 @@ const MemoriaStudentPage = () => {
   const [stats, setStats] = useState({ total: 0, reviewed: 0 });
   const [showHint, setShowHint] = useState(false);
   const [currentHintIndex, setCurrentHintIndex] = useState(0);
+  const [minReviewTime, setMinReviewTime] = useState(10); // Default minimum time
+  const [maxReviewTime, setMaxReviewTime] = useState(60); // Default maximum time
+  const [currentElapsedTime, setCurrentElapsedTime] = useState(0); // Track elapsed time for current card
   
   const canvasRef = useRef(null);
+  const startTimeRef = useRef(null); // Ref to store the start time of the card review
 
   useEffect(() => {
     loadDailyDeck();
@@ -25,6 +29,56 @@ const MemoriaStudentPage = () => {
     }
   }, [currentCard, isFlipped]);
 
+  useEffect(() => {
+    const fetchReviewTimePercentiles = async () => {
+      if (currentCard) {
+        try {
+          const response = await api.get(`/flashcards/${currentCard.flashcard_id}/review-times-percentiles`);
+          const { min_time_seconds, max_time_seconds } = response.data.data;
+          setMinReviewTime(min_time_seconds);
+          setMaxReviewTime(max_time_seconds);
+        } catch (err) {
+          console.error('Erro ao buscar percentis de tempo de revisão:', err);
+          // Fallback to defaults on error
+          setMinReviewTime(10);
+          setMaxReviewTime(60);
+        }
+      } else {
+        // Reset to defaults if no current card
+        setMinReviewTime(10);
+        setMaxReviewTime(60);
+      }
+    };
+
+    fetchReviewTimePercentiles();
+  }, [currentCard]);
+
+  // Timer for elapsed time
+  useEffect(() => {
+    let timer;
+    if (isFlipped && currentCard) {
+      timer = setInterval(() => {
+        setCurrentElapsedTime(prevTime => {
+          const newTime = prevTime + 1;
+          // Check if maxReviewTime is exceeded
+          if (newTime > maxReviewTime) {
+            clearInterval(timer); // Stop the timer
+            if (currentCard && isFlipped) { // Only register if still on the same card and flipped
+              console.log('Tempo excedido! Avaliação automática: Again');
+              handleRating(1);
+            }
+            return prevTime; // Do not increment further
+          }
+          return newTime;
+        });
+      }, 1000);
+    } else {
+      setCurrentElapsedTime(0); // Reset timer when card is not flipped or no card
+    }
+    return () => clearInterval(timer); // Cleanup on unmount or dependency change
+  }, [isFlipped, currentCard, maxReviewTime, handleRating]);
+
+
   const loadDailyDeck = async () => {
     try {
       const response = await api.get('/fila-diaria');
@@ -32,6 +86,7 @@ const MemoriaStudentPage = () => {
       setStats(prev => ({ ...prev, total: response.data.data.total }));
       if (response.data.data.cards.length > 0) {
         setCurrentCard(response.data.data.cards[0]);
+        startTimeRef.current = Date.now(); // Start timer for the first card
       }
     } catch (err) {
       console.error('Erro ao carregar deck:', err);
@@ -84,14 +139,18 @@ const MemoriaStudentPage = () => {
     img.src = currentCard.image_url;
   };
 
-  const handleRating = async (rating) => {
-    if (!currentCard) return;
+  const handleRating = useCallback(async (rating) => {
+    if (!currentCard || !startTimeRef.current) return;
+
+    const endTime = Date.now();
+    const time_spent = Math.round((endTime - startTimeRef.current) / 1000); // in seconds
 
     try {
       await api.post('/revisao', {
         flashcard_id: currentCard.flashcard_id,
         sub_id: currentCard.sub_id,
-        rating
+        rating,
+        time_spent // Add this
       });
 
       setStats(prev => ({ ...prev, reviewed: prev.reviewed + 1 }));
@@ -100,7 +159,7 @@ const MemoriaStudentPage = () => {
       console.error('Erro ao registar revisão:', err);
       alert('Erro ao guardar revisão');
     }
-  };
+  }, [currentCard, startTimeRef]);
 
   const nextCard = () => {
     setIsFlipped(false);
@@ -109,10 +168,14 @@ const MemoriaStudentPage = () => {
     const remaining = deck.slice(1);
     setDeck(remaining);
     setCurrentCard(remaining[0] || null);
+    if (remaining[0]) {
+      startTimeRef.current = Date.now(); // Start timer for the new card
+    }
   };
 
   const handleFlip = () => {
     setIsFlipped(true);
+    setCurrentElapsedTime(0); // Reset timer for this card
   };
 
   const handleShowHint = () => {
@@ -326,42 +389,58 @@ const MemoriaStudentPage = () => {
 
         {/* Botões de Avaliação */}
         {isFlipped && currentCard && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            <button
-              onClick={() => handleRating(1)}
-              className="flex flex-col items-center gap-2 px-6 py-5 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-            >
-              <XCircle className="w-8 h-8" />
-              <span className="font-bold text-lg">Again</span>
-              <span className="text-sm opacity-90">&lt; 1 dia</span>
-            </button>
+          <div className="max-w-4xl mx-auto text-center">
+            {currentElapsedTime < minReviewTime && (
+              <p className="text-xl text-gray-600 mb-4 animate-pulse">
+                Aguarde {minReviewTime - currentElapsedTime} segundos para avaliar...
+              </p>
+            )}
 
-            <button
-              onClick={() => handleRating(2)}
-              className="flex flex-col items-center gap-2 px-6 py-5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-            >
-              <AlertCircle className="w-8 h-8" />
-              <span className="font-bold text-lg">Hard</span>
-              <span className="text-sm opacity-90">Difícil</span>
-            </button>
+            {currentElapsedTime >= minReviewTime && currentElapsedTime <= maxReviewTime && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button
+                  onClick={() => handleRating(1)}
+                  className="flex flex-col items-center gap-2 px-6 py-5 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                >
+                  <XCircle className="w-8 h-8" />
+                  <span className="font-bold text-lg">Again</span>
+                  <span className="text-sm opacity-90">&lt; 1 dia</span>
+                </button>
 
-            <button
-              onClick={() => handleRating(3)}
-              className="flex flex-col items-center gap-2 px-6 py-5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-            >
-              <CheckCircle className="w-8 h-8" />
-              <span className="font-bold text-lg">Good</span>
-              <span className="text-sm opacity-90">Bom</span>
-            </button>
+                <button
+                  onClick={() => handleRating(2)}
+                  className="flex flex-col items-center gap-2 px-6 py-5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                >
+                  <AlertCircle className="w-8 h-8" />
+                  <span className="font-bold text-lg">Hard</span>
+                  <span className="text-sm opacity-90">Difícil</span>
+                </button>
 
-            <button
-              onClick={() => handleRating(4)}
-              className="flex flex-col items-center gap-2 px-6 py-5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-            >
-              <Brain className="w-8 h-8" />
-              <span className="font-bold text-lg">Easy</span>
-              <span className="text-sm opacity-90">Fácil</span>
-            </button>
+                <button
+                  onClick={() => handleRating(3)}
+                  className="flex flex-col items-center gap-2 px-6 py-5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                >
+                  <CheckCircle className="w-8 h-8" />
+                  <span className="font-bold text-lg">Good</span>
+                  <span className="text-sm opacity-90">Bom</span>
+                </button>
+
+                <button
+                  onClick={() => handleRating(4)}
+                  className="flex flex-col items-center gap-2 px-6 py-5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                >
+                  <Brain className="w-8 h-8" />
+                  <span className="font-bold text-lg">Easy</span>
+                  <span className="text-sm opacity-90">Fácil</span>
+                </button>
+              </div>
+            )}
+
+            {currentElapsedTime > maxReviewTime && (
+              <p className="text-xl text-red-600 mb-4">
+                Tempo de resposta excedido. Por favor, seja mais rápido na próxima!
+              </p>
+            )}
           </div>
         )}
 

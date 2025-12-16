@@ -7,8 +7,9 @@ const {
   criarFlashcard,
   listarFlashcardsProfessor,
   obterFilaDiaria,
-  registarRevisao
-  // Adicionar mais controllers aqui quando implementares (editar, apagar, stats, etc.)
+  registarRevisao,
+  uploadImage,
+  getFlashcardReviewTimePercentiles
 } = require('./memoria.controller');
 
 const {
@@ -16,8 +17,22 @@ const {
   validarOwnershipFlashcard
 } = require('./memoria.middleware');
 
-// Middlewares globais já definidos no server principal
-// Serão aplicados no valcoin_server.js: authenticateJWT + role checks
+const { getProfessorDisciplinaTurma } = require('../disciplina_turma');
+const upload = require('./memoria.uploads');
+
+/**
+ * GET /api/memoria/disciplina_turma/professor/me
+ * Obter as disciplinas do professor autenticado
+ */
+router.get(
+  '/disciplina_turma/professor/me',
+  (req, res) => {
+    // We need to create a new req object for getProfessorDisciplinaTurma
+    const newReq = { ...req, params: { professorId: req.user.id } };
+    return getProfessorDisciplinaTurma(newReq, res);
+  }
+);
+
 
 // ============================================================================
 // ROTAS PARA PROFESSORES
@@ -42,6 +57,16 @@ router.post(
 router.get(
   '/flashcards',
   listarFlashcardsProfessor
+);
+
+/**
+ * POST /api/memoria/upload-image
+ * Fazer upload de uma imagem para o flashcard de oclusão de imagem
+ */
+router.post(
+    '/upload-image',
+    upload.single('image'),
+    uploadImage
 );
 
 // Futuras rotas de professor (quando implementares)
@@ -72,6 +97,15 @@ router.get(
 router.post(
   '/revisao',
   registarRevisao
+);
+
+/**
+ * GET /api/memoria/flashcards/:id/review-times-percentiles
+ * Obter percentis de tempo de revisão para um flashcard específico
+ */
+router.get(
+  '/flashcards/:id/review-times-percentiles',
+  getFlashcardReviewTimePercentiles
 );
 
 // ============================================================================
