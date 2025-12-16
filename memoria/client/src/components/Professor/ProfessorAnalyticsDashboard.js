@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../api';
 
 const ProfessorAnalyticsDashboard = () => {
+  console.log("ProfessorAnalyticsDashboard is rendering."); // Added for debugging
   const [analyticsData, setAnalyticsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

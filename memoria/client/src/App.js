@@ -20,6 +20,8 @@ function App() {
     }
   }, [user, loading]);
 
+  console.log("App.js - user.tipo_utilizador:", user?.tipo_utilizador); // Added for debugging
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
