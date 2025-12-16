@@ -9,7 +9,10 @@ const {
   obterFilaDiaria,
   registarRevisao,
   uploadImage,
-  getFlashcardReviewTimePercentiles
+  getFlashcardReviewTimePercentiles,
+  getAssuntos,
+  editarFlashcard,
+  apagarFlashcard,
 } = require('./memoria.controller');
 
 const {
@@ -60,6 +63,38 @@ router.get(
 );
 
 /**
+ * PUT /api/memoria/flashcards/:id
+ * Editar um flashcard existente
+ */
+router.put(
+    '/flashcards/:id',
+    validarOwnershipFlashcard,
+    editarFlashcard
+);
+
+/**
+ * DELETE /api/memoria/flashcards/:id
+ * Apagar um flashcard
+ */
+router.delete(
+    '/flashcards/:id',
+    validarOwnershipFlashcard,
+    apagarFlashcard
+);
+
+
+/**
+ * GET /api/memoria/assuntos/disciplina/:discipline_id
+ * Obter todos os assuntos de uma disciplina
+ */
+router.get(
+    '/assuntos/disciplina/:discipline_id',
+    validarProfessorDisciplina, // Valida se o professor tem acesso a esta disciplina
+    getAssuntos
+);
+
+
+/**
  * POST /api/memoria/upload-image
  * Fazer upload de uma imagem para o flashcard de oclusão de imagem
  */
@@ -70,8 +105,6 @@ router.post(
 );
 
 // Futuras rotas de professor (quando implementares)
-// router.put('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, editarFlashcard);
-// router.delete('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, apagarFlashcard);
 // router.get('/estatisticas/disciplina/:id', ...);
 
 // ============================================================================

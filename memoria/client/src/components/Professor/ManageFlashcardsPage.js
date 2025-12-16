@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import { format } from 'date-fns';
+import EditFlashcardModal from './EditFlashcardModal';
 
 const ManageFlashcardsPage = () => {
   const [disciplines, setDisciplines] = useState([]);
@@ -8,6 +9,9 @@ const ManageFlashcardsPage = () => {
   const [flashcards, setFlashcards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editingFlashcard, setEditingFlashcard] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
 
   useEffect(() => {
     const fetchDisciplines = async () => {
@@ -57,10 +61,30 @@ const ManageFlashcardsPage = () => {
     if (!window.confirm('Tens a certeza que queres eliminar este flashcard?')) return;
 
     try {
-      // Futura rota: await api.delete(`/flashcards/${id}`);
+      await api.delete(`/flashcards/${id}`);
       setFlashcards(prev => prev.filter(f => f.id !== id));
     } catch (err) {
-      alert('Erro ao eliminar (funcionalidade futura)');
+      alert('Erro ao eliminar o flashcard.');
+    }
+  };
+
+  const handleOpenEditModal = (card) => {
+    setEditingFlashcard(card);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    setEditingFlashcard(null);
+    setIsEditModalOpen(false);
+  };
+
+  const handleSaveFlashcard = async (updatedCard) => {
+    try {
+        await api.put(`/flashcards/${updatedCard.id}`, updatedCard);
+        fetchFlashcards(); // Re-fetch to get the updated list
+        handleCloseEditModal();
+    } catch (err) {
+        alert('Erro ao guardar as alterações.');
     }
   };
 
@@ -157,13 +181,22 @@ const ManageFlashcardsPage = () => {
                     <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium capitalize">
                     {card.type.replace('_', ' ')}
                     </span>
-                    <button
-                    onClick={() => handleDeleteFlashcard(card.id)}
-                    className="text-red-500 hover:text-red-700 font-bold text-xl"
-                    title="Eliminar"
-                    >
-                    ×
-                    </button>
+                    <div>
+                        <button
+                            onClick={() => handleOpenEditModal(card)}
+                            className="text-blue-500 hover:text-blue-700 font-bold text-xl mr-2"
+                            title="Editar"
+                        >
+                            ✏️
+                        </button>
+                        <button
+                            onClick={() => handleDeleteFlashcard(card.id)}
+                            className="text-red-500 hover:text-red-700 font-bold text-xl"
+                            title="Eliminar"
+                        >
+                            ×
+                        </button>
+                    </div>
                 </div>
 
                 <div className="mb-4">
@@ -171,6 +204,7 @@ const ManageFlashcardsPage = () => {
                 </div>
 
                 <div className="text-sm text-gray-600 space-y-1">
+                    {card.assunto_name && <p><strong>Assunto:</strong> {card.assunto_name}</p>}
                     <p><strong>Data:</strong> {format(new Date(card.scheduled_date), 'dd/MM/yyyy')}</p>
                     <p><strong>Criado:</strong> {format(new Date(card.created_at), 'dd/MM/yyyy')}</p>
                     {card.hints?.length > 0 && <p><strong>Dicas:</strong> {card.hints.length}</p>}
@@ -178,6 +212,14 @@ const ManageFlashcardsPage = () => {
                 </div>
             ))}
             </div>
+        )}
+        
+        {isEditModalOpen && (
+            <EditFlashcardModal
+                flashcard={editingFlashcard}
+                onClose={handleCloseEditModal}
+                onSave={handleSaveFlashcard}
+            />
         )}
     </div>
   );

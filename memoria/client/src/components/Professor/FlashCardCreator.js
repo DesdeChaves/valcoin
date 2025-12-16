@@ -14,6 +14,8 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
   const [masks, setMasks] = useState([]); // [{ id, label, x, y, width, height }]
   const [hints, setHints] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
+  const [assuntoName, setAssuntoName] = useState('');
+  const [assuntosList, setAssuntosList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -25,6 +27,21 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
   const [currentMask, setCurrentMask] = useState(null);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!disciplineId) return;
+
+    const fetchAssuntos = async () => {
+      try {
+        const response = await api.get(`/assuntos/disciplina/${disciplineId}`);
+        setAssuntosList(response.data.data);
+      } catch (err) {
+        console.error('Erro ao carregar assuntos:', err);
+      }
+    };
+
+    fetchAssuntos();
+  }, [disciplineId]);
   
   const onDrop = useCallback(async (acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -105,7 +122,8 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
       discipline_id: disciplineId,
       type,
       hints: hints.split('\n').filter(h => h.trim()),
-      scheduled_date: scheduledDate
+      scheduled_date: scheduledDate,
+      assunto_name: assuntoName,
     };
 
     if (type === 'basic') {
@@ -134,6 +152,7 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
       // Reset form
       setFront(''); setBack(''); setClozeText(''); setImageUrl(''); setMasks([]); setHints(''); 
       setScheduledDate('');
+      setAssuntoName('');
       if (onSuccess) onSuccess();
     } catch (err) {
       setError(err.response?.data?.message || 'Erro ao criar flashcard');
@@ -342,8 +361,8 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
           </div>
         )}
 
-        {/* Dicas e Data */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Dicas e Data e Assunto */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <label className="block font-semibold text-gray-700 mb-3">Dicas (opcional, uma por linha)</label>
             <textarea
@@ -365,6 +384,25 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
             />
             <p className="text-sm text-gray-600 mt-2">
               Os alunos só verão este flashcard a partir desta data.
+            </p>
+          </div>
+          <div>
+            <label className="block font-semibold text-gray-700 mb-3">Assunto (opcional)</label>
+            <input
+              type="text"
+              list="assuntos-list"
+              value={assuntoName}
+              onChange={e => setAssuntoName(e.target.value)}
+              className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-indigo-500 text-lg"
+              placeholder="Ex: Biologia Celular"
+            />
+            <datalist id="assuntos-list">
+              {assuntosList.map(assunto => (
+                <option key={assunto.id} value={assunto.name} />
+              ))}
+            </datalist>
+            <p className="text-sm text-gray-600 mt-2">
+              Podes escolher um assunto existente ou criar um novo.
             </p>
           </div>
         </div>

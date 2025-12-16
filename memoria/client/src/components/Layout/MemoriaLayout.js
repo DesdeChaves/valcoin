@@ -20,8 +20,8 @@ const MemoriaLayout = ({ user, onLogout }) => {
 
   const professorLinks = [
     { path: '/dashboard', label: 'Dashboard', icon: Brain, tab: null },
-    { path: '/dashboard?tab=create', label: 'Criar Flashcard', icon: PlusCircle, tab: 'create' },
-    { path: '/dashboard?tab=manage', label: 'Gerir Flashcards', icon: List, tab: 'manage' },
+    { path: '/create', label: 'Criar Flashcard', icon: PlusCircle, tab: 'create' },
+    { path: '/manage', label: 'Gerir Flashcards', icon: List, tab: 'manage' },
   ];
 
   const alunoLinks = [

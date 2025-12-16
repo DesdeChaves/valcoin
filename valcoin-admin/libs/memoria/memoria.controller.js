@@ -2,10 +2,12 @@
 
 const db = require('../db');
 const { MemoriaScheduler } = require('./memoria.scheduler');
+const { findOrCreateAssunto, getAssuntosByDisciplina } = require('./assuntos');
 const axios = require('axios');
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
+
 
 /**
  * Scheduler FSRS global (podes mais tarde personalizar por aluno ou escola)
@@ -27,7 +29,8 @@ const criarFlashcard = async (req, res) => {
       image_url,
       occlusion_data,
       hints = [],
-      scheduled_date
+      scheduled_date,
+      assunto_name, // New field
     } = req.body;
 
     const creator_id = req.user.id;
@@ -80,11 +83,17 @@ const criarFlashcard = async (req, res) => {
       }
     }
 
+    let assunto_id = null;
+    if (assunto_name) {
+        const assunto = await findOrCreateAssunto(assunto_name, discipline_id);
+        assunto_id = assunto.id;
+    }
+
     const result = await db.query(
       `INSERT INTO flashcards 
-       (discipline_id, creator_id, type, front, back, cloze_text, image_url, occlusion_data, hints, scheduled_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, type, front, back, cloze_text, image_url, occlusion_data, hints, scheduled_date, created_at`,
+       (discipline_id, creator_id, type, front, back, cloze_text, image_url, occlusion_data, hints, scheduled_date, assunto_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id, type, front, back, cloze_text, image_url, occlusion_data, hints, scheduled_date, created_at, assunto_id`,
       [
         discipline_id,
         creator_id,
@@ -95,7 +104,8 @@ const criarFlashcard = async (req, res) => {
         type === 'image_occlusion' ? image_url : null,
         type === 'image_occlusion' ? JSON.stringify(occlusion_data) : null,
         hints,
-        scheduled_date
+        scheduled_date,
+        assunto_id,
       ]
     );
 
@@ -126,9 +136,11 @@ const listarFlashcardsProfessor = async (req, res) => {
       SELECT 
         f.id, f.type, f.front, f.back, f.cloze_text, f.image_url, 
         f.occlusion_data, f.hints, f.scheduled_date, f.active, f.created_at,
-        s.nome as discipline_name
+        s.nome as discipline_name,
+        a.name as assunto_name
       FROM flashcards f
       JOIN subjects s ON s.id = f.discipline_id
+      LEFT JOIN assuntos a ON a.id = f.assunto_id
       WHERE f.creator_id = $1 AND f.active = true
     `;
     const params = [professor_id];
@@ -154,6 +166,108 @@ const listarFlashcardsProfessor = async (req, res) => {
       message: 'Erro ao listar flashcards'
     });
   }
+};
+
+
+const editarFlashcard = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            discipline_id,
+            type,
+            front,
+            back,
+            cloze_text,
+            image_url,
+            occlusion_data,
+            hints,
+            scheduled_date,
+            assunto_name,
+        } = req.body;
+
+        let assunto_id = null;
+        if (assunto_name) {
+            const assunto = await findOrCreateAssunto(assunto_name, discipline_id);
+            assunto_id = assunto.id;
+        }
+
+        const result = await db.query(
+            `UPDATE flashcards SET
+                type = $1,
+                front = $2,
+                back = $3,
+                cloze_text = $4,
+                image_url = $5,
+                occlusion_data = $6,
+                hints = $7,
+                scheduled_date = $8,
+                assunto_id = $9,
+                updated_at = NOW()
+            WHERE id = $10
+            RETURNING *`,
+            [
+                type,
+                type === 'basic' ? front : null,
+                type === 'basic' ? back : null,
+                type === 'cloze' ? cloze_text : null,
+                type === 'image_occlusion' ? image_url : null,
+                type === 'image_occlusion' ? JSON.stringify(occlusion_data) : null,
+                hints,
+                scheduled_date,
+                assunto_id,
+                id
+            ]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Erro ao editar flashcard:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao editar flashcard'
+        });
+    }
+};
+
+const apagarFlashcard = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await db.query('DELETE FROM flashcards WHERE id = $1', [id]);
+
+        res.json({
+            success: true,
+            message: 'Flashcard apagado com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao apagar flashcard:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao apagar flashcard'
+        });
+    }
+};
+
+const getAssuntos = async (req, res) => {
+    try {
+        const { discipline_id } = req.params;
+        const assuntos = await getAssuntosByDisciplina(discipline_id);
+        res.json({
+            success: true,
+            data: assuntos
+        });
+    } catch (error) {
+        console.error('Erro ao obter assuntos:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao obter assuntos'
+        });
+    }
 };
 
 /**
@@ -547,5 +661,8 @@ module.exports = {
   obterFilaDiaria,
   registarRevisao,
   uploadImage,
-  getFlashcardReviewTimePercentiles
+  getFlashcardReviewTimePercentiles,
+  getAssuntos,
+  editarFlashcard,
+  apagarFlashcard,
 };
