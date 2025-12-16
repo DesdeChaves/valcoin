@@ -1,22 +1,21 @@
 // src/App.js
 
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './components/Login.js'; // se quiseres login próprio, ou usar o global
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import Login from './components/Login.js';
 import MemoriaLayout from './components/Layout/MemoriaLayout';
 import MemoriaProfessorDashboard from './components/Professor/MemoriaProfessorDashboard';
 import MemoriaStudentPage from './components/Student/MemoriaStudentPage';
 import useAuth from './hooks/useAuth';
+import CreateFlashcardPage from './components/Professor/CreateFlashcardPage';
+import ManageFlashcardsPage from './components/Professor/ManageFlashcardsPage';
 
 function App() {
   const { user, loading, logout } = useAuth();
 
-  // Redirecionar para login externo se não autenticado
-  // (assumindo que o token vem do sistema principal)
   useEffect(() => {
     if (!loading && !user) {
-      // Redireciona para o login principal da escola
-      window.location.href = 'http://localhost:3000/login'; // ajusta para o teu domínio
+      window.location.href = '/';
     }
   }, [user, loading]);
 
@@ -29,26 +28,37 @@ function App() {
   }
 
   if (!user) {
-    return null; // será redirecionado pelo useEffect
+    return null;
   }
 
   return (
-    <Router>
+    <Router basename="/memoria">
       <Routes>
-        {/* Rota principal com layout */}
         <Route
-          path="/"
-          element={<MemoriaLayout user={user} onLogout={logout} />}
+          path="/*"
+          element={
+            <MemoriaLayout user={user} onLogout={logout}>
+              <Outlet />
+            </MemoriaLayout>
+          }
         >
-          {/* Redireciona root para a página correta conforme o tipo */}
-          <Route index element={<Navigate to={user.tipo_utilizador === 'ALUNO' ? '/practice' : '/dashboard'} replace />} />
+          {/* Redireciona root para a página correta */}
+          <Route 
+            index 
+            element={
+              <Navigate 
+                to={user.tipo_utilizador === 'ALUNO' ? '/practice' : '/dashboard'} 
+                replace 
+              />
+            } 
+          />
 
           {/* Rotas Professor */}
           {user.tipo_utilizador === 'PROFESSOR' && (
             <>
-              <Route path="dashboard" element={<MemoriaProfessorDashboard />} />
-              <Route path="create" element={<MemoriaProfessorDashboard activeTab="create" />} />
-              <Route path="manage" element={<MemoriaProfessorDashboard activeTab="manage" />} />
+                <Route path="dashboard" element={<MemoriaProfessorDashboard />} />
+                <Route path="create" element={<CreateFlashcardPage />} />
+                <Route path="manage" element={<ManageFlashcardsPage />} />
             </>
           )}
 

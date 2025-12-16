@@ -13,7 +13,7 @@ const api = axios.create({
 
 // Interceptor para adicionar token JWT automaticamente
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken'); // ou onde guardas o token
+  const token = localStorage.getItem('authToken'); // ou onde guardas o token
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -27,7 +27,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
+      localStorage.removeItem('authToken');
       window.location.href = '/login'; // ou redirect para login global
     }
     return Promise.reject(error);

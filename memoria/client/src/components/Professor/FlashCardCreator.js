@@ -1,8 +1,9 @@
 // src/components/Professor/FlashCardCreator.js
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import api from '../../api';
 import { useNavigate } from 'react-router-dom';
+import { useDropzone } from 'react-dropzone';
 
 const FlashCardCreator = ({ disciplineId, onSuccess }) => {
   const [type, setType] = useState('basic');
@@ -16,6 +17,7 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
@@ -23,6 +25,38 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
   const [currentMask, setCurrentMask] = useState(null);
 
   const navigate = useNavigate();
+  
+  const onDrop = useCallback(async (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError('');
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const response = await api.post('/upload-image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setImageUrl(response.data.path);
+      setMasks([]);
+    } catch (err) {
+      setError('Erro ao fazer upload da imagem.');
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: 'image/*',
+    multiple: false
+  });
+
 
   // Redesenhar canvas sempre que masks ou currentMask mudam
   useEffect(() => {
@@ -243,19 +277,21 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
 
         {type === 'image_occlusion' && (
           <div className="space-y-6">
-            <div>
-              <label className="block font-semibold text-gray-700 mb-3">URL da Imagem</label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={e => {
-                  setImageUrl(e.target.value);
-                  setMasks([]);
-                }}
-                required
-                className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-indigo-500"
-                placeholder="https://exemplo.com/anatomia-coracao.jpg"
-              />
+            <div 
+              {...getRootProps()} 
+              className={`p-10 border-4 border-dashed rounded-2xl text-center cursor-pointer transition-colors
+                ${isDragActive ? 'border-indigo-600 bg-indigo-100' : 'border-gray-300 hover:border-indigo-400'}`}
+            >
+              <input {...getInputProps()} />
+              {uploading ? (
+                <p className="text-lg text-indigo-800">A enviar imagem...</p>
+              ) : isDragActive ? (
+                <p className="text-lg text-indigo-800">Larga a imagem aqui...</p>
+              ) : (
+                <p className="text-lg text-gray-600">
+                  Arrasta e larga uma imagem aqui, ou clica para selecionar
+                </p>
+              )}
             </div>
 
             {imageUrl && (
@@ -268,7 +304,6 @@ const FlashCardCreator = ({ disciplineId, onSuccess }) => {
                     onLoad={loadImage}
                     onError={() => alert('Erro ao carregar imagem')}
                     className="max-w-full h-auto block"
-                    crossOrigin="anonymous"
                   />
                   <canvas
                     ref={canvasRef}
