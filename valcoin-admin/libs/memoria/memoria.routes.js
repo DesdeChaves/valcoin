@@ -13,7 +13,7 @@ const {
   getAssuntos,
   editarFlashcard,
   apagarFlashcard,
-  getProfessorAnalytics, // New import
+  getProfessorAnalytics
 } = require('./memoria.controller');
 
 const {
@@ -21,136 +21,75 @@ const {
   validarOwnershipFlashcard
 } = require('./memoria.middleware');
 
-const { getProfessorDisciplinaTurma } = require('../disciplina_turma');
 const upload = require('./memoria.uploads');
+const db = require('../db'); // Necessário para a rota de disciplinas do professor
 
-/**
- * GET /api/memoria/disciplina_turma/professor/me
- * Obter as disciplinas do professor autenticado
- */
-router.get(
-  '/disciplina_turma/professor/me',
-  (req, res) => {
-    // We need to create a new req object for getProfessorDisciplinaTurma
-    const newReq = { ...req, params: { professorId: req.user.id } };
-    return getProfessorDisciplinaTurma(newReq, res);
+// ============================================================================
+// ROTA PARA OBTER AS DISCIPLINAS/TURMAS DO PROFESSOR AUTENTICADO
+// ============================================================================
+
+router.get('/disciplina_turma/professor/me', async (req, res) => {
+  try {
+    const professor_id = req.user.id;
+
+    const result = await db.query(`
+      SELECT 
+        dt.id AS disciplina_turma_id,
+        dt.disciplina_id,
+        s.nome AS disciplina_nome,
+        dt.turma_id,
+        t.nome AS turma_nome,
+        t.ano_letivo
+      FROM professor_disciplina_turma pdt
+      JOIN disciplina_turma dt ON dt.id = pdt.disciplina_turma_id
+      JOIN subjects s ON s.id = dt.disciplina_id
+      JOIN classes t ON t.id = dt.turma_id
+      WHERE pdt.professor_id = $1 
+        AND pdt.ativo = true 
+        AND dt.ativo = true
+      ORDER BY t.ano_letivo DESC, s.nome, t.nome
+    `, [professor_id]);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Erro ao obter disciplinas do professor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao carregar as tuas disciplinas'
+    });
   }
-);
-
+});
 
 // ============================================================================
 // ROTAS PARA PROFESSORES
 // ============================================================================
 
-/**
- * GET /api/memoria/analytics/disciplina/:discipline_id
- * Obter dados analíticos dos flashcards de um professor para uma disciplina
- */
-router.get(
-  '/analytics/disciplina/:discipline_id',
-  validarProfessorDisciplina,
-  getProfessorAnalytics
-);
+router.get('/analytics/disciplina/:discipline_id', validarProfessorDisciplina, getProfessorAnalytics);
 
-/**
- * POST /api/memoria/flashcards
- * Criar novo flashcard (basic, cloze ou image_occlusion)
- * Requer: professor que leciona a discipline_id
- */
-router.post(
-  '/flashcards',
-  validarProfessorDisciplina,        // verifica discipline_id no body
-  criarFlashcard
-);
+router.post('/flashcards', validarProfessorDisciplina, criarFlashcard);
 
-/**
- * GET /api/memoria/flashcards
- * Listar flashcards criados pelo professor autenticado
- * Opcional: ?discipline_id=uuid para filtrar
- */
-router.get(
-  '/flashcards',
-  listarFlashcardsProfessor
-);
+router.get('/flashcards', listarFlashcardsProfessor);
 
-/**
- * PUT /api/memoria/flashcards/:id
- * Editar um flashcard existente
- */
-router.put(
-    '/flashcards/:id',
-    validarOwnershipFlashcard,
-    editarFlashcard
-);
+router.put('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, editarFlashcard);
 
-/**
- * DELETE /api/memoria/flashcards/:id
- * Apagar um flashcard
- */
-router.delete(
-    '/flashcards/:id',
-    validarOwnershipFlashcard,
-    apagarFlashcard
-);
+router.delete('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, apagarFlashcard);
 
+router.get('/assuntos/disciplina/:discipline_id', validarProfessorDisciplina, getAssuntos);
 
-/**
- * GET /api/memoria/assuntos/disciplina/:discipline_id
- * Obter todos os assuntos de uma disciplina
- */
-router.get(
-    '/assuntos/disciplina/:discipline_id',
-    validarProfessorDisciplina, // Valida se o professor tem acesso a esta disciplina
-    getAssuntos
-);
-
-
-/**
- * POST /api/memoria/upload-image
- * Fazer upload de uma imagem para o flashcard de oclusão de imagem
- */
-router.post(
-    '/upload-image',
-    upload.single('image'),
-    uploadImage
-);
-
-// Futuras rotas de professor (quando implementares)
-// router.get('/estatisticas/disciplina/:id', ...);
+router.post('/upload-image', upload.single('image'), uploadImage);
 
 // ============================================================================
 // ROTAS PARA ALUNOS
 // ============================================================================
 
-/**
- * GET /api/memoria/fila-diaria
- * Obter flashcards devido hoje (misturados de todas as disciplinas)
- * Usa FSRS para calcular o que está devido
- */
-router.get(
-  '/fila-diaria',
-  obterFilaDiaria
-);
+router.get('/fila-diaria', obterFilaDiaria);
 
-/**
- * POST /api/memoria/revisao
- * Registar revisão de um flashcard
- * Body: { flashcard_id: uuid, sub_id: string|null, rating: 1-4 }
- * Atualiza estado FSRS e log
- */
-router.post(
-  '/revisao',
-  registarRevisao
-);
+router.post('/revisao', registarRevisao);
 
-/**
- * GET /api/memoria/flashcards/:id/review-times-percentiles
- * Obter percentis de tempo de revisão para um flashcard específico
- */
-router.get(
-  '/flashcards/:id/review-times-percentiles',
-  getFlashcardReviewTimePercentiles
-);
+router.get('/flashcards/:id/review-times-percentiles', getFlashcardReviewTimePercentiles);
 
 // ============================================================================
 

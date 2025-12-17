@@ -1,33 +1,34 @@
-// memoria/client/src/components/Professor/ProfessorAnalyticsDashboad.js
+// src/components/Professor/ProfessorAnalyticsDashboard.js
 
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
-import { Users, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'; // New imports
+import { Users, TrendingUp, TrendingDown, AlertTriangle, Brain, Clock, Target, BarChart3, Calendar, Award } from 'lucide-react';
 
 // Helper functions for student status display
 const getStatusColor = (status) => {
   switch (status) {
-    case 'excellent': return 'border-green-400 text-green-700 bg-green-50';
-    case 'good': return 'border-blue-400 text-blue-700 bg-blue-50';
-    case 'struggling': return 'border-orange-400 text-orange-700 bg-orange-50';
-    case 'inactive': return 'border-gray-400 text-gray-700 bg-gray-50';
-    default: return 'border-gray-400 text-gray-700 bg-gray-50';
+    case 'excellent': return 'bg-green-100 text-green-800 border-green-300';
+    case 'good': return 'bg-blue-100 text-blue-800 border-blue-300';
+    case 'struggling': return 'bg-red-100 text-red-800 border-red-300';
+    case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-300';
+    default: return 'bg-gray-100 text-gray-800 border-gray-300';
   }
 };
 
 const getStatusIcon = (status) => {
   switch (status) {
-    case 'excellent': return '⭐';
-    case 'good': return '👍';
-    case 'struggling': return '⚠️';
-    case 'inactive': return '💤';
-    default: return '';
+    case 'excellent': return <Award className="w-5 h-5" />;
+    case 'good': return <TrendingUp className="w-5 h-5" />;
+    case 'struggling': return <AlertTriangle className="w-5 h-5" />;
+    case 'inactive': return <Clock className="w-5 h-5" />;
+    default: return null;
   }
 };
 
 const ProfessorAnalyticsDashboard = () => {
-  console.log("ProfessorAnalyticsDashboard is rendering."); // Added for debugging
   const [analyticsData, setAnalyticsData] = useState(null);
+  const [studentAnalysis, setStudentAnalysis] = useState([]);
+  const [assuntoAnalysis, setAssuntoAnalysis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [disciplines, setDisciplines] = useState([]);
@@ -37,7 +38,7 @@ const ProfessorAnalyticsDashboard = () => {
     const fetchDisciplines = async () => {
       try {
         const response = await api.get('/disciplina_turma/professor/me');
-        const myDisciplines = response.data.map(dt => ({
+        const myDisciplines = response.data.data.map(dt => ({
           id: dt.disciplina_id,
           name: dt.disciplina_nome || `Disciplina ${dt.disciplina_id}`
         }));
@@ -64,6 +65,8 @@ const ProfessorAnalyticsDashboard = () => {
         try {
           const response = await api.get(`/analytics/disciplina/${selectedDiscipline}`);
           setAnalyticsData(response.data.data);
+          setStudentAnalysis(response.data.data.studentAnalysis || []);
+          setAssuntoAnalysis(response.data.data.assuntoAnalysis || []);
           setLoading(false);
         } catch (err) {
           console.error('Erro ao carregar analíticas:', err);
@@ -77,16 +80,22 @@ const ProfessorAnalyticsDashboard = () => {
 
   if (loading || disciplines.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-xl text-gray-600">A carregar analíticas...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="text-center">
+          <Brain className="w-16 h-16 text-indigo-600 mx-auto mb-4 animate-pulse" />
+          <p className="text-xl text-gray-600">A carregar analíticas...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-red-100 text-red-800">
-        <p className="text-xl">{error}</p>
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="text-center p-8 bg-white rounded-xl shadow-lg">
+          <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <p className="text-xl text-red-800">{error}</p>
+        </div>
       </div>
     );
   }
@@ -100,194 +109,98 @@ const ProfessorAnalyticsDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <header className="mb-12 text-center">
-        <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-blue-600 mb-4">
-          📊 Analíticas de Flashcards
-        </h1>
-        <p className="text-xl text-gray-700">Visão geral do desempenho e criação dos teus flashcards</p>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+      <div className="max-w-7xl mx-auto">
+        
+        {/* Header */}
+        <header className="mb-8">
+          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-2">
+            📊 Análise de Desempenho dos Alunos
+          </h1>
+          <p className="text-gray-600 text-lg">Dashboard de acompanhamento e insights pedagógicos</p>
+        </header>
 
-      {/* Discipline Selector */}
-      {disciplines.length > 0 && (
-        <div className="mb-10 flex flex-col sm:flex-row gap-6 items-center justify-center">
-          <label className="text-lg font-semibold text-gray-800">Disciplina:</label>
-          <select
-            value={selectedDiscipline || ''}
-            onChange={(e) => setSelectedDiscipline(e.target.value)}
-            className="px-6 py-3 bg-white border-2 border-indigo-300 rounded-xl shadow-md focus:border-indigo-600 focus:ring-4 focus:ring-indigo-200 transition text-lg"
-          >
-            {disciplines.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </div>
-      )}
+        {/* Discipline Selector */}
+        {disciplines.length > 0 && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <label className="text-lg font-semibold text-gray-800">Disciplina:</label>
+              <select
+                value={selectedDiscipline || ''}
+                onChange={(e) => setSelectedDiscipline(e.target.value)}
+                className="flex-1 max-w-md px-6 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-300 rounded-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              >
+                {disciplines.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
 
-const ProfessorAnalyticsDashboard = () => {
-  console.log("ProfessorAnalyticsDashboard is rendering."); // Added for debugging
-  const [analyticsData, setAnalyticsData] = useState(null);
-  const [studentAnalysis, setStudentAnalysis] = useState([]); // New state
-  const [assuntoAnalysis, setAssuntoAnalysis] = useState([]); // New state
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [disciplines, setDisciplines] = useState([]);
-  const [selectedDiscipline, setSelectedDiscipline] = useState('');
+        {/* General Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-indigo-500">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-gray-600 font-semibold">Total de Flashcards</h3>
+              <BarChart3 className="w-8 h-8 text-indigo-500" />
+            </div>
+            <p className="text-4xl font-bold text-indigo-900">{analyticsData.totalFlashcards || 0}</p>
+          </div>
 
-  useEffect(() => {
-    const fetchDisciplines = async () => {
-      try {
-        const response = await api.get('/disciplina_turma/professor/me');
-        const myDisciplines = response.data.map(dt => ({
-          id: dt.disciplina_id,
-          name: dt.disciplina_nome || `Disciplina ${dt.disciplina_id}`
-        }));
-        setDisciplines(myDisciplines);
-        if (myDisciplines.length > 0) {
-          setSelectedDiscipline(myDisciplines[0].id);
-        } else {
-          setError('Não encontradas disciplinas associadas.');
-        }
-      } catch (err) {
-        console.error('Erro ao carregar disciplinas:', err);
-        setError('Não foi possível carregar as tuas disciplinas.');
-      }
-    };
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-gray-600 font-semibold">Total de Revisões</h3>
+              <Target className="w-8 h-8 text-blue-500" />
+            </div>
+            <p className="text-4xl font-bold text-blue-900">{analyticsData.totalReviews || 0}</p>
+          </div>
 
-    fetchDisciplines();
-  }, []);
-
-  useEffect(() => {
-    if (selectedDiscipline) {
-      const fetchAnalytics = async () => {
-        setLoading(true);
-        setError('');
-        try {
-          const response = await api.get(`/analytics/disciplina/${selectedDiscipline}`);
-          setAnalyticsData(response.data.data);
-          setStudentAnalysis(response.data.data.studentAnalysis || []); // Map new data
-          setAssuntoAnalysis(response.data.data.assuntoAnalysis || []); // Map new data
-          setLoading(false);
-        } catch (err) {
-          console.error('Erro ao carregar analíticas:', err);
-          setError('Não foi possível carregar os dados de analíticas.');
-          setLoading(false);
-        }
-      };
-      fetchAnalytics();
-    }
-  }, [selectedDiscipline]);
-
-  if (loading || disciplines.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-xl text-gray-600">A carregar analíticas...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-red-100 text-red-800">
-        <p className="text-xl">{error}</p>
-      </div>
-    );
-  }
-
-  if (!analyticsData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-xl text-gray-600">Nenhum dado de analíticas disponível.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <header className="mb-12 text-center">
-        <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-700 to-blue-600 mb-4">
-          📊 Analíticas de Flashcards
-        </h1>
-        <p className="text-xl text-gray-700">Visão geral do desempenho e criação dos teus flashcards</p>
-      </header>
-
-      {/* Discipline Selector */}
-      {disciplines.length > 0 && (
-        <div className="mb-10 flex flex-col sm:flex-row gap-6 items-center justify-center">
-          <label className="text-lg font-semibold text-gray-800">Disciplina:</label>
-          <select
-            value={selectedDiscipline || ''}
-            onChange={(e) => setSelectedDiscipline(e.target.value)}
-            className="px-6 py-3 bg-white border-2 border-indigo-300 rounded-xl shadow-md focus:border-indigo-600 focus:ring-4 focus:ring-indigo-200 transition text-lg"
-          >
-            {disciplines.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {/* Total Flashcards */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center text-center">
-          <p className="text-5xl font-bold text-indigo-700">{analyticsData.totalFlashcards}</p>
-          <p className="text-gray-600 mt-2">Total de Flashcards Criados</p>
-        </div>
-
-        {/* Total Reviews */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center text-center">
-          <p className="text-5xl font-bold text-blue-700">{analyticsData.totalReviews}</p>
-          <p className="text-gray-600 mt-2">Total de Revisões Recebidas</p>
-        </div>
-
-        {/* Average Rating */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center text-center">
-          <p className="text-5xl font-bold text-green-700">{analyticsData.averageRating.toFixed(1)}</p>
-          <p className="text-gray-600 mt-2">Classificação Média</p>
-        </div>
-
-        {/* Rating Distribution */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-2xl font-semibold text-gray-800 mb-4">Distribuição de Classificações</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {Object.entries(analyticsData.ratingDistribution).map(([rating, count]) => (
-              <div key={rating} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="capitalize text-gray-700">{rating}</span>
-                <span className="font-bold text-lg text-indigo-600">{count}</span>
-              </div>
-            ))}
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-gray-600 font-semibold">Avaliação Média</h3>
+              <Award className="w-8 h-8 text-green-500" />
+            </div>
+            <p className="text-4xl font-bold text-green-900">
+              {analyticsData.averageRating ? analyticsData.averageRating.toFixed(1) : '0.0'}
+            </p>
+            <p className="text-sm text-gray-500 mt-1">de 4.0</p>
           </div>
         </div>
 
-        {/* Flashcards by Subject */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-2xl font-semibold text-gray-800 mb-4">Flashcards por Assunto</h3>
-          <ul>
-            {analyticsData.flashcardsBySubject.map(item => (
-              <li key={item.name} className="flex justify-between items-center py-2 border-b last:border-b-0">
-                <span className="text-gray-700">{item.name}</span>
-                <span className="font-bold text-lg text-indigo-600">{item.count}</span>
-              </li>
-            ))}
-          </ul>
+        {/* Rating Distribution & Flashcards by Subject */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {analyticsData.ratingDistribution && (
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-2xl font-semibold text-gray-800 mb-4">Distribuição de Classificações</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {Object.entries(analyticsData.ratingDistribution).map(([rating, count]) => (
+                  <div key={rating} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="capitalize text-gray-700">{rating}</span>
+                    <span className="font-bold text-lg text-indigo-600">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {analyticsData.flashcardsBySubject && analyticsData.flashcardsBySubject.length > 0 && (
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-2xl font-semibold text-gray-800 mb-4">Flashcards por Assunto</h3>
+              <ul className="space-y-2">
+                {analyticsData.flashcardsBySubject.map(item => (
+                  <li key={item.name} className="flex justify-between items-center py-2 border-b last:border-b-0">
+                    <span className="text-gray-700">{item.name}</span>
+                    <span className="font-bold text-lg text-indigo-600">{item.count}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
-        {/* Reviews by Subject */}
-        <div className="lg:col-span-3 bg-white rounded-2xl shadow-lg p-6">
-          <h3 className="text-2xl font-semibold text-gray-800 mb-4">Revisões por Assunto</h3>
-          <ul>
-            {analyticsData.reviewsBySubject.map(item => (
-              <li key={item.name} className="flex justify-between items-center py-2 border-b last:border-b-0">
-                <span className="text-gray-700">{item.name}</span>
-                <span className="font-bold text-lg text-blue-600">{item.count}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-        {/* Análise por Aluno */}
-        {studentAnalysis.length > 0 ? (
+        {/* Student Analysis Table */}
+        {studentAnalysis && studentAnalysis.length > 0 ? (
           <div className="bg-white rounded-xl shadow-xl p-6 mb-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
               <Users className="w-7 h-7 text-indigo-600" />
@@ -311,7 +224,7 @@ const ProfessorAnalyticsDashboard = () => {
                 <tbody>
                   {studentAnalysis.map((student, idx) => (
                     <tr 
-                      key={student.id} 
+                      key={student.id || idx} 
                       className={`border-b border-gray-200 hover:bg-indigo-50 transition ${idx % 2 === 0 ? 'bg-gray-50' : ''}`}
                     >
                       <td className="px-6 py-4">
@@ -321,30 +234,30 @@ const ProfessorAnalyticsDashboard = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="font-bold text-indigo-600">{student.totalReviews}</span>
+                        <span className="font-bold text-indigo-600">{student.totalReviews || 0}</span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`font-bold ${parseFloat(student.avgRating) >= 3.5 ? 'text-green-600' : parseFloat(student.avgRating) >= 2.5 ? 'text-yellow-600' : 'text-red-600'}`}>
-                          {student.avgRating}
+                          {student.avgRating || '0.0'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <span className="font-semibold">{student.avgDifficulty}</span>
+                          <span className="font-semibold">{student.avgDifficulty || '0.0'}</span>
                           {parseFloat(student.avgDifficulty) > 6 && <TrendingUp className="w-4 h-4 text-red-500" />}
                           {parseFloat(student.avgDifficulty) < 4 && <TrendingDown className="w-4 h-4 text-green-500" />}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="font-semibold text-blue-600">{student.avgStability}d</span>
+                        <span className="font-semibold text-blue-600">{student.avgStability || '0.0'}d</span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`font-bold ${student.totalLapses > 2 ? 'text-red-600' : 'text-gray-600'}`}>
-                          {student.totalLapses}
+                          {student.totalLapses || 0}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="text-gray-700">{student.avgTimeSpent}s</span>
+                        <span className="text-gray-700">{student.avgTimeSpent || 0}s</span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border-2 ${getStatusColor(student.status)}`}>
@@ -364,12 +277,12 @@ const ProfessorAnalyticsDashboard = () => {
         ) : (
           <div className="bg-white rounded-xl shadow-xl p-12 mb-8 text-center">
             <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-xl text-gray-600">Nenhum aluno encontrado para esta seleção</p>
+            <p className="text-xl text-gray-600">Nenhum dado de alunos disponível</p>
           </div>
         )}
 
-        {/* Análise por Assunto */}
-        {assuntoAnalysis.length > 0 && (
+        {/* Subject Analysis */}
+        {assuntoAnalysis && assuntoAnalysis.length > 0 && (
           <div className="bg-white rounded-xl shadow-xl p-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
               <Brain className="w-7 h-7 text-purple-600" />
@@ -377,35 +290,35 @@ const ProfessorAnalyticsDashboard = () => {
             </h2>
             
             <div className="space-y-4">
-              {assuntoAnalysis.map(assunto => (
-                <div key={assunto.id} className="border-2 border-gray-200 rounded-lg p-5 hover:border-purple-300 transition">
+              {assuntoAnalysis.map((assunto, idx) => (
+                <div key={assunto.id || idx} className="border-2 border-gray-200 rounded-lg p-5 hover:border-purple-300 transition">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-xl font-bold text-gray-800">{assunto.name}</h3>
-                    <span className="text-sm text-gray-500">{assunto.totalReviews} revisões</span>
+                    <span className="text-sm text-gray-500">{assunto.totalReviews || 0} revisões</span>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="bg-purple-50 rounded-lg p-3">
                       <p className="text-xs text-gray-600 mb-1">Dificuldade Média</p>
                       <p className={`text-2xl font-bold ${parseFloat(assunto.avgDifficulty) > 6 ? 'text-red-600' : parseFloat(assunto.avgDifficulty) > 4 ? 'text-yellow-600' : 'text-green-600'}`}>
-                        {assunto.avgDifficulty}
+                        {assunto.avgDifficulty || '0.0'}
                       </p>
                     </div>
                     
                     <div className="bg-blue-50 rounded-lg p-3">
                       <p className="text-xs text-gray-600 mb-1">Avaliação Média</p>
-                      <p className="text-2xl font-bold text-blue-600">{assunto.avgRating}</p>
+                      <p className="text-2xl font-bold text-blue-600">{assunto.avgRating || '0.0'}</p>
                     </div>
                     
                     <div className="bg-orange-50 rounded-lg p-3">
                       <p className="text-xs text-gray-600 mb-1">Alunos com Dificuldade</p>
-                      <p className="text-2xl font-bold text-orange-600">{assunto.strugglingStudents}</p>
+                      <p className="text-2xl font-bold text-orange-600">{assunto.strugglingStudents || 0}</p>
                     </div>
                     
                     <div className="bg-green-50 rounded-lg p-3">
                       <p className="text-xs text-gray-600 mb-1">Taxa de Sucesso</p>
                       <p className="text-2xl font-bold text-green-600">
-                        {((parseFloat(assunto.avgRating) / 4) * 100).toFixed(0)}%
+                        {assunto.avgRating ? ((parseFloat(assunto.avgRating) / 4) * 100).toFixed(0) : 0}%
                       </p>
                     </div>
                   </div>
@@ -426,8 +339,6 @@ const ProfessorAnalyticsDashboard = () => {
 
       </div>
     </div>
-  );
-};    </div>
   );
 };
 

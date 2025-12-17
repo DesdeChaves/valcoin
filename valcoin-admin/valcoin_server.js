@@ -347,7 +347,8 @@ const authorizeProfessor = (req, res, next) => {
   if (!req.user) {
     return res.sendStatus(401);
   }
-  if (req.user.tipo_utilizador !== 'PROFESSOR') {
+  const userType = req.user.tipo_utilizador ? req.user.tipo_utilizador.toUpperCase() : '';
+  if (userType !== 'PROFESSOR') {
     return res.sendStatus(403);
   }
   next();
