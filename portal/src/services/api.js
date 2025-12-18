@@ -96,6 +96,9 @@ export const getCriteriosSucessoStats = () =>
 export const getCompetenciasStats = () =>
   handleRequest(() => publicApiClient.get('/public/competencias/stats'), 'getCompetenciasStats');
 
+export const getMemoriaStats = () =>
+  handleRequest(() => publicApiClient.get('/public/memoria/global-stats'), 'getMemoriaStats');
+
 export const fetchCompetenciasEvolucaoPorDisciplina = () =>
   handleRequest(() => publicApiClient.get('/public/competencias/competencias-evolucao-por-disciplina'), 'fetchCompetenciasEvolucaoPorDisciplina');
 

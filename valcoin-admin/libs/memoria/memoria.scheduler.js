@@ -65,7 +65,7 @@ class MemoriaScheduler {
     }
 
     // Aplicar FSRS - retorna um objeto RecordLog
-    const schedulingCards = this.fsrs.repeat(card, now);
+    const schedulingCards = this.fsrs.repeat(card, new Date(now));
     
     // Obter o card correspondente ao rating (os valores do enum são 1,2,3,4)
     const recordLog = schedulingCards[fsrsRating];
@@ -78,6 +78,8 @@ class MemoriaScheduler {
 
     // Calcular intervalo em dias
     const intervalDays = Math.max(1, Math.round((nextDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
+    console.log('Value of now before toISOString:', now);
 
     return {
       card: {

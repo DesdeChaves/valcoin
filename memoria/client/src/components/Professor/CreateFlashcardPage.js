@@ -14,7 +14,8 @@ const CreateFlashcardPage = () => {
     const fetchDisciplines = async () => {
       try {
         const response = await api.get('/disciplina_turma/professor/me');
-        const myDisciplines = response.data.map(dt => ({
+        console.log(response);
+        const myDisciplines = response.data.data.map(dt => ({
           id: dt.disciplina_id,
           name: dt.disciplina_nome || `Disciplina ${dt.disciplina_id}`
         }));

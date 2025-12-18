@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
-import { Users, TrendingUp, TrendingDown, AlertTriangle, Brain, Clock, Target, BarChart3, Calendar, Award } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, AlertTriangle, Brain, Clock, Target, BarChart3, Calendar, Award, Info } from 'lucide-react';
 
 // Helper functions for student status display
 const getStatusColor = (status) => {
@@ -23,6 +23,59 @@ const getStatusIcon = (status) => {
     case 'inactive': return <Clock className="w-5 h-5" />;
     default: return null;
   }
+};
+
+// Componente Tooltip
+const Tooltip = ({ text, children, position = 'top' }) => {
+  const [visible, setVisible] = useState(false);
+
+  const getPositionClasses = () => {
+    switch (position) {
+      case 'top':
+        return '-top-2 left-1/2 transform -translate-x-1/2 -translate-y-full';
+      case 'bottom':
+        return 'top-8 left-1/2 transform -translate-x-1/2';
+      case 'left':
+        return 'top-1/2 right-8 transform -translate-y-1/2';
+      case 'right':
+        return 'top-1/2 left-8 transform -translate-y-1/2';
+      default:
+        return '-top-2 left-1/2 transform -translate-x-1/2 -translate-y-full';
+    }
+  };
+
+  const getArrowClasses = () => {
+    switch (position) {
+      case 'top':
+        return 'w-3 h-3 bg-gray-900 transform rotate-45 -bottom-1 left-1/2 -translate-x-1/2';
+      case 'bottom':
+        return 'w-3 h-3 bg-gray-900 transform rotate-45 -top-1 left-1/2 -translate-x-1/2';
+      case 'left':
+        return 'w-3 h-3 bg-gray-900 transform rotate-45 -right-1 top-1/2 -translate-y-1/2';
+      case 'right':
+        return 'w-3 h-3 bg-gray-900 transform rotate-45 -left-1 top-1/2 -translate-y-1/2';
+      default:
+        return 'w-3 h-3 bg-gray-900 transform rotate-45 -bottom-1 left-1/2 -translate-x-1/2';
+    }
+  };
+
+  return (
+    <div className="relative inline-block">
+      <div
+        onMouseEnter={() => setVisible(true)}
+        onMouseLeave={() => setVisible(false)}
+        className="cursor-help"
+      >
+        {children}
+      </div>
+      {visible && (
+        <div className={`absolute z-50 w-64 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-xl ${getPositionClasses()}`}>
+          <div className={`absolute ${getArrowClasses()}`}></div>
+          {text}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const ProfessorAnalyticsDashboard = () => {
@@ -212,13 +265,62 @@ const ProfessorAnalyticsDashboard = () => {
                 <thead>
                   <tr className="bg-gradient-to-r from-indigo-100 to-purple-100">
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Aluno</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">Revisões</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">Avaliação Média</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">Dificuldade</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">Estabilidade</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">Falhas</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">Tempo Médio</th>
-                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">Status</th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                      <div className="flex items-center justify-center gap-1">
+                        Revisões
+                        <Tooltip text="Número total de vezes que o aluno reviu flashcards nesta disciplina" position="bottom">
+                          <Info className="w-4 h-4 text-gray-500" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                      <div className="flex items-center justify-center gap-1">
+                        Avaliação Média
+                        <Tooltip text="Média das classificações dadas pelo aluno (1-Again, 2-Hard, 3-Good, 4-Easy). Valores mais altos indicam maior facilidade" position="bottom">
+                          <Info className="w-4 h-4 text-gray-500" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                      <div className="flex items-center justify-center gap-1">
+                        Dificuldade
+                        <Tooltip text="Dificuldade percebida pelo algoritmo FSRS (0-10). Valores mais altos indicam maior dificuldade para memorizar o conteúdo" position="bottom">
+                          <Info className="w-4 h-4 text-gray-500" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                      <div className="flex items-center justify-center gap-1">
+                        Estabilidade
+                        <Tooltip text="Tempo estimado (em dias) até o aluno esquecer o conteúdo. Valores mais altos indicam melhor retenção de memória" position="bottom">
+                          <Info className="w-4 h-4 text-gray-500" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                      <div className="flex items-center justify-center gap-1">
+                        Falhas
+                        <Tooltip text="Número de vezes que o aluno classificou um flashcard como 'Again' (não se lembrou). Indica conceitos que precisam de reforço" position="bottom">
+                          <Info className="w-4 h-4 text-gray-500" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                      <div className="flex items-center justify-center gap-1">
+                        Tempo Médio
+                        <Tooltip text="Tempo médio (em segundos) que o aluno leva para responder a cada flashcard" position="bottom">
+                          <Info className="w-4 h-4 text-gray-500" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                      <div className="flex items-center justify-center gap-1">
+                        Status
+                        <Tooltip text="Classificação geral: Excelente (ótimo desempenho), Bom (desempenho satisfatório), Dificuldade (precisa de apoio), Inativo (sem revisões)" position="bottom">
+                          <Info className="w-4 h-4 text-gray-500" />
+                        </Tooltip>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -299,24 +401,44 @@ const ProfessorAnalyticsDashboard = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="bg-purple-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Dificuldade Média</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-gray-600">Dificuldade Média</p>
+                        <Tooltip text="Dificuldade média percebida pelo algoritmo (0-10). >6 é difícil, 4-6 é médio, <4 é fácil">
+                          <Info className="w-3 h-3 text-gray-500" />
+                        </Tooltip>
+                      </div>
                       <p className={`text-2xl font-bold ${parseFloat(assunto.avgDifficulty) > 6 ? 'text-red-600' : parseFloat(assunto.avgDifficulty) > 4 ? 'text-yellow-600' : 'text-green-600'}`}>
                         {assunto.avgDifficulty || '0.0'}
                       </p>
                     </div>
                     
                     <div className="bg-blue-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Avaliação Média</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-gray-600">Avaliação Média</p>
+                        <Tooltip text="Classificação média dada pelos alunos (1-4). 4=Easy, 3=Good, 2=Hard, 1=Again">
+                          <Info className="w-3 h-3 text-gray-500" />
+                        </Tooltip>
+                      </div>
                       <p className="text-2xl font-bold text-blue-600">{assunto.avgRating || '0.0'}</p>
                     </div>
                     
                     <div className="bg-orange-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Alunos com Dificuldade</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-gray-600">Alunos com Dificuldade</p>
+                        <Tooltip text="Número de alunos que classificaram flashcards deste assunto como 'Again' (falha na memorização)">
+                          <Info className="w-3 h-3 text-gray-500" />
+                        </Tooltip>
+                      </div>
                       <p className="text-2xl font-bold text-orange-600">{assunto.strugglingStudents || 0}</p>
                     </div>
                     
                     <div className="bg-green-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-600 mb-1">Taxa de Sucesso</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-gray-600">Taxa de Sucesso</p>
+                        <Tooltip text="Percentagem calculada com base na avaliação média (avaliação/4 × 100). Indica o sucesso geral no assunto">
+                          <Info className="w-3 h-3 text-gray-500" />
+                        </Tooltip>
+                      </div>
                       <p className="text-2xl font-bold text-green-600">
                         {assunto.avgRating ? ((parseFloat(assunto.avgRating) / 4) * 100).toFixed(0) : 0}%
                       </p>

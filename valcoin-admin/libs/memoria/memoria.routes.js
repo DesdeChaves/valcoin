@@ -16,6 +16,8 @@ const {
   getProfessorAnalytics
 } = require('./memoria.controller');
 
+const { calculateGlobalFlashcardStatistics } = require('./memoria.analytics'); // <-- New import
+
 const {
   validarProfessorDisciplina,
   validarOwnershipFlashcard

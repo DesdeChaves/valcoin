@@ -167,6 +167,7 @@ const publicLegadosRouter = require('./libs/legados_public')();
 const publicHousesRouter = require('./libs/qualidade/houses_public')();
 const publicCriteriosSucessoRouter = require('./libs/qualidade/criterios_sucesso_public')();
 const publicCompetenciasRouter = require('./libs/qualidade/competencias_public')();
+const publicMemoriaRouter = require('./libs/memoria/memoria_public');
 
 
 
@@ -234,6 +235,7 @@ app.use('/api/public/legados', publicLegadosRouter);
 app.use('/api/public/houses', publicHousesRouter);
 app.use('/api/public/criterios-sucesso', publicCriteriosSucessoRouter);
 app.use('/api/public/competencias', publicCompetenciasRouter);
+app.use('/api/public/memoria', publicMemoriaRouter);
 
 // ============================================================================
 // AUTHENTICATION MIDDLEWARE

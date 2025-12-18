@@ -9,6 +9,7 @@ import PontosdeLegado from './PontosdeLegado';
 import SistemaHouses from './SistemaHouses';
 import CriteriosSucesso from './CriteriosSucesso';
 import CompetenciasPage from './CompetenciasPage';
+import MemoriaStatsPage from './MemoriaStatsPage';
 
 const StatusBadge = ({ cumprida, pendente = false }) => {
   if (pendente) return <span className="px-4 py-2 bg-gray-100 text-gray-600 rounded-full text-sm font-medium">Pendente</span>;
@@ -160,6 +161,7 @@ export default function IndicadoresPublicosPage() {
         { id: 'houses', label: 'Sistema Houses' },
         { id: 'criterios', label: 'Critérios de Sucesso' },
         { id: 'competencias', label: 'Competências' },
+        { id: 'memoria', label: 'Memória' },
     ];
 
     return (
@@ -213,6 +215,7 @@ export default function IndicadoresPublicosPage() {
                     {activeTab === 'houses' && <SistemaHouses />}
                     {activeTab === 'criterios' && <CriteriosSucesso />}
                     {activeTab === 'competencias' && <CompetenciasPage />}
+                    {activeTab === 'memoria' && <MemoriaStatsPage />}
                 </div>
             </main>
 
