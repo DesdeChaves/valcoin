@@ -1,8 +1,17 @@
 const db = require('./db');
+const { redisClient } = require('./redis');
+
+const CICLOS_CACHE_KEY = 'ciclos:all';
 
 const getAllCiclos = async (req, res) => {
     try {
+        const cachedCiclos = await redisClient.get(CICLOS_CACHE_KEY);
+        if (cachedCiclos) {
+            return res.json(JSON.parse(cachedCiclos));
+        }
+
         const { rows } = await db.query('SELECT * FROM ciclos_ensino ORDER BY nome');
+        await redisClient.set(CICLOS_CACHE_KEY, JSON.stringify(rows));
         res.json(rows);
     } catch (err) {
         console.error('Error getting all ciclos:', err);
@@ -22,6 +31,7 @@ const createCiclo = async (req, res) => {
             'INSERT INTO ciclos_ensino (nome, ativo) VALUES ($1, $2) RETURNING *',
             [nome, ativo]
         );
+        await redisClient.del(CICLOS_CACHE_KEY); // Invalidate cache
         res.status(201).json(rows[0]);
     } catch (err) {
         console.error('Error creating ciclo:', err);
@@ -37,6 +47,7 @@ const updateCiclo = async (req, res) => {
             'UPDATE ciclos_ensino SET nome = $1, ativo = $2 WHERE id = $3 RETURNING *',
             [nome, ativo, id]
         );
+        await redisClient.del(CICLOS_CACHE_KEY); // Invalidate cache
         res.json(rows[0]);
     } catch (err) {
         console.error('Error updating ciclo:', err);
@@ -48,6 +59,7 @@ const deleteCiclo = async (req, res) => {
     const { id } = req.params;
     try {
         const { rows } = await db.query('DELETE FROM ciclos_ensino WHERE id = $1 RETURNING *', [id]);
+        await redisClient.del(CICLOS_CACHE_KEY); // Invalidate cache
         res.json(rows[0]);
     } catch (err) {
         console.error('Error deleting ciclo:', err);

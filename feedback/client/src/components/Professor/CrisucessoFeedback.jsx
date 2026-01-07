@@ -2,11 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Search } from 'lucide-react';
 import Table from './Table'; // Assuming Table is in the parent components directory
 import CrisucessoFeedbackModal from './CrisucessoFeedbackModal'; // New modal
-import { fetchCrisucessoFeedback, createCrisucessoFeedback, updateCrisucessoFeedback, softDeleteCrisucessoFeedback } from '../../utils/api'; // Corrected API path
+import { fetchCrisucessoFeedback, createCrisucessoFeedback, updateCrisucessoFeedback, softDeleteCrisucessoFeedback, getDepartments } from '../../utils/api'; // Corrected API path
 import { toast } from 'react-toastify';
 
-const CrisucessoFeedback = ({ departments }) => {
+const CrisucessoFeedback = () => {
   const [criterios, setCriterios] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('create');
@@ -23,7 +24,17 @@ const CrisucessoFeedback = ({ departments }) => {
   }, []);
 
   useEffect(() => {
-    fetchCriterios();
+    const fetchInitialData = async () => {
+        await fetchCriterios();
+        try {
+            const depts = await getDepartments();
+            setDepartments(depts);
+        } catch (error) {
+            console.error("Failed to fetch departments:", error);
+            toast.error("Não foi possível carregar os departamentos.");
+        }
+    };
+    fetchInitialData();
   }, [fetchCriterios]);
 
   const filteredCriterios = criterios.filter(

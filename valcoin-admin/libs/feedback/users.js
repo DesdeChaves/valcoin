@@ -187,25 +187,32 @@ router.get('/:id/disciplines', async (req, res) => {
     console.log(`Fetching disciplines for professor ID: ${id}`);
     const { rows } = await db.query(`
       SELECT
-          pdt.id AS professor_disciplina_turma_id,
-          pdt.disciplina_turma_id,
-          s.id AS subject_id,
-          s.nome AS subject_name,
-          s.codigo AS subject_code,
-          c.id AS class_id,
-          c.nome AS class_name,
-          c.codigo AS class_code,
-          pdt.ativo AS active
-      FROM
-          professor_disciplina_turma pdt
-      JOIN
-          disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
-      JOIN
-          subjects s ON dt.disciplina_id = s.id
-      JOIN
-          classes c ON dt.turma_id = c.id
-      WHERE
-          pdt.professor_id = $1;
+        s.id AS subject_id,
+        s.nome AS subject_name,
+        s.codigo AS subject_code,
+        json_agg(
+            json_build_object(
+                'professor_disciplina_turma_id', pdt.id,
+                'disciplina_turma_id', dt.id,
+                'class_id', c.id,
+                'class_name', c.nome,
+                'class_code', c.codigo
+            )
+        ) AS turmas
+    FROM
+        professor_disciplina_turma pdt
+    JOIN
+        disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
+    JOIN
+        subjects s ON dt.disciplina_id = s.id
+    JOIN
+        classes c ON dt.turma_id = c.id
+    WHERE
+        pdt.professor_id = $1 AND pdt.ativo = true
+    GROUP BY
+        s.id, s.nome, s.codigo
+    ORDER BY
+        s.nome;
     `, [id]);
     console.log(`Found ${rows.length} disciplines for professor ID: ${id}`);
     console.log(rows);

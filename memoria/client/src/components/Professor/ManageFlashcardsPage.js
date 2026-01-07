@@ -203,6 +203,23 @@ const ManageFlashcardsPage = () => {
       );
     }
 
+    if (card.type === 'image_text') {
+      return (
+        <div className="mt-3 space-y-4 text-sm">
+          <div>
+            <span className="font-semibold text-gray-600">Frente:</span>
+            <div className="mt-1 p-2 bg-gray-50 rounded">{card.front}</div>
+            {card.image_url && <img src={card.image_url} alt="Frente" className="mt-2 max-w-full h-48 object-cover rounded shadow-md mx-auto" />}
+          </div>
+          <div>
+            <span className="font-semibold text-gray-600">Verso:</span>
+            <div className="mt-1 p-2 bg-indigo-50 rounded text-indigo-800">{card.back}</div>
+            {card.back_image_url && <img src={card.back_image_url} alt="Verso" className="mt-2 max-w-full h-48 object-cover rounded shadow-md mx-auto" />}
+          </div>
+        </div>
+      );
+    }
+
     if (card.type === 'phonetic') {
       return (
         <div className="mt-3 space-y-2 text-sm">
@@ -233,6 +250,21 @@ const ManageFlashcardsPage = () => {
       );
     }
 
+    if (card.type === 'spelling') {
+      return (
+        <div className="mt-3 space-y-2 text-sm">
+          <div>
+            <span className="font-semibold text-gray-600">Palavra a soletrar:</span>
+            <div className="mt-1 p-2 bg-yellow-50 rounded font-bold text-lg">{card.audio_text}</div>
+          </div>
+          <div>
+            <span className="font-semibold text-gray-600">Resposta esperada:</span>
+            <div className="mt-1 p-2 bg-yellow-50 rounded font-mono">{card.expected_answer}</div>
+          </div>
+        </div>
+      );
+    }
+
     return null;
   };
 
@@ -241,7 +273,9 @@ const ManageFlashcardsPage = () => {
       basic: 'Básico',
       cloze: 'Cloze',
       image_occlusion: 'Imagem Oclusão',
-      phonetic: 'Fonético'
+      image_text: 'Imagem e Texto',
+      phonetic: 'Fonético',
+      spelling: 'Soletrar'
     };
     return labels[type] || type;
   };
@@ -251,7 +285,9 @@ const ManageFlashcardsPage = () => {
       basic: 'bg-blue-100 text-blue-800',
       cloze: 'bg-purple-100 text-purple-800',
       image_occlusion: 'bg-green-100 text-green-800',
-      phonetic: 'bg-orange-100 text-orange-800'
+      image_text: 'bg-yellow-100 text-yellow-800',
+      phonetic: 'bg-orange-100 text-orange-800',
+      spelling: 'bg-yellow-100 text-yellow-800'
     };
     return colors[type] || 'bg-gray-100 text-gray-800';
   };
@@ -260,7 +296,9 @@ const ManageFlashcardsPage = () => {
     if (card.type === 'basic') return card.front;
     if (card.type === 'cloze') return card.cloze_text?.replace(/{{c\d+::(.*?)}}/g, '[$1]');
     if (card.type === 'image_occlusion') return 'Flashcard de Imagem';
+    if (card.type === 'image_text') return card.front;
     if (card.type === 'phonetic') return card.word || 'Flashcard Fonético';
+    if (card.type === 'spelling') return card.audio_text || 'Flashcard de Soletrar';
     return 'Flashcard';
   };
 
@@ -366,7 +404,9 @@ const ManageFlashcardsPage = () => {
                 <option value="basic">Básico</option>
                 <option value="cloze">Cloze</option>
                 <option value="image_occlusion">Imagem Oclusão</option>
+                <option value="image_text">Imagem e Texto</option>
                 <option value="phonetic">Fonético</option>
+                <option value="spelling">Soletrar</option>
               </select>
             </div>
           </div>

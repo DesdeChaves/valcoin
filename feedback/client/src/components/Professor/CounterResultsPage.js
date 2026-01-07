@@ -129,7 +129,7 @@ const CounterResultsPage = () => {
 
     const handleSaveGrades = async () => {
         try {
-            const token = localStorage.getItem('accessToken');
+            const token = localStorage.getItem('authToken');
             const notasToUpdate = instrumentGrades.map(item => ({
                 notaId: item.nota.id,
                 nota: item.nota.nota,

@@ -17,10 +17,17 @@ const DossierForm = ({ isOpen, onClose, onSave, dossier, professorId }) => {
 
     useEffect(() => {
         if (professorId) {
-            const fetchDisciplines = async () => {
+            const fetchAndProcessDisciplines = async () => {
                 try {
                     const response = await fetchProfessorDisciplines(professorId);
-                    setDisciplines(response);
+                    const flattenedDisciplines = response.flatMap(d =>
+                        d.turmas.map(t => ({
+                            professor_disciplina_turma_id: t.professor_disciplina_turma_id,
+                            subject_name: d.subject_name,
+                            class_name: t.class_name,
+                        }))
+                    );
+                    setDisciplines(flattenedDisciplines);
                     setLoadingDisciplines(false);
                 } catch (err) {
                     setErrorDisciplines('Error fetching disciplines');
@@ -28,7 +35,7 @@ const DossierForm = ({ isOpen, onClose, onSave, dossier, professorId }) => {
                     console.error('Error fetching disciplines:', err);
                 }
             };
-            fetchDisciplines();
+            fetchAndProcessDisciplines();
         }
     }, [professorId]);
 

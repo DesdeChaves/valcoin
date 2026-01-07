@@ -37,12 +37,16 @@ function ProfessorDashboard() {
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                     <StatCard icon={<Book size={32} />} title="Disciplinas" value={stats.totalDisciplinas} color="blue" />
                     <StatCard icon={<Folder size={32} />} title="Dossiês" value={stats.totalDossiers} color="indigo" />
                     <StatCard icon={<ListChecks size={32} />} title="Critérios" value={stats.totalCriterios} color="purple" />
+                    <StatCard icon={<Star size={32} />} title="Competências" value={stats.totalCompetencias} color="yellow" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                     <StatCard icon={<Hammer size={32} />} title="Instrumentos" value={stats.totalInstrumentos} color="pink" />
                     <StatCard icon={<Sliders size={32} />} title="Contadores" value={stats.totalContadores} color="teal" />
+                    <StatCard icon={<TrendingUp size={32} />} title="Avaliações" value={stats.totalAvaliacoesCriterios} color="green" />
                 </div>
 
 
@@ -57,17 +61,21 @@ function ProfessorDashboard() {
                         <div className="space-y-4">
                             {disciplines.map((discipline) => (
                                 <div
-                                    key={discipline.professor_disciplina_turma_id}
-                                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200/80 flex justify-between items-center"
+                                    key={discipline.subject_id}
+                                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200/80"
                                 >
                                     <div>
                                         <h4 className="text-xl font-bold text-gray-800">
                                             {discipline.subject_name}
                                             <span className="text-base font-medium text-gray-500 ml-2">({discipline.subject_code})</span>
                                         </h4>
-                                        <p className="text-md text-gray-600 mt-1">
-                                            Turma: <span className="font-semibold">{discipline.class_name}</span> ({discipline.class_code})
-                                        </p>
+                                        <ul className="mt-2 space-y-1">
+                                            {discipline.turmas.map(turma => (
+                                                <li key={turma.disciplina_turma_id} className="text-md text-gray-600">
+                                                    Turma: <span className="font-semibold">{turma.class_name}</span> ({turma.class_code})
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
                                 </div>
                             ))}

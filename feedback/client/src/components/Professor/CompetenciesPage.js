@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchProfessorDisciplines } from '../../utils/api';
+import { getProfessorFeedbackDashboard } from '../../utils/api';
 import { fetchCompetenciesByDiscipline, deleteCompetency } from '../../utils/api_competencias';
 import CompetencyModal from './CompetencyModal';
 import AssessmentModal from './AssessmentModal';
@@ -21,7 +21,25 @@ const CompetenciesPage = () => {
             if (professorId) {
                 try {
                     setLoading(true);
-                    const profDisciplines = await fetchProfessorDisciplines(professorId);
+                    const dashboardData = await getProfessorFeedbackDashboard();
+
+                    const transformDisciplines = (disciplines) => {
+                        const flatDisciplines = [];
+                        disciplines.forEach(discipline => {
+                            discipline.turmas.forEach(turma => {
+                                flatDisciplines.push({
+                                    professor_disciplina_turma_id: turma.disciplina_turma_id,
+                                    subject_id: discipline.subject_id,
+                                    subject_name: discipline.subject_name,
+                                    class_name: turma.class_name,
+                                    disciplina_turma_id: turma.disciplina_turma_id,
+                                });
+                            });
+                        });
+                        return flatDisciplines;
+                    };
+
+                    const profDisciplines = transformDisciplines(dashboardData.disciplines || []);
                     setDisciplines(profDisciplines);
                     if (profDisciplines.length > 0) {
                         setSelectedDiscipline(profDisciplines[0]);
@@ -48,6 +66,8 @@ const CompetenciesPage = () => {
                 } finally {
                     setLoading(false);
                 }
+            } else {
+                setCompetencies([]);
             }
         };
         loadCompetencies();
@@ -190,12 +210,13 @@ const CompetenciesPage = () => {
                     isOpen={isAssessmentModalOpen}
                     onClose={handleCloseAssessmentModal}
                     competency={selectedCompetency}
-                    disciplineTurmaId={selectedDiscipline?.disciplina_turma_id}
+                    turmasForSubject={disciplines.filter(d => d.subject_id === selectedDiscipline.subject_id)}
                     professorId={professorId}
                 />
             )}
         </div>
     );
 };
+
 
 export default CompetenciesPage;

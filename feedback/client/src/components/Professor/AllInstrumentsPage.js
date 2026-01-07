@@ -10,7 +10,7 @@ function AllInstrumentsPage() {
 
   useEffect(() => {
     const fetchAllInstruments = async () => {
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem('authToken');
       if (!token) {
         navigate('/login');
         return;

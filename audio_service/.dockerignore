@@ -1,0 +1,73 @@
+
+libs/
+# Audio Service .dockerignore
+# Evita copiar arquivos desnecessários para a imagem Docker
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+.venv
+
+# Cache de áudio (será recriado no container)
+audio_cache/
+*.mp3
+*.wav
+*.webm
+
+# Modelos pré-treinados (serão baixados no container)
+*.pt
+*.pth
+*.onnx
+libs/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Documentação
+README.md
+*.md
+docs/
+
+# Testes
+tests/
+test_*.py
+*_test.py
+.pytest_cache/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporários
+tmp/
+temp/
+*.tmp

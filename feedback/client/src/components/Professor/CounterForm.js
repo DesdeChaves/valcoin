@@ -191,7 +191,10 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
         const dataToSave = { ...formData };
         const escala = parseInt(dataToSave.escala, 10);
 
-        console.log('Validating calibration points:', calibrationPoints, 'against scale:', escala);
+        if (!dataToSave.descritor.trim()) {
+            alert("O descritor é obrigatório.");
+            return;
+        }
 
         // Handle calibration parameters based on the selected model
         if (dataToSave.modelo_calibracao === 'linear') {
@@ -232,17 +235,27 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
             }
             dataToSave.parametros_calibracao = JSON.stringify(logisticParams);
         } else {
+            // This 'else' block handles 'nenhum' and any other custom JSON input
             try {
-                dataToSave.parametros_calibracao = JSON.parse(formData.parametros_calibracao);
+                if (dataToSave.modelo_calibracao === 'nenhum') {
+                    dataToSave.parametros_calibracao = JSON.stringify({});
+                } else {
+                    dataToSave.parametros_calibracao = JSON.parse(formData.parametros_calibracao);
+                }
             } catch (error) {
-                console.error("Error parsing calibration parameters JSON:", error);
+                console.error("Invalid JSON input for calibration parameters:", error);
                 alert("Parâmetros de calibração inválidos. Por favor, insira um JSON válido.");
                 return;
             }
         }
 
+        // Refine forgetting parameters handling
         try {
-            dataToSave.parametros_esquecimento = JSON.parse(formData.parametros_esquecimento);
+            if (dataToSave.modelo_esquecimento === 'nenhum') {
+                dataToSave.parametros_esquecimento = JSON.stringify({});
+            } else {
+                dataToSave.parametros_esquecimento = JSON.parse(formData.parametros_esquecimento);
+            }
         } catch (error) {
             console.error("Error parsing forgetting parameters JSON:", error);
             alert("Parâmetros de esquecimento inválidos. Por favor, insira um JSON válido.");
@@ -358,7 +371,7 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
                         {/* Descritor */}
                         <div>
                             <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="descritor">
-                                Descritor
+                                Descritor *
                             </label>
                             <textarea
                                 id="descritor"
@@ -368,6 +381,7 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
                                 rows="3"
                                 className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all resize-none"
                                 placeholder="Descreva o contador..."
+                                required
                             />
                         </div>
 

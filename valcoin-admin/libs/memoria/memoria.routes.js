@@ -23,12 +23,23 @@ const {
   validarOwnershipFlashcard
 } = require('./memoria.middleware');
 
-const upload = require('./memoria.uploads');
-const db = require('../db'); // Necessário para a rota de disciplinas do professor
+const {
+  upload: audioUpload,
+  criarFlashcardPhonetic,
+  criarFlashcardDictation,
+  criarFlashcardAudioQuestion,
+  criarFlashcardReading,
+  criarFlashcardSpelling,
+  gerarAudioFlashcard,
+  validarRespostaTexto,
+  validarRespostaAudio,
+  getAudioAnalytics,
+  getAudioFlashcardQueue
+} = require('./audio_flashcards_controller');
 
-// ============================================================================
-// ROTA PARA OBTER AS DISCIPLINAS/TURMAS DO PROFESSOR AUTENTICADO
-// ============================================================================
+const imageUpload = require('./memoria.uploads');
+
+const db = require('../db');
 
 router.get('/disciplina_turma/professor/me', async (req, res) => {
   try {
@@ -36,20 +47,22 @@ router.get('/disciplina_turma/professor/me', async (req, res) => {
 
     const result = await db.query(`
       SELECT 
-        dt.id AS disciplina_turma_id,
-        dt.disciplina_id,
-        s.nome AS disciplina_nome,
-        dt.turma_id,
-        t.nome AS turma_nome,
-        t.ano_letivo
-      FROM professor_disciplina_turma pdt
-      JOIN disciplina_turma dt ON dt.id = pdt.disciplina_turma_id
-      JOIN subjects s ON s.id = dt.disciplina_id
-      JOIN classes t ON t.id = dt.turma_id
-      WHERE pdt.professor_id = $1 
-        AND pdt.ativo = true 
-        AND dt.ativo = true
-      ORDER BY t.ano_letivo DESC, s.nome, t.nome
+        d.id AS disciplina_id,
+        d.nome AS disciplina_nome,
+        json_agg(
+            json_build_object(
+                'disciplina_turma_id', dt.id,
+                'turma_id', t.id,
+                'turma_nome', t.nome,
+                'ano_letivo', dt.ano_letivo
+            )
+        ) AS turmas
+      FROM disciplina_turma dt
+      JOIN subjects d ON dt.disciplina_id = d.id
+      JOIN classes t ON dt.turma_id = t.id
+      WHERE dt.professor_id = $1 AND dt.ativo = true
+      GROUP BY d.id, d.nome
+      ORDER BY d.nome;
     `, [professor_id]);
 
     res.json({
@@ -64,6 +77,39 @@ router.get('/disciplina_turma/professor/me', async (req, res) => {
     });
   }
 });
+
+// ...
+
+router.post('/upload-image', imageUpload.single('image'), uploadImage);
+
+// ============================================================================
+// ROTAS PARA FLASHCARDS DE ÁUDIO
+// ============================================================================
+
+router.post('/audio-flashcards/phonetic', validarProfessorDisciplina, criarFlashcardPhonetic);
+router.post('/audio-flashcards/dictation', validarProfessorDisciplina, criarFlashcardDictation);
+router.post('/audio-flashcards/audio-question', validarProfessorDisciplina, criarFlashcardAudioQuestion);
+router.post('/audio-flashcards/reading', validarProfessorDisciplina, criarFlashcardReading);
+router.post('/audio-flashcards/spelling', validarProfessorDisciplina, criarFlashcardSpelling);
+
+router.get('/audio-flashcards/queue', getAudioFlashcardQueue);
+router.get('/audio-flashcards/:flashcard_id/generate-audio', gerarAudioFlashcard);
+router.post('/audio-flashcards/review/text', validarRespostaTexto);
+router.post('/audio-flashcards/review/audio', audioUpload.single('audio'), validarRespostaAudio);
+
+router.get('/audio-flashcards/analytics', getAudioAnalytics);
+
+
+// ============================================================================
+// ROTAS PARA ALUNOS
+// ============================================================================
+
+router.get('/fila-diaria', obterFilaDiaria);
+
+router.post('/revisao', registarRevisao);
+
+router.get('/flashcards/:id/review-times-percentiles', getFlashcardReviewTimePercentiles);
+
 
 // ============================================================================
 // ROTAS PARA PROFESSORES
@@ -81,17 +127,8 @@ router.delete('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFla
 
 router.get('/assuntos/disciplina/:discipline_id', validarProfessorDisciplina, getAssuntos);
 
-router.post('/upload-image', upload.single('image'), uploadImage);
+router.post('/upload-image', imageUpload.single('image'), uploadImage);
 
-// ============================================================================
-// ROTAS PARA ALUNOS
-// ============================================================================
-
-router.get('/fila-diaria', obterFilaDiaria);
-
-router.post('/revisao', registarRevisao);
-
-router.get('/flashcards/:id/review-times-percentiles', getFlashcardReviewTimePercentiles);
 
 // ============================================================================
 

@@ -699,6 +699,27 @@ $$;
 ALTER FUNCTION public.get_departamentos_criterio(p_criterio_id uuid) OWNER TO "user";
 
 --
+-- Name: nivel_para_numero(text); Type: FUNCTION; Schema: public; Owner: user
+--
+
+CREATE FUNCTION public.nivel_para_numero(n text) RETURNS integer
+    LANGUAGE sql IMMUTABLE
+    AS $$
+SELECT CASE n
+    WHEN 'não satisfaz'     THEN 1
+    WHEN 'insuficiente'     THEN 1
+    WHEN 'satisfaz'         THEN 2
+    WHEN 'bom'              THEN 3
+    WHEN 'muito bom'        THEN 4
+    WHEN 'excelente'        THEN 5
+    ELSE 1  -- caso venha algo inesperado
+END;
+$$;
+
+
+ALTER FUNCTION public.nivel_para_numero(n text) OWNER TO "user";
+
+--
 -- Name: nivel_proficiencia_to_number(public.nivel_proficiencia); Type: FUNCTION; Schema: public; Owner: user
 --
 
@@ -907,6 +928,22 @@ $$;
 ALTER FUNCTION public.update_competencia_updated_at() OWNER TO "user";
 
 --
+-- Name: update_generic_updated_at_column(); Type: FUNCTION; Schema: public; Owner: user
+--
+
+CREATE FUNCTION public.update_generic_updated_at_column() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.update_generic_updated_at_column() OWNER TO "user";
+
+--
 -- Name: update_updated_at_column(); Type: FUNCTION; Schema: public; Owner: user
 --
 
@@ -921,6 +958,22 @@ $$;
 
 
 ALTER FUNCTION public.update_updated_at_column() OWNER TO "user";
+
+--
+-- Name: update_updated_at_column_roles(); Type: FUNCTION; Schema: public; Owner: user
+--
+
+CREATE FUNCTION public.update_updated_at_column_roles() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.update_updated_at_column_roles() OWNER TO "user";
 
 SET default_tablespace = '';
 
@@ -1105,6 +1158,51 @@ CREATE TABLE public.aplicacoes_questionario (
 ALTER TABLE public.aplicacoes_questionario OWNER TO "user";
 
 --
+-- Name: assuntos; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.assuntos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    discipline_id uuid NOT NULL,
+    name text NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.assuntos OWNER TO "user";
+
+--
+-- Name: audio_flashcard_attempts; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.audio_flashcard_attempts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    student_id uuid NOT NULL,
+    flashcard_id uuid NOT NULL,
+    attempt_type character varying(20) NOT NULL,
+    phoneme_index integer,
+    student_text_input text,
+    student_audio_transcription text,
+    expected_text text NOT NULL,
+    is_correct boolean NOT NULL,
+    similarity_score numeric(5,2),
+    confidence_score numeric(3,2),
+    time_spent_seconds integer,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.audio_flashcard_attempts OWNER TO "user";
+
+--
+-- Name: TABLE audio_flashcard_attempts; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON TABLE public.audio_flashcard_attempts IS 'Registo de tentativas em flashcards de áudio (sem guardar ficheiros de áudio)';
+
+
+--
 -- Name: avaliacao_competencia; Type: TABLE; Schema: public; Owner: user
 --
 
@@ -1221,12 +1319,10 @@ CREATE TABLE public.competencia (
     validado boolean DEFAULT false,
     validado_por_id uuid,
     data_validacao timestamp without time zone,
-    dominio character varying(100),
     ordem integer DEFAULT 0,
     ativo boolean DEFAULT true,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone DEFAULT now(),
-    dominio_id uuid,
     CONSTRAINT competencia_medida_educativa_check CHECK ((medida_educativa = ANY (ARRAY['universal'::public.tipo_medida_educativa, 'seletiva'::public.tipo_medida_educativa, 'adicional'::public.tipo_medida_educativa, 'nenhuma'::public.tipo_medida_educativa])))
 );
 
@@ -1247,6 +1343,41 @@ CREATE TABLE public.competencia_disciplina_turma (
 
 
 ALTER TABLE public.competencia_disciplina_turma OWNER TO "user";
+
+--
+-- Name: competencia_dominio; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.competencia_dominio (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    competencia_id uuid NOT NULL,
+    dominio_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.competencia_dominio OWNER TO "user";
+
+--
+-- Name: TABLE competencia_dominio; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON TABLE public.competencia_dominio IS 'Junction table to link competencias and dominios in a many-to-many relationship.';
+
+
+--
+-- Name: COLUMN competencia_dominio.competencia_id; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON COLUMN public.competencia_dominio.competencia_id IS 'Foreign key to the competencia table.';
+
+
+--
+-- Name: COLUMN competencia_dominio.dominio_id; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON COLUMN public.competencia_dominio.dominio_id IS 'Foreign key to the dominios table.';
+
 
 --
 -- Name: competencia_historico; Type: TABLE; Schema: public; Owner: user
@@ -1765,6 +1896,7 @@ CREATE TABLE public.eqavet_ciclos_formativos (
     observacoes text,
     created_at timestamp without time zone DEFAULT now(),
     updated_at timestamp without time zone DEFAULT now(),
+    responsavel_id uuid,
     CONSTRAINT eqavet_ciclos_formativos_nivel_qnq_check CHECK ((nivel_qnq = ANY (ARRAY[2, 4, 5])))
 );
 
@@ -2168,6 +2300,117 @@ ALTER TABLE public.eqavet_turma_ciclo_id_seq OWNER TO "user";
 --
 
 ALTER SEQUENCE public.eqavet_turma_ciclo_id_seq OWNED BY public.eqavet_turma_ciclo.id;
+
+
+--
+-- Name: flashcard_memory_state; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.flashcard_memory_state (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    student_id uuid NOT NULL,
+    flashcard_id uuid NOT NULL,
+    sub_id text,
+    difficulty numeric(8,4) DEFAULT 5.0,
+    stability numeric(12,4) DEFAULT 0.0,
+    last_review timestamp with time zone,
+    reps integer DEFAULT 0,
+    lapses integer DEFAULT 0,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.flashcard_memory_state OWNER TO "user";
+
+--
+-- Name: flashcard_review_log; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.flashcard_review_log (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    student_id uuid NOT NULL,
+    flashcard_id uuid NOT NULL,
+    sub_id text,
+    rating integer NOT NULL,
+    review_date timestamp with time zone DEFAULT now(),
+    elapsed_days numeric(8,2),
+    time_spent integer,
+    CONSTRAINT flashcard_review_log_rating_check CHECK ((rating = ANY (ARRAY[1, 2, 3, 4])))
+);
+
+
+ALTER TABLE public.flashcard_review_log OWNER TO "user";
+
+--
+-- Name: flashcards; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.flashcards (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    discipline_id uuid NOT NULL,
+    creator_id uuid NOT NULL,
+    type character varying(20) DEFAULT 'basic'::character varying NOT NULL,
+    front text,
+    back text,
+    cloze_text text,
+    image_url text,
+    occlusion_data jsonb,
+    hints text[],
+    scheduled_date date NOT NULL,
+    active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    assunto_id uuid,
+    phonemes jsonb,
+    word text,
+    audio_text text,
+    expected_answer text,
+    answer_type character varying(20),
+    difficulty_level integer DEFAULT 1,
+    idioma character varying(10) DEFAULT 'pt'::character varying,
+    back_image_url text,
+    CONSTRAINT flashcards_answer_type_check CHECK (((answer_type)::text = ANY ((ARRAY['text'::character varying, 'audio'::character varying, 'number'::character varying])::text[]))),
+    CONSTRAINT flashcards_difficulty_level_check CHECK (((difficulty_level >= 1) AND (difficulty_level <= 5))),
+    CONSTRAINT flashcards_type_check CHECK (((type)::text = ANY (ARRAY[('basic'::character varying)::text, ('cloze'::character varying)::text, ('image_occlusion'::character varying)::text, ('phonetic'::character varying)::text, ('dictation'::character varying)::text, ('audio_question'::character varying)::text, ('reading'::character varying)::text, ('image_text'::character varying)::text, ('spelling'::character varying)::text])))
+);
+
+
+ALTER TABLE public.flashcards OWNER TO "user";
+
+--
+-- Name: COLUMN flashcards.phonemes; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON COLUMN public.flashcards.phonemes IS 'Array JSON de fonemas para tipo phonetic. Ex: [{"text": "pa", "order": 1}]';
+
+
+--
+-- Name: COLUMN flashcards.word; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON COLUMN public.flashcards.word IS 'Palavra/texto para ditado ou leitura';
+
+
+--
+-- Name: COLUMN flashcards.audio_text; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON COLUMN public.flashcards.audio_text IS 'Texto que será convertido em áudio pelo TTS (para dictation e audio_question)';
+
+
+--
+-- Name: COLUMN flashcards.expected_answer; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON COLUMN public.flashcards.expected_answer IS 'Resposta esperada do aluno';
+
+
+--
+-- Name: COLUMN flashcards.answer_type; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON COLUMN public.flashcards.answer_type IS 'Tipo de resposta: text (ditado), audio (leitura/fonética), number (cálculos)';
 
 
 --
@@ -2658,6 +2901,44 @@ CREATE TABLE public.respostas_questionario (
 ALTER TABLE public.respostas_questionario OWNER TO "user";
 
 --
+-- Name: roles; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.roles (
+    id integer NOT NULL,
+    name character varying(50) NOT NULL,
+    description text,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.roles OWNER TO "user";
+
+--
+-- Name: roles_id_seq; Type: SEQUENCE; Schema: public; Owner: user
+--
+
+CREATE SEQUENCE public.roles_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.roles_id_seq OWNER TO "user";
+
+--
+-- Name: roles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: user
+--
+
+ALTER SEQUENCE public.roles_id_seq OWNED BY public.roles.id;
+
+
+--
 -- Name: savings_products; Type: TABLE; Schema: public; Owner: user
 --
 
@@ -2817,6 +3098,30 @@ CREATE TABLE public.transactions (
 ALTER TABLE public.transactions OWNER TO "user";
 
 --
+-- Name: tts_audio_cache; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.tts_audio_cache (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    text_hash character varying(64) NOT NULL,
+    text_content text NOT NULL,
+    audio_url text NOT NULL,
+    language character varying(10) DEFAULT 'pt-PT'::character varying,
+    voice_type character varying(50),
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.tts_audio_cache OWNER TO "user";
+
+--
+-- Name: TABLE tts_audio_cache; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON TABLE public.tts_audio_cache IS 'Cache de áudios gerados pelo TTS para evitar regeneração';
+
+
+--
 -- Name: user_houses_overview; Type: VIEW; Schema: public; Owner: user
 --
 
@@ -2874,6 +3179,19 @@ CREATE VIEW public.user_houses_overview AS
 
 
 ALTER TABLE public.user_houses_overview OWNER TO "user";
+
+--
+-- Name: user_roles; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.user_roles (
+    user_id uuid NOT NULL,
+    role_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.user_roles OWNER TO "user";
 
 --
 -- Name: v_aluno_competencia_resumo; Type: VIEW; Schema: public; Owner: user
@@ -2987,25 +3305,13 @@ ALTER TABLE public.v_alunos_elegiveis_por_competencia OWNER TO "user";
 --
 
 CREATE VIEW public.v_competencias_disciplina_resumo AS
- SELECT s.id AS disciplina_id,
-    s.nome AS disciplina_nome,
-    s.codigo AS disciplina_codigo,
-    count(DISTINCT c.id) AS total_competencias,
-    count(DISTINCT
-        CASE
-            WHEN (c.medida_educativa <> 'nenhuma'::public.tipo_medida_educativa) THEN c.id
-            ELSE NULL::uuid
-        END) AS competencias_com_medidas,
-    count(DISTINCT
-        CASE
-            WHEN (c.validado = true) THEN c.id
-            ELSE NULL::uuid
-        END) AS competencias_validadas,
-    array_agg(DISTINCT c.dominio) FILTER (WHERE (c.dominio IS NOT NULL)) AS dominios
-   FROM (public.subjects s
-     LEFT JOIN public.competencia c ON (((c.disciplina_id = s.id) AND (c.ativo = true))))
-  WHERE (s.ativo = true)
-  GROUP BY s.id, s.nome, s.codigo;
+SELECT
+    NULL::uuid AS disciplina_id,
+    NULL::character varying(100) AS disciplina_nome,
+    NULL::character varying(20) AS disciplina_codigo,
+    NULL::bigint AS total_competencias,
+    NULL::bigint AS competencias_com_medidas,
+    NULL::bigint AS competencias_validadas;
 
 
 ALTER TABLE public.v_competencias_disciplina_resumo OWNER TO "user";
@@ -3253,57 +3559,20 @@ ALTER TABLE public.v_empresas_contacto_principal OWNER TO "user";
 --
 
 CREATE VIEW public.v_estatisticas_competencias_turma AS
- SELECT dt.id AS disciplina_turma_id,
-    dt.turma_id,
-    cl.nome AS turma_nome,
-    dt.disciplina_id,
-    s.nome AS disciplina_nome,
-    c.id AS competencia_id,
-    c.nome AS competencia_nome,
-    c.dominio,
-    count(DISTINCT ac.aluno_id) AS total_alunos_avaliados,
-    count(ac.id) AS total_avaliacoes,
-    round(avg(
-        CASE ac.nivel
-            WHEN 'fraco'::public.nivel_proficiencia THEN 1
-            WHEN 'nao_satisfaz'::public.nivel_proficiencia THEN 2
-            WHEN 'satisfaz'::public.nivel_proficiencia THEN 3
-            WHEN 'satisfaz_bastante'::public.nivel_proficiencia THEN 4
-            WHEN 'excelente'::public.nivel_proficiencia THEN 5
-            ELSE NULL::integer
-        END), 2) AS media_nivel,
-    count(
-        CASE
-            WHEN (ac.nivel = 'fraco'::public.nivel_proficiencia) THEN 1
-            ELSE NULL::integer
-        END) AS qtd_fraco,
-    count(
-        CASE
-            WHEN (ac.nivel = 'nao_satisfaz'::public.nivel_proficiencia) THEN 1
-            ELSE NULL::integer
-        END) AS qtd_nao_satisfaz,
-    count(
-        CASE
-            WHEN (ac.nivel = 'satisfaz'::public.nivel_proficiencia) THEN 1
-            ELSE NULL::integer
-        END) AS qtd_satisfaz,
-    count(
-        CASE
-            WHEN (ac.nivel = 'satisfaz_bastante'::public.nivel_proficiencia) THEN 1
-            ELSE NULL::integer
-        END) AS qtd_satisfaz_bastante,
-    count(
-        CASE
-            WHEN (ac.nivel = 'excelente'::public.nivel_proficiencia) THEN 1
-            ELSE NULL::integer
-        END) AS qtd_excelente
-   FROM ((((public.disciplina_turma dt
-     JOIN public.classes cl ON ((cl.id = dt.turma_id)))
-     JOIN public.subjects s ON ((s.id = dt.disciplina_id)))
-     JOIN public.competencia c ON ((c.disciplina_id = s.id)))
-     LEFT JOIN public.avaliacao_competencia ac ON (((ac.competencia_id = c.id) AND (ac.disciplina_turma_id = dt.id))))
-  WHERE ((c.ativo = true) AND (dt.ativo = true))
-  GROUP BY dt.id, dt.turma_id, cl.nome, dt.disciplina_id, s.nome, c.id, c.nome, c.dominio;
+SELECT
+    NULL::uuid AS disciplina_turma_id,
+    NULL::uuid AS turma_id,
+    NULL::character varying(100) AS turma_nome,
+    NULL::uuid AS disciplina_id,
+    NULL::character varying(100) AS disciplina_nome,
+    NULL::uuid AS competencia_id,
+    NULL::character varying(255) AS competencia_nome,
+    NULL::json AS dominios,
+    NULL::bigint AS total_alunos_avaliados,
+    NULL::bigint AS total_avaliacoes,
+    NULL::numeric AS media_niveis,
+    NULL::integer AS nivel_minimo,
+    NULL::integer AS nivel_maximo;
 
 
 ALTER TABLE public.v_estatisticas_competencias_turma OWNER TO "user";
@@ -3436,28 +3705,39 @@ CREATE VIEW public.v_progresso_aluno_atual AS
     ac.competencia_id,
     c.codigo AS competencia_codigo,
     c.nome AS competencia_nome,
-    d.nome AS dominio_nome,
+    ( SELECT json_agg(d.nome) AS json_agg
+           FROM (public.competencia_dominio cd
+             JOIN public.dominios d ON ((d.id = cd.dominio_id)))
+          WHERE (cd.competencia_id = c.id)) AS dominios,
     s.nome AS disciplina_nome,
     ac.disciplina_turma_id,
     ac.nivel AS nivel_atual,
-    ac.momento_avaliacao AS ultimo_momento,
-    ac.data_avaliacao AS ultima_avaliacao,
+    ac.data_avaliacao AS data_ultima_avaliacao,
+    ac.momento_avaliacao,
+    evo.nivel_inicial,
+    evo.primeira_avaliacao AS data_primeira_avaliacao,
+    evo.evolucao,
+    evo.total_avaliacoes,
     ac.observacoes,
     c.medida_educativa,
-        CASE
-            WHEN (ame.id IS NOT NULL) THEN true
-            ELSE false
-        END AS aluno_tem_medida_educativa
+    public.aluno_tem_medida_educativa(ac.aluno_id, c.disciplina_id) AS aluno_tem_medida_educativa
    FROM (((((public.avaliacao_competencia ac
      JOIN public.users u ON ((u.id = ac.aluno_id)))
      JOIN public.competencia c ON ((c.id = ac.competencia_id)))
-     LEFT JOIN public.dominios d ON ((d.id = c.dominio_id)))
-     JOIN public.subjects s ON ((s.id = c.disciplina_id)))
-     LEFT JOIN public.aluno_medida_educativa ame ON (((ame.aluno_id = ac.aluno_id) AND ((ame.disciplina_id = c.disciplina_id) OR (ame.disciplina_id IS NULL)) AND (ame.data_fim IS NULL))))
+     JOIN public.disciplina_turma dt ON ((dt.id = ac.disciplina_turma_id)))
+     JOIN public.subjects s ON ((s.id = dt.disciplina_id)))
+     LEFT JOIN LATERAL public.calcular_evolucao_competencia(ac.aluno_id, c.id) evo(primeira_avaliacao, ultima_avaliacao, nivel_inicial, nivel_atual_evo, evolucao, total_avaliacoes) ON (true))
   ORDER BY ac.aluno_id, ac.competencia_id, ac.data_avaliacao DESC, ac.momento_avaliacao DESC;
 
 
 ALTER TABLE public.v_progresso_aluno_atual OWNER TO "user";
+
+--
+-- Name: VIEW v_progresso_aluno_atual; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON VIEW public.v_progresso_aluno_atual IS 'Visão atualizada do progresso do aluno em cada competência, incluindo a última avaliação, observações e medidas educativas.';
+
 
 --
 -- Name: valid_tickets_info; Type: VIEW; Schema: public; Owner: user
@@ -3744,6 +4024,13 @@ ALTER TABLE ONLY public.products ALTER COLUMN id SET DEFAULT nextval('public.pro
 
 
 --
+-- Name: roles id; Type: DEFAULT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.roles ALTER COLUMN id SET DEFAULT nextval('public.roles_id_seq'::regclass);
+
+
+--
 -- Name: aluno_disciplina aluno_disciplina_pkey; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -3805,6 +4092,30 @@ ALTER TABLE ONLY public.aplicacoes_questionario
 
 ALTER TABLE ONLY public.aplicacoes_questionario
     ADD CONSTRAINT aplicacoes_questionario_token_acesso_key UNIQUE (token_acesso);
+
+
+--
+-- Name: assuntos assuntos_discipline_id_name_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.assuntos
+    ADD CONSTRAINT assuntos_discipline_id_name_key UNIQUE (discipline_id, name);
+
+
+--
+-- Name: assuntos assuntos_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.assuntos
+    ADD CONSTRAINT assuntos_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: audio_flashcard_attempts audio_flashcard_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.audio_flashcard_attempts
+    ADD CONSTRAINT audio_flashcard_attempts_pkey PRIMARY KEY (id);
 
 
 --
@@ -3885,6 +4196,22 @@ ALTER TABLE ONLY public.competencia_disciplina_turma
 
 ALTER TABLE ONLY public.competencia_disciplina_turma
     ADD CONSTRAINT competencia_disciplina_turma_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: competencia_dominio competencia_dominio_competencia_id_dominio_id_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.competencia_dominio
+    ADD CONSTRAINT competencia_dominio_competencia_id_dominio_id_key UNIQUE (competencia_id, dominio_id);
+
+
+--
+-- Name: competencia_dominio competencia_dominio_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.competencia_dominio
+    ADD CONSTRAINT competencia_dominio_pkey PRIMARY KEY (id);
 
 
 --
@@ -4296,6 +4623,38 @@ ALTER TABLE ONLY public.eqavet_turma_ciclo
 
 
 --
+-- Name: flashcard_memory_state flashcard_memory_state_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_memory_state
+    ADD CONSTRAINT flashcard_memory_state_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: flashcard_memory_state flashcard_memory_state_student_id_flashcard_id_sub_id_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_memory_state
+    ADD CONSTRAINT flashcard_memory_state_student_id_flashcard_id_sub_id_key UNIQUE (student_id, flashcard_id, sub_id);
+
+
+--
+-- Name: flashcard_review_log flashcard_review_log_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_review_log
+    ADD CONSTRAINT flashcard_review_log_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: flashcards flashcards_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcards
+    ADD CONSTRAINT flashcards_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: form_answers form_answers_pkey; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -4520,6 +4879,22 @@ ALTER TABLE ONLY public.respostas_questionario
 
 
 --
+-- Name: roles roles_name_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.roles
+    ADD CONSTRAINT roles_name_key UNIQUE (name);
+
+
+--
+-- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.roles
+    ADD CONSTRAINT roles_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: savings_products savings_products_pkey; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -4616,6 +4991,22 @@ ALTER TABLE ONLY public.transactions
 
 
 --
+-- Name: tts_audio_cache tts_audio_cache_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.tts_audio_cache
+    ADD CONSTRAINT tts_audio_cache_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: tts_audio_cache tts_audio_cache_text_hash_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.tts_audio_cache
+    ADD CONSTRAINT tts_audio_cache_text_hash_key UNIQUE (text_hash);
+
+
+--
 -- Name: dominios uq_dominios_nome; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -4645,6 +5036,14 @@ ALTER TABLE ONLY public.empresas
 
 ALTER TABLE ONLY public.encarregados_educacao
     ADD CONSTRAINT uq_encarregado_email UNIQUE (email);
+
+
+--
+-- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.user_roles
+    ADD CONSTRAINT user_roles_pkey PRIMARY KEY (user_id, role_id);
 
 
 --
@@ -4735,6 +5134,34 @@ CREATE INDEX idx_alunos_encarregados_encarregado ON public.alunos_encarregados U
 
 
 --
+-- Name: idx_assuntos_discipline; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_assuntos_discipline ON public.assuntos USING btree (discipline_id);
+
+
+--
+-- Name: idx_audio_attempts_flashcard; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_audio_attempts_flashcard ON public.audio_flashcard_attempts USING btree (flashcard_id);
+
+
+--
+-- Name: idx_audio_attempts_student; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_audio_attempts_student ON public.audio_flashcard_attempts USING btree (student_id, created_at DESC);
+
+
+--
+-- Name: idx_audio_attempts_type; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_audio_attempts_type ON public.audio_flashcard_attempts USING btree (attempt_type);
+
+
+--
 -- Name: idx_aval_criterio_aluno; Type: INDEX; Schema: public; Owner: user
 --
 
@@ -4798,24 +5225,17 @@ CREATE INDEX idx_avaliacao_disciplina_turma ON public.avaliacao_competencia USIN
 
 
 --
+-- Name: idx_ciclos_responsavel_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_ciclos_responsavel_id ON public.eqavet_ciclos_formativos USING btree (responsavel_id);
+
+
+--
 -- Name: idx_competencia_disciplina; Type: INDEX; Schema: public; Owner: user
 --
 
 CREATE INDEX idx_competencia_disciplina ON public.competencia USING btree (disciplina_id, ativo);
-
-
---
--- Name: idx_competencia_dominio; Type: INDEX; Schema: public; Owner: user
---
-
-CREATE INDEX idx_competencia_dominio ON public.competencia USING btree (dominio);
-
-
---
--- Name: idx_competencia_dominio_id; Type: INDEX; Schema: public; Owner: user
---
-
-CREATE INDEX idx_competencia_dominio_id ON public.competencia USING btree (dominio_id);
 
 
 --
@@ -5085,6 +5505,27 @@ CREATE INDEX idx_encarregados_educacao_email ON public.encarregados_educacao USI
 
 
 --
+-- Name: idx_flashcards_assunto; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_flashcards_assunto ON public.flashcards USING btree (assunto_id);
+
+
+--
+-- Name: idx_flashcards_discipline_active; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_flashcards_discipline_active ON public.flashcards USING btree (discipline_id) WHERE (active = true);
+
+
+--
+-- Name: idx_flashcards_scheduled; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_flashcards_scheduled ON public.flashcards USING btree (scheduled_date);
+
+
+--
 -- Name: idx_form_answers_question; Type: INDEX; Schema: public; Owner: user
 --
 
@@ -5159,6 +5600,13 @@ CREATE INDEX idx_forms_template_id ON public.forms USING btree (template_id) WHE
 --
 
 CREATE INDEX idx_forms_turma ON public.forms USING btree (turma_id);
+
+
+--
+-- Name: idx_memory_state_student_due; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_memory_state_student_due ON public.flashcard_memory_state USING btree (student_id) WHERE (stability > (0)::numeric);
 
 
 --
@@ -5302,6 +5750,20 @@ CREATE INDEX idx_questionarios_visibilidade ON public.questionarios USING btree 
 
 
 --
+-- Name: idx_review_log_student_date; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_review_log_student_date ON public.flashcard_review_log USING btree (student_id, review_date DESC);
+
+
+--
+-- Name: idx_roles_name; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_roles_name ON public.roles USING btree (name);
+
+
+--
 -- Name: idx_tickets_purchase_id; Type: INDEX; Schema: public; Owner: user
 --
 
@@ -5351,10 +5813,31 @@ CREATE INDEX idx_transactions_status ON public.transactions USING btree (status)
 
 
 --
+-- Name: idx_tts_cache_hash; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_tts_cache_hash ON public.tts_audio_cache USING btree (text_hash);
+
+
+--
 -- Name: idx_unico_encarregado_principal; Type: INDEX; Schema: public; Owner: user
 --
 
 CREATE UNIQUE INDEX idx_unico_encarregado_principal ON public.alunos_encarregados USING btree (aluno_id) WHERE (principal = true);
+
+
+--
+-- Name: idx_user_roles_role_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_user_roles_role_id ON public.user_roles USING btree (role_id);
+
+
+--
+-- Name: idx_user_roles_user_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_user_roles_user_id ON public.user_roles USING btree (user_id);
 
 
 --
@@ -5397,6 +5880,63 @@ CREATE INDEX idx_users_tipo_ativo ON public.users USING btree (tipo_utilizador, 
 --
 
 CREATE UNIQUE INDEX unique_active_house_member ON public.house_members USING btree (user_id) WHERE (data_saida IS NULL);
+
+
+--
+-- Name: v_competencias_disciplina_resumo _RETURN; Type: RULE; Schema: public; Owner: user
+--
+
+CREATE OR REPLACE VIEW public.v_competencias_disciplina_resumo AS
+ SELECT s.id AS disciplina_id,
+    s.nome AS disciplina_nome,
+    s.codigo AS disciplina_codigo,
+    count(DISTINCT c.id) AS total_competencias,
+    count(DISTINCT
+        CASE
+            WHEN (c.medida_educativa <> 'nenhuma'::public.tipo_medida_educativa) THEN c.id
+            ELSE NULL::uuid
+        END) AS competencias_com_medidas,
+    count(DISTINCT
+        CASE
+            WHEN (c.validado = true) THEN c.id
+            ELSE NULL::uuid
+        END) AS competencias_validadas
+   FROM (public.subjects s
+     LEFT JOIN public.competencia c ON (((c.disciplina_id = s.id) AND (c.ativo = true))))
+  WHERE (s.ativo = true)
+  GROUP BY s.id
+  ORDER BY s.nome;
+
+
+--
+-- Name: v_estatisticas_competencias_turma _RETURN; Type: RULE; Schema: public; Owner: user
+--
+
+CREATE OR REPLACE VIEW public.v_estatisticas_competencias_turma AS
+ SELECT dt.id AS disciplina_turma_id,
+    dt.turma_id,
+    cl.nome AS turma_nome,
+    dt.disciplina_id,
+    s.nome AS disciplina_nome,
+    c.id AS competencia_id,
+    c.nome AS competencia_nome,
+    ( SELECT json_agg(d.nome) AS json_agg
+           FROM (public.competencia_dominio cd
+             JOIN public.dominios d ON ((d.id = cd.dominio_id)))
+          WHERE (cd.competencia_id = c.id)) AS dominios,
+    count(DISTINCT ac.aluno_id) AS total_alunos_avaliados,
+    count(ac.id) AS total_avaliacoes,
+    avg(public.nivel_proficiencia_to_number(ac.nivel)) AS media_niveis,
+    min(public.nivel_proficiencia_to_number(ac.nivel)) AS nivel_minimo,
+    max(public.nivel_proficiencia_to_number(ac.nivel)) AS nivel_maximo
+   FROM ((((public.disciplina_turma dt
+     JOIN public.classes cl ON ((cl.id = dt.turma_id)))
+     JOIN public.subjects s ON ((s.id = dt.disciplina_id)))
+     JOIN public.competencia c ON ((c.disciplina_id = s.id)))
+     LEFT JOIN public.avaliacao_competencia ac ON (((ac.competencia_id = c.id) AND (ac.disciplina_turma_id = dt.id))))
+  WHERE ((dt.ativo = true) AND (c.ativo = true))
+  GROUP BY dt.id, cl.nome, s.nome, c.id
+  ORDER BY cl.nome, s.nome, c.nome;
 
 
 --
@@ -5519,6 +6059,13 @@ CREATE TRIGGER trigger_historico_competencia AFTER INSERT OR UPDATE ON public.co
 
 
 --
+-- Name: assuntos update_assuntos_updated_at; Type: TRIGGER; Schema: public; Owner: user
+--
+
+CREATE TRIGGER update_assuntos_updated_at BEFORE UPDATE ON public.assuntos FOR EACH ROW EXECUTE FUNCTION public.update_generic_updated_at_column();
+
+
+--
 -- Name: contador update_contador_updated_at; Type: TRIGGER; Schema: public; Owner: user
 --
 
@@ -5554,6 +6101,20 @@ CREATE TRIGGER update_elemento_avaliacao_updated_at BEFORE UPDATE ON public.elem
 
 
 --
+-- Name: flashcards update_flashcards_updated_at; Type: TRIGGER; Schema: public; Owner: user
+--
+
+CREATE TRIGGER update_flashcards_updated_at BEFORE UPDATE ON public.flashcards FOR EACH ROW EXECUTE FUNCTION public.update_generic_updated_at_column();
+
+
+--
+-- Name: flashcard_memory_state update_memory_state_updated_at; Type: TRIGGER; Schema: public; Owner: user
+--
+
+CREATE TRIGGER update_memory_state_updated_at BEFORE UPDATE ON public.flashcard_memory_state FOR EACH ROW EXECUTE FUNCTION public.update_generic_updated_at_column();
+
+
+--
 -- Name: nota_elemento update_nota_elemento_updated_at; Type: TRIGGER; Schema: public; Owner: user
 --
 
@@ -5568,6 +6129,13 @@ CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON public.products FOR E
 
 
 --
+-- Name: roles update_roles_updated_at; Type: TRIGGER; Schema: public; Owner: user
+--
+
+CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column_roles();
+
+
+--
 -- Name: student_loans update_student_loans_updated_at; Type: TRIGGER; Schema: public; Owner: user
 --
 
@@ -5579,6 +6147,13 @@ CREATE TRIGGER update_student_loans_updated_at BEFORE UPDATE ON public.student_l
 --
 
 CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON public.transactions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: user_roles update_user_roles_updated_at; Type: TRIGGER; Schema: public; Owner: user
+--
+
+CREATE TRIGGER update_user_roles_updated_at BEFORE UPDATE ON public.user_roles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column_roles();
 
 
 --
@@ -5693,6 +6268,30 @@ ALTER TABLE ONLY public.aplicacoes_questionario
 
 
 --
+-- Name: assuntos assuntos_discipline_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.assuntos
+    ADD CONSTRAINT assuntos_discipline_id_fkey FOREIGN KEY (discipline_id) REFERENCES public.subjects(id) ON DELETE CASCADE;
+
+
+--
+-- Name: audio_flashcard_attempts audio_flashcard_attempts_flashcard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.audio_flashcard_attempts
+    ADD CONSTRAINT audio_flashcard_attempts_flashcard_id_fkey FOREIGN KEY (flashcard_id) REFERENCES public.flashcards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: audio_flashcard_attempts audio_flashcard_attempts_student_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.audio_flashcard_attempts
+    ADD CONSTRAINT audio_flashcard_attempts_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: avaliacao_competencia avaliacao_competencia_aluno_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -5802,6 +6401,22 @@ ALTER TABLE ONLY public.competencia_disciplina_turma
 
 ALTER TABLE ONLY public.competencia_disciplina_turma
     ADD CONSTRAINT competencia_disciplina_turma_disciplina_turma_id_fkey FOREIGN KEY (disciplina_turma_id) REFERENCES public.disciplina_turma(id) ON DELETE CASCADE;
+
+
+--
+-- Name: competencia_dominio competencia_dominio_competencia_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.competencia_dominio
+    ADD CONSTRAINT competencia_dominio_competencia_id_fkey FOREIGN KEY (competencia_id) REFERENCES public.competencia(id) ON DELETE CASCADE;
+
+
+--
+-- Name: competencia_dominio competencia_dominio_dominio_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.competencia_dominio
+    ADD CONSTRAINT competencia_dominio_dominio_id_fkey FOREIGN KEY (dominio_id) REFERENCES public.dominios(id) ON DELETE CASCADE;
 
 
 --
@@ -6013,6 +6628,14 @@ ALTER TABLE ONLY public.empresas_tipos_parceria
 
 
 --
+-- Name: eqavet_ciclos_formativos eqavet_ciclos_formativos_responsavel_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.eqavet_ciclos_formativos
+    ADD CONSTRAINT eqavet_ciclos_formativos_responsavel_id_fkey FOREIGN KEY (responsavel_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: eqavet_indicador_1_colocacao eqavet_indicador_1_colocacao_ciclo_formativo_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -6125,11 +6748,59 @@ ALTER TABLE ONLY public.products
 
 
 --
--- Name: competencia fk_competencia_dominio; Type: FK CONSTRAINT; Schema: public; Owner: user
+-- Name: flashcard_memory_state flashcard_memory_state_flashcard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
 --
 
-ALTER TABLE ONLY public.competencia
-    ADD CONSTRAINT fk_competencia_dominio FOREIGN KEY (dominio_id) REFERENCES public.dominios(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.flashcard_memory_state
+    ADD CONSTRAINT flashcard_memory_state_flashcard_id_fkey FOREIGN KEY (flashcard_id) REFERENCES public.flashcards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: flashcard_memory_state flashcard_memory_state_student_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_memory_state
+    ADD CONSTRAINT flashcard_memory_state_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: flashcard_review_log flashcard_review_log_flashcard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_review_log
+    ADD CONSTRAINT flashcard_review_log_flashcard_id_fkey FOREIGN KEY (flashcard_id) REFERENCES public.flashcards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: flashcard_review_log flashcard_review_log_student_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_review_log
+    ADD CONSTRAINT flashcard_review_log_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: flashcards flashcards_assunto_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcards
+    ADD CONSTRAINT flashcards_assunto_id_fkey FOREIGN KEY (assunto_id) REFERENCES public.assuntos(id) ON DELETE SET NULL;
+
+
+--
+-- Name: flashcards flashcards_creator_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcards
+    ADD CONSTRAINT flashcards_creator_id_fkey FOREIGN KEY (creator_id) REFERENCES public.users(id);
+
+
+--
+-- Name: flashcards flashcards_discipline_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcards
+    ADD CONSTRAINT flashcards_discipline_id_fkey FOREIGN KEY (discipline_id) REFERENCES public.subjects(id) ON DELETE CASCADE;
 
 
 --
@@ -6482,6 +7153,22 @@ ALTER TABLE ONLY public.transactions
 
 ALTER TABLE ONLY public.transactions
     ADD CONSTRAINT transactions_utilizador_origem_id_fkey FOREIGN KEY (utilizador_origem_id) REFERENCES public.users(id);
+
+
+--
+-- Name: user_roles user_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.user_roles
+    ADD CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_roles user_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.user_roles
+    ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --

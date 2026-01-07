@@ -1,0 +1,31 @@
+# Audio Service Requirements - v6.0
+# NOTA: Este arquivo é APENAS para referência
+# O Dockerfile instala tudo diretamente para evitar conflitos
+
+# Core Web
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+httpx
+
+# TTS/STT
+gTTS
+faster-whisper
+
+# Fonética
+phonemizer
+jellyfish
+
+# Processamento de Áudio
+pydub
+librosa
+soundfile
+
+# Utils
+python-dotenv
+
+# NOTA IMPORTANTE:
+# PyTorch, numpy, scipy, numba e scikit-learn
+# são instalados no Dockerfile em ordem específica
+# para evitar conflitos de dependências

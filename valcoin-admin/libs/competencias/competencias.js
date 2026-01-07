@@ -307,17 +307,52 @@ router.post('/:id/avaliacoes', async (req, res) => {
     }
 });
 
-// GET evaluation moments for a competency
+// GET evaluation moments for a competency, optionally filtered by discipline_turma_id
 router.get('/:id/avaliacoes/momentos', async (req, res) => {
     const { id } = req.params;
+    const { disciplina_turma_id } = req.query;
+
     try {
-        const result = await db.query(
-            `SELECT DISTINCT momento_avaliacao FROM avaliacao_competencia WHERE competencia_id = $1 ORDER BY momento_avaliacao`,
-            [id]
-        );
+        let queryText = `SELECT DISTINCT momento_avaliacao FROM avaliacao_competencia WHERE competencia_id = $1`;
+        const queryParams = [id];
+
+        if (disciplina_turma_id) {
+            queryParams.push(disciplina_turma_id);
+            queryText += ` AND disciplina_turma_id = $2`;
+        }
+
+        queryText += ` ORDER BY momento_avaliacao`;
+
+        const result = await db.query(queryText, queryParams);
         res.status(200).json(result.rows.map(r => r.momento_avaliacao));
     } catch (error) {
         console.error('Error fetching evaluation moments:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// DELETE an entire evaluation moment for a specific competency and class
+router.delete('/:id/avaliacoes/momentos', async (req, res) => {
+    const { id } = req.params; // competency_id
+    const { momento_avaliacao, disciplina_turma_id } = req.query;
+
+    if (!momento_avaliacao || !disciplina_turma_id) {
+        return res.status(400).json({ error: 'moment_avaliacao and disciplina_turma_id are required query parameters.' });
+    }
+
+    try {
+        const result = await db.query(
+            `DELETE FROM avaliacao_competencia WHERE competencia_id = $1 AND momento_avaliacao = $2 AND disciplina_turma_id = $3`,
+            [id, momento_avaliacao, disciplina_turma_id]
+        );
+
+        if (result.rowCount > 0) {
+            res.status(200).json({ message: `Moment '${momento_avaliacao}' and its ${result.rowCount} assessments were deleted successfully.` });
+        } else {
+            res.status(404).json({ error: `No assessments found for moment '${momento_avaliacao}' in the specified class.` });
+        }
+    } catch (error) {
+        console.error('Error deleting evaluation moment:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

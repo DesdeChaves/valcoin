@@ -31,7 +31,10 @@ const useAuth = () => {
     window.location.replace('http://localhost/'); // Redirect to main portal landing page
   };
 
-  return { user, token, login, logout, loading };
+  const isCoordinator = user?.roles?.includes('coordenador_departamento') || false;
+  const enhancedUser = user ? { ...user, isCoordinator } : null;
+
+  return { user: enhancedUser, token, login, logout, loading };
 };
 
 export default useAuth;

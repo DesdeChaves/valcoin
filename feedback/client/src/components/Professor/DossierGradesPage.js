@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fetchDossierGrades, fetchMomentosAvaliacaoByDossie, saveBatchNotasFinais } from '../../utils/api';
 import { useParams, useNavigate } from 'react-router-dom';
-import Modal from '../Layout/Modal'; // Assuming a generic Modal component exists
+import { Printer } from 'lucide-react';
+import Modal from '../Layout/Modal';
 
 const GradeCalculationModal = ({ student, criteria, dossie, onClose }) => {
     if (!student || !criteria || !dossie) return null;
@@ -81,7 +82,6 @@ const GradeCalculationModal = ({ student, criteria, dossie, onClose }) => {
     );
 };
 
-
 const DossierGradesPage = () => {
     const { dossieId } = useParams();
     const navigate = useNavigate();
@@ -97,6 +97,7 @@ const DossierGradesPage = () => {
     const [transferring, setTransferring] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedStudent, setSelectedStudent] = useState(null);
+    const [exportingPDF, setExportingPDF] = useState(false);
 
     const professorId = JSON.parse(localStorage.getItem('user'))?.id;
 
@@ -142,8 +143,8 @@ const DossierGradesPage = () => {
                         name: student.nome,
                         numero: student.numero_mecanografico,
                         nota_calculada: normalizedFinalGrade,
-                        nota_final: parseInt(normalizedFinalGrade), // Initialize with calculated grade as an integer
-                        observacoes: '', // Initialize with empty string
+                        nota_final: parseInt(normalizedFinalGrade),
+                        observacoes: '',
                     };
                 });
 
@@ -173,6 +174,276 @@ const DossierGradesPage = () => {
             setLoading(false);
         }
     }, [professorId, dossieId]);
+
+    const generateStudentCalculationHTML = (student) => {
+        let html = `
+            <div class="student-section">
+                <div class="student-header">
+                    <h2>${student.numero} - ${student.name}</h2>
+                    <div class="final-grade">Nota Final: ${student.nota_calculada.toFixed(2)}</div>
+                </div>
+        `;
+
+        criteria.forEach(criterion => {
+            const sumOfInstrumentWeights = criterion.elementos.reduce((sum, inst) => sum + parseFloat(inst.ponderacao), 0);
+            
+            let criterionScore = 0;
+            let criterionTotalPonderacaoReal = 0;
+
+            html += `
+                <div class="criterion-section">
+                    <h3>${criterion.nome} (Ponderação: ${criterion.ponderacao}%)</h3>
+                    <table class="calculation-table">
+                        <thead>
+                            <tr>
+                                <th>Instrumento</th>
+                                <th>Ponderação</th>
+                                <th>Nota Obtida</th>
+                                <th>Cotação Máxima</th>
+                                <th>Contribuição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            criterion.elementos.forEach(instrument => {
+                const studentNote = instrument.notas.find(nota => nota.aluno_id === student.id);
+                const note = studentNote ? studentNote.nota : 'N/A';
+                
+                let contribution = 0;
+                let normalizedPond = 0;
+                
+                if (studentNote && !studentNote.falta) {
+                    const normalizedInstrumentPonderacao = (parseFloat(instrument.ponderacao) / sumOfInstrumentWeights) * 100;
+                    const instrumentScore = (parseFloat(studentNote.nota) / parseFloat(instrument.cotacao_maxima)) * normalizedInstrumentPonderacao;
+                    criterionScore += instrumentScore;
+                    criterionTotalPonderacaoReal += normalizedInstrumentPonderacao;
+                    const weightedScore = criterionTotalPonderacaoReal > 0 
+                        ? (instrumentScore / criterionTotalPonderacaoReal) * parseFloat(criterion.ponderacao)
+                        : 0;
+                    contribution = (weightedScore / 100) * dossie.escala_avaliacao;
+                    normalizedPond = normalizedInstrumentPonderacao;
+                }
+
+                html += `
+                    <tr>
+                        <td>${instrument.nome}</td>
+                        <td>${instrument.ponderacao}% ${normalizedPond > 0 ? `(${normalizedPond.toFixed(2)}% normalizado)` : ''}</td>
+                        <td>${note}</td>
+                        <td>${instrument.cotacao_maxima}</td>
+                        <td>${contribution.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            const criterionWeightedScore = criterionTotalPonderacaoReal > 0 
+                ? (criterionScore / criterionTotalPonderacaoReal) * parseFloat(criterion.ponderacao)
+                : 0;
+            const criterionContribution = (criterionWeightedScore / 100) * dossie.escala_avaliacao;
+
+            html += `
+                        </tbody>
+                    </table>
+                    <div class="criterion-total">
+                        Contribuição do Critério: ${criterionContribution.toFixed(2)} valores
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+        return html;
+    };
+
+    const exportarPDF = async () => {
+        if (!dossie || !studentsGrades || studentsGrades.length === 0) {
+            alert('Não há dados suficientes para gerar o relatório PDF.');
+            return;
+        }
+
+        setExportingPDF(true);
+
+        try {
+            const htmlContent = `
+                <html>
+                    <head>
+                        <title>Demonstração de Cálculo de Notas - ${dossie.nome}</title>
+                        <style>
+                            @page { 
+                                margin: 15mm; 
+                            }
+                            body { 
+                                font-family: 'Arial', sans-serif; 
+                                margin: 0;
+                                padding: 0;
+                                line-height: 1.3; 
+                                color: #000;
+                                font-size: 9pt;
+                            }
+                            .header {
+                                text-align: center;
+                                margin-bottom: 15px;
+                                border-bottom: 2px solid #333;
+                                padding-bottom: 10px;
+                            }
+                            .header img {
+                                max-width: 500px;
+                                height: auto;
+                                margin-bottom: 10px;
+                            }
+                            h1 { 
+                                color: #000; 
+                                text-align: center; 
+                                margin: 5px 0;
+                                font-size: 16pt;
+                                font-weight: bold;
+                            }
+                            .subtitle { 
+                                text-align: center; 
+                                color: #333; 
+                                margin-bottom: 10px; 
+                                font-size: 10pt; 
+                            }
+                            .info-box {
+                                background-color: #f5f5f5;
+                                border-left: 3px solid #333;
+                                padding: 8px;
+                                margin: 10px 0;
+                                font-size: 8pt;
+                            }
+                            .student-section {
+                                margin-bottom: 20px;
+                                page-break-inside: avoid;
+                                border: 1px solid #999;
+                                padding: 10px;
+                            }
+                            .student-header {
+                                background-color: #e0e0e0;
+                                color: #000;
+                                padding: 8px 12px;
+                                margin-bottom: 10px;
+                                display: flex;
+                                justify-content: space-between;
+                                align-items: center;
+                                border-bottom: 2px solid #333;
+                            }
+                            .student-header h2 {
+                                margin: 0;
+                                font-size: 12pt;
+                                font-weight: bold;
+                            }
+                            .final-grade {
+                                font-size: 12pt;
+                                font-weight: bold;
+                                padding: 4px 10px;
+                                background-color: #d0d0d0;
+                                border: 1px solid #333;
+                            }
+                            .criterion-section {
+                                margin-bottom: 12px;
+                                page-break-inside: avoid;
+                            }
+                            .criterion-section h3 {
+                                color: #000;
+                                margin: 5px 0;
+                                font-size: 10pt;
+                                font-weight: bold;
+                                border-bottom: 1px solid #333;
+                                padding-bottom: 3px;
+                            }
+                            .calculation-table { 
+                                width: 100%; 
+                                border-collapse: collapse; 
+                                margin: 5px 0;
+                                font-size: 8pt;
+                            }
+                            .calculation-table th, .calculation-table td { 
+                                border: 1px solid #666; 
+                                padding: 4px 6px; 
+                                text-align: left; 
+                            }
+                            .calculation-table th { 
+                                background-color: #d0d0d0; 
+                                color: #000; 
+                                font-weight: bold;
+                                font-size: 8pt;
+                            }
+                            .calculation-table tr:nth-child(even) { 
+                                background-color: #f5f5f5; 
+                            }
+                            .criterion-total {
+                                text-align: right;
+                                font-weight: bold;
+                                font-size: 9pt;
+                                color: #000;
+                                margin-top: 5px;
+                                padding: 5px 8px;
+                                background-color: #e8e8e8;
+                                border: 1px solid #999;
+                            }
+                            .footer { 
+                                font-size: 7pt; 
+                                text-align: center; 
+                                margin-top: 20px; 
+                                color: #666; 
+                                border-top: 1px solid #999; 
+                                padding-top: 8px; 
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <img src="http://nginx/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 718px; height: auto; margin-bottom: 20px;">
+                        </div>
+                        
+                        <h1>Demonstração de Cálculo de Classificações</h1>
+                        <div class="subtitle">${dossie.nome} · Escala: 0-${dossie.escala_avaliacao}</div>
+                        
+                        <div class="info-box">
+                            <strong>Informação:</strong> Este documento apresenta a demonstração detalhada do cálculo das classificações de cada aluno, 
+                            incluindo a contribuição de cada instrumento de avaliação e critério para a nota final.
+                        </div>
+
+                        ${studentsGrades.map(student => generateStudentCalculationHTML(student)).join('')}
+
+                        <div class="footer">
+                            Sistema de Gestão Académica 2025 • Relatório gerado em ${new Date().toLocaleDateString('pt-PT')} às ${new Date().toLocaleTimeString('pt-PT')}<br>
+                            Demonstração de cálculo para ${studentsGrades.length} aluno(s)
+                        </div>
+                    </body>
+                </html>
+            `;
+
+            const formData = new FormData();
+            const htmlFile = new Blob([htmlContent], { type: 'text/html' });
+            formData.append('files', htmlFile, 'index.html');
+
+            const response = await fetch('/gotenberg/forms/chromium/convert/html', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erro ao gerar PDF: ${response.statusText}`);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const fileName = `Demonstracao_Calculo_${(dossie.nome || 'notas').replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().getTime()}.pdf`;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            alert('Não foi possível gerar o PDF. Verifique a consola para mais detalhes.');
+        } finally {
+            setExportingPDF(false);
+        }
+    };
 
     const handleGradeChange = (studentId, newGrade) => {
         setStudentsGrades(prevGrades =>
@@ -212,8 +483,8 @@ const DossierGradesPage = () => {
             await saveBatchNotasFinais(selectedMomentoId, notasToSave);
             
             const notification = document.createElement('div');
-            notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in';
-            notification.innerHTML = `...`; // Simplified for brevity
+            notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+            notification.textContent = 'Notas transferidas com sucesso!';
             document.body.appendChild(notification);
             setTimeout(() => notification.remove(), 3000);
             
@@ -288,11 +559,11 @@ const DossierGradesPage = () => {
     };
 
     if (loading) {
-        return <div className="text-center">Loading...</div>;
+        return <div className="text-center p-8">A carregar...</div>;
     }
 
     if (error) {
-        return <div className="text-center text-red-500">{error}</div>;
+        return <div className="text-center text-red-500 p-8">{error}</div>;
     }
 
     return (
@@ -319,6 +590,26 @@ const DossierGradesPage = () => {
                                 <p className="text-sm text-gray-500">{dossie?.nome || 'Dossiê'} · Escala 0-{dossie?.escala_avaliacao || 20}</p>
                             </div>
                         </div>
+                        <button
+                            onClick={exportarPDF}
+                            disabled={exportingPDF || studentsGrades.length === 0}
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition-colors"
+                        >
+                            {exportingPDF ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    A gerar PDF...
+                                </>
+                            ) : (
+                                <>
+                                    <Printer className="w-5 h-5" />
+                                    Exportar Demonstração PDF
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
             </div>

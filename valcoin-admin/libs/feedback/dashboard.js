@@ -4,31 +4,33 @@ const getProfessorFeedbackDashboard = async (req, res) => {
   try {
     const professorId = req.user.id;
 
-    // 1. Get professor's disciplines
     const disciplinesQuery = `
       SELECT
-          pdt.id AS professor_disciplina_turma_id,
-          s.id AS subject_id,
-          s.nome AS subject_name,
-          s.codigo AS subject_code,
-          c.id AS class_id,
-          c.nome AS class_name,
-          c.codigo AS class_code,
-          pdt.ativo AS active
+          d.id AS subject_id,
+          d.nome AS subject_name,
+          d.codigo AS subject_code,
+          json_agg(
+              json_build_object(
+                  'professor_disciplina_turma_id', dt.id,
+                  'disciplina_turma_id', dt.id,
+                  'class_name', c.nome,
+                  'class_code', c.codigo
+              )
+          ) AS turmas
       FROM
-          professor_disciplina_turma pdt
+          disciplina_turma dt
       JOIN
-          disciplina_turma dt ON pdt.disciplina_turma_id = dt.id
-      JOIN
-          subjects s ON dt.disciplina_id = s.id
+          subjects d ON dt.disciplina_id = d.id
       JOIN
           classes c ON dt.turma_id = c.id
       WHERE
-          pdt.professor_id = $1;
+          dt.professor_id = $1 AND dt.ativo = true
+      GROUP BY
+          d.id, d.nome, d.codigo;
     `;
     const { rows: disciplines } = await db.query(disciplinesQuery, [professorId]);
 
-    const professorDisciplinaTurmaIds = disciplines.map(d => d.professor_disciplina_turma_id);
+    const professorDisciplinaTurmaIds = disciplines.flatMap(d => d.turmas.map(t => t.professor_disciplina_turma_id));
 
     if (professorDisciplinaTurmaIds.length === 0) {
       return res.json({
@@ -74,6 +76,24 @@ const getProfessorFeedbackDashboard = async (req, res) => {
     const { rows: contadorRows } = await db.query(contadoresQuery, [professorDisciplinaTurmaIds]);
     const totalContadores = parseInt(contadorRows[0].count, 10);
 
+    const disciplinaIds = disciplines.map(d => d.subject_id);
+
+    const competenciasQuery = `
+      SELECT COUNT(DISTINCT csp.criterio_sucesso_id)
+      FROM criterio_sucesso_professor csp
+      WHERE csp.professor_id = $1 AND csp.disciplina_id = ANY($2::uuid[]);
+    `;
+    const { rows: competenciasRows } = await db.query(competenciasQuery, [professorId, disciplinaIds]);
+    const totalCompetencias = parseInt(competenciasRows[0].count, 10);
+
+    const avaliacoesQuery = `
+      SELECT COUNT(*) 
+      FROM avaliacao_criterio_sucesso 
+      WHERE professor_id = $1;
+    `;
+    const { rows: avaliacoesRows } = await db.query(avaliacoesQuery, [professorId]);
+    const totalAvaliacoesCriterios = parseInt(avaliacoesRows[0].count, 10);
+
     res.json({
       disciplines,
       totalDisciplinas: disciplines.length,
@@ -81,6 +101,8 @@ const getProfessorFeedbackDashboard = async (req, res) => {
       totalCriterios,
       totalInstrumentos,
       totalContadores,
+      totalCompetencias,
+      totalAvaliacoesCriterios,
     });
 
   } catch (err) {

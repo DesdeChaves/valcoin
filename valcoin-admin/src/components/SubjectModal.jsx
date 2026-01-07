@@ -161,32 +161,44 @@ const SubjectModal = ({
       }
 
       // Sync Turmas
-      const originalDt = disciplinaTurma.filter(dt => dt.disciplina_id === subject.id && dt.ativo);
+      const originalDt = disciplinaTurma.filter(dt => dt.disciplina_id === subject.id);
       const originalTurmaIds = originalDt.map(dt => dt.turma_id);
+
       const turmasToAdd = associatedTurmas.filter(tId => !originalTurmaIds.includes(tId));
-      const turmasToRemove = originalTurmaIds.filter(tId => !associatedTurmas.includes(tId));
+      const turmasToRemove = originalDt.filter(dt => !associatedTurmas.includes(dt.turma_id));
+      const turmasToUpdate = originalDt.filter(dt => 
+        associatedTurmas.includes(dt.turma_id) &&
+        (professorByTurma[dt.turma_id] !== dt.professor_id)
+      );
 
       // Add new disciplina_turma with professor_id
       const addTurmaPromises = turmasToAdd.map(async (turmaId) => {
-        if (!professorByTurma[turmaId]) {
-          throw new Error(`Professor não selecionado para a turma ${turmaId}`);
+        const professorId = professorByTurma[turmaId];
+        if (!professorId) {
+          throw new Error(`Professor não selecionado para a nova turma associada.`);
         }
         return createDisciplinaTurma({
           disciplina_id: subject.id,
           turma_id: turmaId,
-          professor_id: professorByTurma[turmaId]
+          professor_id: professorId
         });
       });
-      const newDtRecords = await Promise.all(addTurmaPromises);
 
       // Soft delete removed turmas
-      const removeTurmaPromises = turmasToRemove.map(async (turmaId) => {
-        const dt = originalDt.find(dt => dt.turma_id === turmaId);
-        if (dt) {
-          await updateDisciplinaTurma(dt.id, { ativo: false });
-        }
+      const removeTurmaPromises = turmasToRemove.map(dt => {
+        return updateDisciplinaTurma(dt.id, { ...dt, ativo: false });
       });
-      await Promise.all(removeTurmaPromises);
+
+      // Update professor on existing turmas
+      const updateProfessorPromises = turmasToUpdate.map(dt => {
+        const newProfessorId = professorByTurma[dt.turma_id];
+        if (!newProfessorId) {
+          throw new Error(`Professor não selecionado para uma turma existente.`);
+        }
+        return updateDisciplinaTurma(dt.id, { ...dt, professor_id: newProfessorId, ativo: true });
+      });
+
+      await Promise.all([...addTurmaPromises, ...removeTurmaPromises, ...updateProfessorPromises]);
 
       // Sync Students
       const updatedDt = await getDisciplinaTurma();

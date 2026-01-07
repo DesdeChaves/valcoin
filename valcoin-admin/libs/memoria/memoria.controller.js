@@ -24,6 +24,7 @@ const criarFlashcard = async (req, res) => {
       back,
       cloze_text,
       image_url,
+      back_image_url, // New field
       occlusion_data,
       hints = [],
       scheduled_date,
@@ -39,10 +40,10 @@ const criarFlashcard = async (req, res) => {
       });
     }
 
-    if (!['basic', 'cloze', 'image_occlusion'].includes(type)) {
+    if (!['basic', 'cloze', 'image_occlusion', 'image_text'].includes(type)) {
       return res.status(400).json({
         success: false,
-        message: 'type deve ser "basic", "cloze" ou "image_occlusion"'
+        message: 'type deve ser "basic", "cloze", "image_occlusion" ou "image_text"'
       });
     }
 
@@ -54,10 +55,18 @@ const criarFlashcard = async (req, res) => {
         });
       }
     } else if (type === 'cloze') {
-      if (!cloze_text || !/{{c\d+::.*?}}/.test(cloze_text)) {
+      const clozeRegex = /{{\s*c(\d+)::(.*?)\s*}}/g // Corrected regex escaping
+      if (!cloze_text || !clozeRegex.test(cloze_text)) {
         return res.status(400).json({
           success: false,
           message: 'cloze_text deve conter pelo menos uma lacuna no formato {{c1::resposta}}'
+        });
+      }
+      const matches = cloze_text.match(new RegExp(clozeRegex, 'g'));
+      if (!matches) {
+        return res.status(400).json({
+          success: false,
+          message: 'Formato de cloze inválido.'
         });
       }
     } else if (type === 'image_occlusion') {
@@ -75,6 +84,13 @@ const criarFlashcard = async (req, res) => {
           });
         }
       }
+    } else if (type === 'image_text') {
+        if (!front || !back) {
+            return res.status(400).json({
+                success: false,
+                message: 'front e back são obrigatórios para tipo image_text'
+            });
+        }
     }
 
     let assunto_id = null;
@@ -85,17 +101,18 @@ const criarFlashcard = async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO flashcards
-       (discipline_id, creator_id, type, front, back, cloze_text, image_url, occlusion_data, hints, scheduled_date, assunto_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       RETURNING id, type, front, back, cloze_text, image_url, occlusion_data, hints, scheduled_date, created_at, assunto_id`,
+       (discipline_id, creator_id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, assunto_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, created_at, assunto_id`,
       [
         discipline_id,
         creator_id,
         type,
-        type === 'basic' ? front : null,
-        type === 'basic' ? back : null,
+        (type === 'basic' || type === 'image_text') ? front : null,
+        (type === 'basic' || type === 'image_text') ? back : null,
         type === 'cloze' ? cloze_text : null,
-        type === 'image_occlusion' ? image_url : null,
+        (type === 'image_occlusion' || type === 'image_text') ? image_url : null,
+        type === 'image_text' ? back_image_url : null,
         type === 'image_occlusion' ? JSON.stringify(occlusion_data) : null,
         hints,
         scheduled_date,
@@ -173,6 +190,7 @@ const editarFlashcard = async (req, res) => {
       back,
       cloze_text,
       image_url,
+      back_image_url,
       occlusion_data,
       hints,
       scheduled_date,
@@ -192,19 +210,21 @@ const editarFlashcard = async (req, res) => {
           back = $3,
           cloze_text = $4,
           image_url = $5,
-          occlusion_data = $6,
-          hints = $7,
-          scheduled_date = $8,
-          assunto_id = $9,
+          back_image_url = $6,
+          occlusion_data = $7,
+          hints = $8,
+          scheduled_date = $9,
+          assunto_id = $10,
           updated_at = NOW()
-       WHERE id = $10
+       WHERE id = $11
        RETURNING *`,
       [
         type,
-        type === 'basic' ? front : null,
-        type === 'basic' ? back : null,
+        (type === 'basic' || type === 'image_text') ? front : null,
+        (type === 'basic' || type === 'image_text') ? back : null,
         type === 'cloze' ? cloze_text : null,
-        type === 'image_occlusion' ? image_url : null,
+        (type === 'image_occlusion' || type === 'image_text') ? image_url : null,
+        type === 'image_text' ? back_image_url : null,
         type === 'image_occlusion' ? JSON.stringify(occlusion_data) : null,
         hints,
         scheduled_date,
@@ -278,14 +298,24 @@ const getAssuntos = async (req, res) => {
 /**
  * Obter fila diária
  */
+/**
+ * Obter fila diária - VERSÃO CORRIGIDA
+ */
 const obterFilaDiaria = async (req, res) => {
+  console.log(`[MEMORIA_LOG] Entering obterFilaDiaria for student_id: ${req.user.id}`);
   try {
     const student_id = req.user.id;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const query = `
-      WITH base_flashcards AS (
+      WITH user_disciplines AS (
+        SELECT dt.disciplina_id
+        FROM aluno_disciplina ad
+        JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id
+        WHERE ad.aluno_id = $1
+      ),
+      base_flashcards AS (
         SELECT
           f.id AS flashcard_id,
           f.type,
@@ -294,12 +324,16 @@ const obterFilaDiaria = async (req, res) => {
           f.cloze_text,
           f.image_url,
           f.occlusion_data,
-          f.hints
+          f.hints,
+          s.nome as discipline_name
         FROM flashcards f
+        JOIN subjects s ON f.discipline_id = s.id
         WHERE f.active = true
           AND f.scheduled_date <= CURRENT_DATE
+          AND f.discipline_id IN (SELECT disciplina_id FROM user_disciplines)
       ),
       expanded_flashcards AS (
+        -- Basic e Image+Text cards (sem sub_id)
         SELECT
           bf.flashcard_id,
           bf.type,
@@ -308,30 +342,50 @@ const obterFilaDiaria = async (req, res) => {
           bf.cloze_text,
           bf.image_url,
           bf.hints,
-          CASE
-            WHEN bf.type = 'basic' THEN NULL
-            WHEN bf.type = 'image_occlusion' THEN (elem->>'mask_id')::text
-            WHEN bf.type = 'cloze' THEN cloze_match.cloze_num::text
-            ELSE NULL
-          END AS sub_id,
-          CASE
-            WHEN bf.type = 'image_occlusion' THEN elem->>'label'
-            WHEN bf.type = 'cloze' THEN cloze_match.cloze_text
-            ELSE NULL
-          END AS sub_label,
-          CASE
-            WHEN bf.type = 'image_occlusion' THEN elem
-            ELSE NULL
-          END AS sub_data
+          bf.discipline_name,
+          NULL::text AS sub_id,
+          NULL::text AS sub_label,
+          NULL::jsonb AS sub_data
         FROM base_flashcards bf
-        LEFT JOIN LATERAL jsonb_array_elements(bf.occlusion_data) AS elem ON bf.type = 'image_occlusion'
-        LEFT JOIN LATERAL (
-          SELECT match[1] AS cloze_num, match[2] AS cloze_text
-          FROM regexp_matches(bf.cloze_text, '\\{\\{c(\\d+)::(.*?)\\}\\}', 'g') AS match
-        ) AS cloze_match ON bf.type = 'cloze'
-        WHERE bf.type = 'basic'
-           OR (bf.type = 'image_occlusion' AND elem IS NOT NULL)
-           OR (bf.type = 'cloze' AND cloze_match.cloze_num IS NOT NULL)
+        WHERE bf.type IN ('basic', 'image_text')
+
+        UNION ALL
+
+        -- Image occlusion cards (com sub_id = mask_id)
+        SELECT
+          bf.flashcard_id,
+          bf.type,
+          bf.front,
+          bf.back,
+          bf.cloze_text,
+          bf.image_url,
+          bf.hints,
+          bf.discipline_name,
+          (elem->>'mask_id')::text AS sub_id,
+          elem->>'label' AS sub_label,
+          elem AS sub_data
+        FROM base_flashcards bf
+        CROSS JOIN LATERAL jsonb_array_elements(bf.occlusion_data) AS elem
+        WHERE bf.type = 'image_occlusion'
+
+        UNION ALL
+
+        -- Cloze cards (com sub_id = número da lacuna)
+        SELECT
+          bf.flashcard_id,
+          bf.type,
+          bf.front,
+          bf.back,
+          bf.cloze_text,
+          bf.image_url,
+          bf.hints,
+          bf.discipline_name,
+          match[1]::text AS sub_id,
+          match[2]::text AS sub_label,
+          NULL::jsonb AS sub_data
+        FROM base_flashcards bf
+        CROSS JOIN LATERAL regexp_matches(bf.cloze_text, '\\{\\{c(\\d+)::([^}]+)\\}\\}', 'g') AS match
+        WHERE bf.type = 'cloze'
       )
       SELECT
         ef.flashcard_id,
@@ -341,6 +395,7 @@ const obterFilaDiaria = async (req, res) => {
         ef.cloze_text,
         ef.image_url,
         ef.hints,
+        ef.discipline_name,
         ef.sub_id,
         ef.sub_label,
         ef.sub_data,
@@ -353,11 +408,13 @@ const obterFilaDiaria = async (req, res) => {
         ON ms.flashcard_id = ef.flashcard_id
         AND ms.student_id = $1
         AND (
-          (ef.type = 'basic' AND ms.sub_id IS NULL)
+          (ef.type IN ('basic', 'image_text') AND ms.sub_id IS NULL)
           OR (ef.type IN ('cloze', 'image_occlusion') AND ms.sub_id = ef.sub_id)
         )
       WHERE
-        ms.stability IS NULL OR ms.stability = 0 OR ms.last_review IS NULL
+        ms.stability IS NULL 
+        OR ms.stability = 0 
+        OR ms.last_review IS NULL
         OR (
           ms.last_review IS NOT NULL
           AND ms.stability > 0
@@ -367,7 +424,9 @@ const obterFilaDiaria = async (req, res) => {
       LIMIT 50;
     `;
 
+    console.log(`[MEMORIA_LOG] Executing obterFilaDiaria query for student_id: ${student_id}`);
     const result = await db.query(query, [student_id, today]);
+    console.log(`[MEMORIA_LOG] Query completed for student_id: ${student_id}. Found ${result.rowCount} rows.`);
 
     const cards = result.rows.map(row => ({
       flashcard_id: row.flashcard_id,
@@ -377,6 +436,7 @@ const obterFilaDiaria = async (req, res) => {
       cloze_text: row.cloze_text,
       image_url: row.image_url,
       hints: row.hints,
+      discipline_name: row.discipline_name,
       sub_id: row.sub_id,
       sub_label: row.sub_label,
       sub_data: row.sub_data
@@ -397,7 +457,6 @@ const obterFilaDiaria = async (req, res) => {
     });
   }
 };
-
 /**
  * Registar revisão
  */

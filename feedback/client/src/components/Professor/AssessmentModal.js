@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchEligibleStudentsForCompetency, saveCompetencyAssessments, fetchEvaluationMoments, fetchAssessmentsForMoment, fetchRecentAssessments } from '../../utils/api_competencias';
+import { fetchEligibleStudentsForCompetency, saveCompetencyAssessments, fetchEvaluationMoments, fetchAssessmentsForMoment, fetchRecentAssessments, deleteEvaluationMoment } from '../../utils/api_competencias';
 
 const proficiencyLevels = [
     { value: 'fraco', label: 'Fraco' },
@@ -9,61 +9,77 @@ const proficiencyLevels = [
     { value: 'excelente', label: 'Excelente' },
 ];
 
-const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, professorId }) => {
+const AssessmentModal = ({ isOpen, onClose, competency, turmasForSubject, professorId }) => {
     const [students, setStudents] = useState([]);
     const [assessments, setAssessments] = useState({});
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [momentoAvaliacao, setMomentoAvaliacao] = useState('');
     const [evaluationMoments, setEvaluationMoments] = useState([]);
     const [selectedMoment, setSelectedMoment] = useState('');
+    const [selectedTurmaId, setSelectedTurmaId] = useState('');
 
+    // Effect to initialize selectedTurmaId when the modal opens or turmas change
+    useEffect(() => {
+        if (isOpen && turmasForSubject && turmasForSubject.length > 0) {
+            setSelectedTurmaId(turmasForSubject[0].disciplina_turma_id);
+        } else {
+            setSelectedTurmaId('');
+        }
+    }, [isOpen, turmasForSubject]);
+
+    // Effect to load students and evaluation moments when a turma is selected
     useEffect(() => {
         const loadInitialData = async () => {
-            if (disciplineTurmaId) {
+            if (selectedTurmaId) {
                 try {
                     setLoading(true);
-                    setError(null); // Reset error on new load
+                    setError(null);
+                    setStudents([]);
+                    setAssessments({});
+                    setEvaluationMoments([]);
+                    setSelectedMoment('');
+
                     const [response, moments] = await Promise.all([
-                        fetchEligibleStudentsForCompetency(competency.id, disciplineTurmaId),
-                        fetchEvaluationMoments(competency.id)
+                        fetchEligibleStudentsForCompetency(competency.id, selectedTurmaId),
+                        fetchEvaluationMoments(competency.id, selectedTurmaId) // Pass selectedTurmaId here
                     ]);
                     
-                    // Log the parameters received from the backend for verification
-                    console.log("Backend received parameters for eligible students:", {
-                        competenciaId: response.competenciaId,
-                        disciplinaTurmaId: response.disciplinaTurmaId
-                    });
-
                     const studentList = response.students || [];
 
                     if (studentList.length === 0 && (competency.medida_educativa === 'seletiva' || competency.medida_educativa === 'adicional')) {
                         setError("Nenhum aluno elegível encontrado. Verifique se as medidas educativas ('seletiva' ou 'adicional') estão configuradas corretamente para os alunos desta turma e disciplina.");
                     } else if (studentList.length === 0) {
-                        setError("Nenhum aluno encontrado para esta turma/disciplina.");
+                        setError("Nenhum aluno encontrado para esta turma.");
                     } else {
-                        setError(null); // Clear error if students are found
+                        setError(null);
                     }
 
                     setStudents(studentList);
                     setEvaluationMoments(moments);
 
-                    // Initialize assessments state
                     const initialAssessments = studentList.reduce((acc, student) => {
                         acc[student.id] = { level: null, observacoes: '', notApplicable: false };
                         return acc;
                     }, {});
                     setAssessments(initialAssessments);
                 } catch (err) {
-                    setError('Erro ao carregar os dados iniciais');
+                    setError('Erro ao carregar os dados da turma');
                 } finally {
                     setLoading(false);
                 }
+            } else {
+                setStudents([]);
+                setAssessments({});
+                setEvaluationMoments([]);
+                setSelectedMoment('');
+                setLoading(false);
             }
         };
         loadInitialData();
-    }, [disciplineTurmaId, competency.id]);
+    }, [selectedTurmaId, competency.id]);
 
+    // Effect to load assessments when a historical moment is selected
     useEffect(() => {
         const loadAssessmentsForMoment = async () => {
             if (selectedMoment) {
@@ -76,7 +92,7 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
                             newAssessments[assessment.aluno_id] = {
                                 level: assessment.nivel,
                                 observacoes: assessment.observacoes,
-                                notApplicable: false, // Assume loaded assessments are applicable
+                                notApplicable: false,
                             };
                         }
                     });
@@ -110,6 +126,36 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
             setError('Erro ao carregar as avaliações mais recentes');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteMoment = async () => {
+        if (!selectedMoment || !selectedTurmaId) {
+            alert("Por favor, selecione um momento para apagar.");
+            return;
+        }
+
+        if (window.confirm(`Tem a certeza que deseja apagar o momento '${selectedMoment}' e todas as suas avaliações nesta turma? Esta ação não pode ser revertida.`)) {
+            try {
+                setLoading(true);
+                await deleteEvaluationMoment(competency.id, selectedMoment, selectedTurmaId);
+                
+                // Update UI locally
+                setEvaluationMoments(prev => prev.filter(moment => moment !== selectedMoment));
+                setSelectedMoment('');
+
+                // Reset student assessments to their initial state
+                const initialAssessments = students.reduce((acc, student) => {
+                    acc[student.id] = { level: null, observacoes: '', notApplicable: false };
+                    return acc;
+                }, {});
+                setAssessments(initialAssessments);
+
+            } catch (err) {
+                setError(err.message || 'Falha ao apagar o momento.');
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -159,11 +205,16 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
             return;
         }
 
+        if (!selectedTurmaId) {
+            setError('É necessário selecionar uma turma.');
+            return;
+        }
+
         try {
             await saveCompetencyAssessments(competency.id, {
                 evaluations,
                 professor_id: professorId,
-                disciplina_turma_id: disciplineTurmaId,
+                disciplina_turma_id: selectedTurmaId,
                 momento_avaliacao: momentoAvaliacao || selectedMoment,
             });
             onClose();
@@ -182,6 +233,22 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
                     <div className="mt-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div>
+                                <label htmlFor="turma-select" className="block text-sm font-medium text-gray-700">Selecionar Turma</label>
+                                <select
+                                    id="turma-select"
+                                    value={selectedTurmaId}
+                                    onChange={(e) => setSelectedTurmaId(e.target.value)}
+                                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                                >
+                                    <option value="">Selecione uma turma</option>
+                                    {turmasForSubject.map(turma => (
+                                        <option key={turma.disciplina_turma_id} value={turma.disciplina_turma_id}>
+                                            {turma.class_name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
                                 <label htmlFor="momento-avaliacao" className="block text-sm font-medium text-gray-700">Novo Momento de Avaliação</label>
                                 <input
                                     type="text"
@@ -192,28 +259,29 @@ const AssessmentModal = ({ isOpen, onClose, competency, disciplineTurmaId, profe
                                     placeholder="Ex: 1º Período"
                                 />
                             </div>
-                            <div>
-                                <label htmlFor="moment-history" className="block text-sm font-medium text-gray-700">Histórico de Momentos</label>
-                                <select
-                                    id="moment-history"
-                                    value={selectedMoment}
-                                    onChange={(e) => setSelectedMoment(e.target.value)}
-                                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                                >
-                                    <option value="">Selecione um momento</option>
-                                    {evaluationMoments.map(moment => (
-                                        <option key={moment} value={moment}>{moment}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 invisible">Ações</label>
+                             <div className="flex items-end space-x-2">
+                                <div className="flex-grow">
+                                    <label htmlFor="moment-history" className="block text-sm font-medium text-gray-700">Histórico de Momentos</label>
+                                    <select
+                                        id="moment-history"
+                                        value={selectedMoment}
+                                        onChange={(e) => setSelectedMoment(e.target.value)}
+                                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                                    >
+                                        <option value="">Selecione um momento</option>
+                                        {evaluationMoments.map(moment => (
+                                            <option key={moment} value={moment}>{moment}</option>
+                                        ))}
+                                    </select>
+                                </div>
                                 <button
                                     type="button"
-                                    onClick={handleCreateFromRecent}
-                                    className="mt-1 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50"
+                                    onClick={handleDeleteMoment}
+                                    disabled={!selectedMoment}
+                                    className="px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                    title="Apagar momento selecionado"
                                 >
-                                    Criar com base no mais recente
+                                    Apagar
                                 </button>
                             </div>
                         </div>

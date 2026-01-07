@@ -1,0 +1,21 @@
+# Framework web
+fastapi
+uvicorn[standard]
+python-multipart
+
+# HTTP Client
+httpx
+
+# Text-to-Speech (TTS)
+gTTS
+
+# Speech-to-Text (STT)
+faster-whisper
+torch
+torchaudio
+pydub
+
+# Utilidades
+pydantic
+python-dotenv
+jellyfish

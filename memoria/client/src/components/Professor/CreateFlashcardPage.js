@@ -10,18 +10,23 @@ const CreateFlashcardPage = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  const [selectedIdioma, setSelectedIdioma] = useState('pt'); // Default to Portuguese
+
   useEffect(() => {
     const fetchDisciplines = async () => {
       try {
         const response = await api.get('/disciplina_turma/professor/me');
         console.log(response);
-        const myDisciplines = response.data.data.map(dt => ({
-          id: dt.disciplina_id,
-          name: dt.disciplina_nome || `Disciplina ${dt.disciplina_id}`
-        }));
-        setDisciplines(myDisciplines);
-        if (myDisciplines.length > 0) {
-          setSelectedDiscipline(myDisciplines[0].id);
+        const flattenedDisciplines = response.data.data.flatMap(d => 
+          d.turmas.map(t => ({
+            disciplina_turma_id: t.disciplina_turma_id,
+            disciplina_id: d.disciplina_id,
+            name: `${d.disciplina_nome} (${t.turma_nome})`
+          }))
+        );
+        setDisciplines(flattenedDisciplines);
+        if (flattenedDisciplines.length > 0) {
+          setSelectedDiscipline(flattenedDisciplines[0]);
         }
       } catch (err) {
         console.error('Erro ao carregar disciplinas:', err);
@@ -65,20 +70,38 @@ const CreateFlashcardPage = () => {
         <div className="mb-10 flex flex-col sm:flex-row gap-6 items-center justify-center">
           <label className="text-lg font-semibold text-gray-800">Disciplina:</label>
           <select
-            value={selectedDiscipline || ''}
-            onChange={(e) => setSelectedDiscipline(e.target.value)}
+            value={selectedDiscipline ? selectedDiscipline.disciplina_turma_id : ''}
+            onChange={(e) => {
+              const selected = disciplines.find(d => d.disciplina_turma_id === e.target.value);
+              setSelectedDiscipline(selected);
+            }}
             className="px-6 py-3 bg-white border-2 border-indigo-300 rounded-xl shadow-md focus:border-indigo-600 focus:ring-4 focus:ring-indigo-200 transition text-lg"
           >
             {disciplines.map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
+              <option key={d.disciplina_turma_id} value={d.disciplina_turma_id}>
+                {d.name}
+              </option>
             ))}
+          </select>
+
+          <label className="text-lg font-semibold text-gray-800">Idioma:</label>
+          <select
+            value={selectedIdioma}
+            onChange={(e) => setSelectedIdioma(e.target.value)}
+            className="px-6 py-3 bg-white border-2 border-indigo-300 rounded-xl shadow-md focus:border-indigo-600 focus:ring-4 focus:ring-indigo-200 transition text-lg"
+          >
+            <option value="pt">Português</option>
+            <option value="en">Inglês</option>
+            <option value="es">Espanhol</option>
+            <option value="fr">Francês</option>
           </select>
         </div>
       )}
 
       {selectedDiscipline && (
         <FlashCardCreator
-          disciplineId={selectedDiscipline}
+          disciplineId={selectedDiscipline.disciplina_id}
+          selectedIdioma={selectedIdioma}
           onSuccess={handleFlashcardCreated}
         />
       )}

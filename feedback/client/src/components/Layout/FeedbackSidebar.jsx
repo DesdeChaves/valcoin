@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { BookOpen, LayoutDashboard, Folder, List, Settings, Hash, GraduationCap, Star, Users } from 'lucide-react'; // Using lucide-react for consistency
 
-const FeedbackSidebar = ({ activeTab, setActiveTab, userType, currentUser, departments }) => {
+const FeedbackSidebar = ({ activeTab, setActiveTab, userType, currentUser }) => {
   const professorTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
     { id: 'student-view', label: 'Visão do Aluno', icon: Users, path: '/student-view' },

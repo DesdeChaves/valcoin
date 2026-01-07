@@ -22,7 +22,14 @@ function StudentViewPage() {
         const loadDisciplines = () => {
             fetchProfessorDisciplines(user.id)
                 .then(response => {
-                    setDisciplines(response);
+                    const flattenedDisciplines = response.flatMap(d =>
+                        d.turmas.map(t => ({
+                            professor_disciplina_turma_id: t.professor_disciplina_turma_id,
+                            subject_name: d.subject_name,
+                            class_name: t.class_name,
+                        }))
+                    );
+                    setDisciplines(flattenedDisciplines);
                 })
                 .catch(err => {
                     setError('Failed to load disciplines.');
@@ -44,7 +51,7 @@ function StudentViewPage() {
             // Fetch dossiers
             fetchDossiersByDiscipline(disciplineId)
                 .then(dossiersResponse => {
-                    setDossiers(dossiersResponse.dossies);
+                    setDossiers(dossiersResponse);
                 })
                 .catch(err => {
                     setError('Failed to load dossiers.');

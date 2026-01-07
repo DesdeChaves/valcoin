@@ -70,6 +70,21 @@ const EditFlashcardModal = ({ flashcard, onClose, onSave }) => {
                         </datalist>
                     </div>
 
+                    <div>
+                        <label className="block font-semibold text-gray-700 mb-3">Idioma</label>
+                        <select
+                            name="idioma"
+                            value={formData.idioma || 'pt'} // Default to 'pt' if not set
+                            onChange={handleChange}
+                            className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-indigo-500 text-lg"
+                        >
+                            <option value="pt">Português</option>
+                            <option value="en">Inglês</option>
+                            <option value="es">Espanhol</option>
+                            <option value="fr">Francês</option>
+                        </select>
+                    </div>
+
                     {/* Type-specific fields */}
                     {formData.type === 'basic' && (
                         <>
@@ -83,11 +98,43 @@ const EditFlashcardModal = ({ flashcard, onClose, onSave }) => {
                             </div>
                         </>
                     )}
+                    {formData.type === 'spelling' && (
+                        <>
+                            <div>
+                                <label className="block font-semibold text-gray-700 mb-3">Palavra a soletrar</label>
+                                <input type="text" name="audio_text" value={formData.audio_text} onChange={handleChange} className="w-full p-4 border-2 border-gray-300 rounded-xl" />
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-gray-700 mb-3">Resposta esperada</label>
+                                <input type="text" name="expected_answer" value={formData.expected_answer} onChange={handleChange} className="w-full p-4 border-2 border-gray-300 rounded-xl" />
+                            </div>
+                        </>
+                    )}
                     {formData.type === 'cloze' && (
                         <div>
                             <label className="block font-semibold text-gray-700 mb-3">Texto Cloze</label>
                             <textarea name="cloze_text" value={formData.cloze_text} onChange={handleChange} rows="6" className="w-full p-4 border-2 border-gray-300 rounded-xl" />
                         </div>
+                    )}
+                    {formData.type === 'image_text' && (
+                        <>
+                            <div>
+                                <label className="block font-semibold text-gray-700 mb-3">Frente</label>
+                                <textarea name="front" value={formData.front} onChange={handleChange} rows="4" className="w-full p-4 border-2 border-gray-300 rounded-xl" />
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-gray-700 mb-3">URL da Imagem da Frente</label>
+                                <input type="text" name="image_url" value={formData.image_url || ''} onChange={handleChange} className="w-full p-4 border-2 border-gray-300 rounded-xl" />
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-gray-700 mb-3">Verso</label>
+                                <textarea name="back" value={formData.back} onChange={handleChange} rows="4" className="w-full p-4 border-2 border-gray-300 rounded-xl" />
+                            </div>
+                            <div>
+                                <label className="block font-semibold text-gray-700 mb-3">URL da Imagem do Verso</label>
+                                <input type="text" name="back_image_url" value={formData.back_image_url || ''} onChange={handleChange} className="w-full p-4 border-2 border-gray-300 rounded-xl" />
+                            </div>
+                        </>
                     )}
                     {/* TODO: Add image_occlusion editor if needed */}
 

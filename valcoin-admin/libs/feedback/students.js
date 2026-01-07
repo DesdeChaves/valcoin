@@ -118,6 +118,105 @@ router.get('/:studentId/counters', async (req, res) => {
     }
 });
 
+// Middleware para verificar se studentId matches req.user.id
+const checkStudentId = (req, res, next) => {
+    const { studentId } = req.params;
+    if (req.user.id !== studentId) {
+        return res.status(403).json({ error: 'Acesso negado. Você só pode acessar seus próprios dados.' });
+    }
+    next();
+};
+
+// GET resumo do dashboard (KPIs)
+router.get('/:studentId/summary', checkStudentId, async (req, res) => {
+    const { studentId } = req.params;
+    try {
+        // Helper para valores numéricos seguros (NULL → 'N/A')
+        const safeFixed = (val, decimals = 2) => 
+            val != null && !isNaN(val) ? Number(val).toFixed(decimals) : 'N/A';
+
+        // 1. Notas Recentes e Estatísticas
+        const gradesQuery = `
+            WITH notas_aluno AS (
+                SELECT ne.nota, d.escala_avaliacao, ea.data_avaliacao
+                FROM public.nota_elemento ne
+                JOIN public.elemento_avaliacao ea ON ea.id = ne.elemento_avaliacao_id
+                JOIN public.criterio cr ON cr.id = ea.criterio_id
+                JOIN public.dossie d ON d.id = cr.dossie_id
+                WHERE ne.aluno_id = $1 AND ne.nota > 0
+            )
+            SELECT
+                percentile_cont(0.20) WITHIN GROUP (ORDER BY nota) AS percentil_20,
+                percentile_cont(0.50) WITHIN GROUP (ORDER BY nota) AS percentil_50,
+                percentile_cont(0.75) WITHIN GROUP (ORDER BY nota) AS percentil_75,
+                AVG(nota) AS media_global,
+                COUNT(*) FILTER (WHERE nota >= CASE
+                    WHEN escala_avaliacao = 20 THEN 10
+                    WHEN escala_avaliacao = 5 THEN 2.5
+                    ELSE 50
+                END) * 100.0 / NULLIF(COUNT(*), 0) AS percentagem_sucesso,
+                AVG(nota) FILTER (WHERE data_avaliacao >= CURRENT_DATE - INTERVAL '30 days') AS media_ultimas_notas
+            FROM notas_aluno;
+        `;
+        const gradesRes = await db.query(gradesQuery, [studentId]);
+        const gradesRow = gradesRes.rows[0] || {};
+
+        const grades = {
+            mediaUltimasNotas: safeFixed(gradesRow.media_ultimas_notas),
+            percentil20: safeFixed(gradesRow.percentil_20),
+            percentil50: safeFixed(gradesRow.percentil_50),
+            percentil75: safeFixed(gradesRow.percentil_75),
+            mediaGlobal: safeFixed(gradesRow.media_global),
+            percentagemSucesso: safeFixed(gradesRow.percentagem_sucesso)
+        };
+
+        // 2. Critérios de Sucesso
+        const successQuery = `
+            SELECT COUNT(*) AS total_concluidos
+            FROM public.avaliacao_criterio_sucesso
+            WHERE aluno_id = $1 AND atingiu_sucesso = true;
+        `;
+        const successRes = await db.query(successQuery, [studentId]);
+        const successCount = parseInt(successRes.rows[0]?.total_concluidos || 0);
+
+        // 3. Progresso das Competências
+        const competencesQuery = `
+            SELECT AVG(e.evolucao) AS evolucao_media
+            FROM public.competencia c
+            CROSS JOIN LATERAL public.calcular_evolucao_competencia($1, c.id) e
+            WHERE EXISTS (
+                SELECT 1 FROM public.avaliacao_competencia ac
+                WHERE ac.competencia_id = c.id AND ac.aluno_id = $1
+            );
+        `;
+        const competencesRes = await db.query(competencesQuery, [studentId]);
+        const avgEvolucaoRaw = competencesRes.rows[0]?.evolucao_media;
+        const avgEvolucao = avgEvolucaoRaw != null ? Number(avgEvolucaoRaw).toFixed(2) : '0.00';
+
+        // 4. Pontos dos Contadores
+        const countersQuery = `
+            SELECT COALESCE(SUM(public.calcular_pontos_contadores(d.id, $1)), 0) AS total_pontos
+            FROM public.dossie d
+            WHERE EXISTS (
+                SELECT 1 FROM public.contador cnt WHERE cnt.dossie_id = d.id
+            );
+        `;
+        const countersRes = await db.query(countersQuery, [studentId]);
+        const totalPontos = parseInt(countersRes.rows[0]?.total_pontos || 0);
+
+        res.status(200).json({
+            grades,
+            successCount,
+            avgEvolucao,
+            totalPontos
+        });
+    } catch (error) {
+        console.error('Error fetching student summary:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
 // GET all dossiers for a student in a discipline
 router.get('/:studentId/disciplines/:disciplineId/dossiers', async (req, res) => {
     const { studentId, disciplineId } = req.params;
@@ -290,11 +389,11 @@ router.get('/:studentId/competencies/evaluations', async (req, res) => {
                 vpa.competencia_id,
                 vpa.competencia_codigo,
                 vpa.competencia_nome,
-                vpa.dominio,
+                vpa.dominios,
                 vpa.disciplina_turma_id,
                 vpa.disciplina_nome,
                 vpa.nivel_atual,
-                vpa.ultima_avaliacao,
+                vpa.data_ultima_avaliacao as ultima_avaliacao,
                 vpa.observacoes,
                 vpa.medida_educativa,
                 vpa.aluno_tem_medida_educativa

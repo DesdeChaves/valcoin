@@ -308,28 +308,38 @@ const authenticateAdminJWT = (req, res, next) => {
 // A correção deve ser feita no valcoin_server.js onde está definida
 // Encontrar esta função (linha ~356):
 
-const authenticateAdminOrProfessor = (req, res, next) => {
+const authenticateAdminOrProfessor = async (req, res, next) => {
   console.log(`[DEBUG] authenticateAdminOrProfessor: Starting for ${req.method} ${req.path}`);
-  const authHeader = req.headers.authorization; // ✅ ADICIONAR ESTA LINHA
-  if (authHeader) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      console.log('No authorization header found.');
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (err) {
-        console.error('JWT verification error:', err);
-        return res.status(403).json({ message: 'Forbidden' });
-      }
-      console.log('User from token:', user);
-      const userType = user.tipo_utilizador ? user.tipo_utilizador.toUpperCase() : '';
-      if (userType !== 'ADMIN' && userType !== 'PROFESSOR') {
-        console.log(`Authorization failed. User type is: ${user.tipo_utilizador}`);
-        return res.status(403).json({ message: 'Forbidden' });
-      }
-      req.user = user;
-      next();
+    const user = await new Promise((resolve, reject) => {
+      jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) {
+          return reject(err);
+        }
+        resolve(decoded);
+      });
     });
-  } else {
-    console.log('No authorization header found.');
-    res.status(401).json({ message: 'Unauthorized' });
+
+    console.log('User from token:', user);
+    const userType = user.tipo_utilizador ? user.tipo_utilizador.toUpperCase() : '';
+    
+    if (userType !== 'ADMIN' && userType !== 'PROFESSOR') {
+      console.log(`Authorization failed. User type is: ${user.tipo_utilizador}`);
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('JWT verification error in authenticateAdminOrProfessor:', err);
+    return res.status(403).json({ message: 'Forbidden: Invalid Token' });
   }
 };
 
@@ -370,23 +380,23 @@ const authorizeStudent = (req, res, next) => {
 // Admin or Coordinator
 const authorizeAdminOrCoordinator = async (req, res, next) => {
   if (!req.user) {
-    return res.sendStatus(401);
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
-  if (req.user.tipo_utilizador === 'ADMIN') {
+  const userRoles = req.user.roles || [];
+  
+  // Grant access if user is an ADMIN (by user type) or has the 'ADMIN' role
+  if (req.user.tipo_utilizador === 'ADMIN' || userRoles.includes('ADMIN')) {
     return next();
   }
 
-  try {
-    const { rows } = await db.query('SELECT id FROM departamento WHERE coordenador_id = $1', [req.user.id]);
-    if (rows.length > 0) {
-      return next();
-    }
-    return res.sendStatus(403);
-  } catch (error) {
-    console.error('Authorization error:', error);
-    return res.status(500).json({ error: 'Internal server error during authorization' });
+  // Grant access if user has the coordenador_departamento role
+  if (userRoles.includes('coordenador_departamento')) {
+    return next();
   }
+
+  // If none of the above, deny access
+  return res.status(403).json({ error: 'Forbidden: Insufficient permissions.' });
 };
 
 // ============================================================================
@@ -562,34 +572,37 @@ app.patch('/api/admin/student-loans/:id/reject', authenticateAdminOrProfessor, r
 app.get('/api/feedback/professor/feedback-dashboard', authenticateJWT, authorizeProfessor, getProfessorFeedbackDashboard);
 
 
-app.get('/api/feedback/studentsprofessor/disciplina/:disciplineId/alunos', 
+app.get('/api/feedback/studentsprofessor/disciplina/:assignmentId/alunos', 
   authenticateJWT, 
-  authorizeProfessor,  // <-- PROFESSOR pode acessar
+  authorizeProfessor,
   async (req, res) => {
     try {
-      const { disciplineId } = req.params;
-      console.log('🔍 Fetching students for discipline:', disciplineId);
-      console.log('👤 Requested by professor:', req.user.id);
+      const { assignmentId } = req.params;
+      const professorId = req.user.id;
 
-      // Query para buscar alunos matriculados na disciplina_turma
-      const query = `
-            WITH selected_discipline AS (
-                SELECT disciplina_turma_id
-                FROM professor_disciplina_turma
-                WHERE id = $1
-            )
+      // Correctly check if the professor has access to this assignment and get the corresponding disciplina_turma_id
+      const accessCheck = await db.query(
+        'SELECT disciplina_turma_id FROM professor_disciplina_turma WHERE id = $1 AND professor_id = $2 AND ativo = true',
+        [assignmentId, professorId]
+      );
+
+      if (accessCheck.rows.length === 0) {
+        return res.status(403).json({ error: "Access denied. The provided assignment ID is invalid or does not belong to this professor." });
+      }
+
+      const disciplinaTurmaId = accessCheck.rows[0].disciplina_turma_id;
+
+      // If access is granted, fetch the students for that disciplina_turma using the correct ID
+      const studentsQuery = `
             SELECT u.id, u.nome, u.numero_mecanografico
             FROM users u
             JOIN aluno_disciplina ad ON u.id = ad.aluno_id
-            WHERE ad.disciplina_turma_id = (SELECT disciplina_turma_id FROM selected_discipline)
-              AND u.tipo_utilizador = 'ALUNO'
-              AND u.ativo = true
+            WHERE ad.disciplina_turma_id = $1 AND u.ativo = true
             ORDER BY u.nome;
       `;
-
-      const { rows } = await db.query(query, [disciplineId]);
+      const { rows } = await db.query(studentsQuery, [disciplinaTurmaId]);
       
-      console.log(`✅ Found ${rows.length} students`);
+      console.log(`✅ Found ${rows.length} students for disciplina_turma_id ${disciplinaTurmaId}`);
       res.json(rows);
       
     } catch (error) {

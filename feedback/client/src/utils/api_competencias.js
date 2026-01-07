@@ -32,9 +32,20 @@ export const fetchStudentsForCompetencyAssessment = (disciplineTurmaId) =>
 export const saveCompetencyAssessments = (competencyId, assessmentData) => 
     handleRequest(() => feedbackClient.post(`/competencias/${competencyId}/avaliacoes`, assessmentData), 'saveCompetencyAssessments');
 
-// Fetch all evaluation moments for a competency
-export const fetchEvaluationMoments = (competencyId) =>
-    handleRequest(() => feedbackClient.get(`/competencias/${competencyId}/avaliacoes/momentos`), 'fetchEvaluationMoments');
+// Delete an entire evaluation moment and its assessments
+export const deleteEvaluationMoment = (competencyId, momento, disciplinaTurmaId) => {
+    const url = `/competencias/${competencyId}/avaliacoes/momentos?momento_avaliacao=${encodeURIComponent(momento)}&disciplina_turma_id=${disciplinaTurmaId}`;
+    return handleRequest(() => feedbackClient.delete(url), 'deleteEvaluationMoment');
+};
+
+// Fetch all evaluation moments for a competency, optionally filtered by class
+export const fetchEvaluationMoments = (competencyId, disciplinaTurmaId) => {
+    let url = `/competencias/${competencyId}/avaliacoes/momentos`;
+    if (disciplinaTurmaId) {
+        url += `?disciplina_turma_id=${disciplinaTurmaId}`;
+    }
+    return handleRequest(() => feedbackClient.get(url), 'fetchEvaluationMoments');
+};
 
 // Fetch evaluations for a competency and moment
 export const fetchAssessmentsForMoment = (competencyId, momento) =>

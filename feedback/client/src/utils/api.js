@@ -255,6 +255,17 @@ export const getAllStudentLoans = () => handleRequest(() => apiClient.get('/admi
 export const approveStudentLoan = (id) => handleRequest(() => apiClient.patch(`/admin/student-loans/${id}/approve`), 'approveStudentLoan');
 export const rejectStudentLoan = (id) => handleRequest(() => apiClient.patch(`/admin/student-loans/${id}/reject`), 'rejectStudentLoan');
 
+
+// ============================================================================
+// FEEDBACK SYSTEM - Student (New Routes)
+// ============================================================================
+// Student Dashboard Summary (KPIs)
+//export const getStudentDashboardSummary = (studentId) => 
+//  handleRequest(() => feedbackClient.get(`/${studentId}/summary`), 'getStudentDashboardSummary');
+
+// Adjusted Student Crisucesso Feedback (corrected path)
+//export const getStudentCrisucessoFeedback = () => 
+//  handleRequest(() => feedbackClient.get('/criterio-sucesso'), 'getStudentCrisucessoFeedback');
 // ============================================================================
 // FEEDBACK SYSTEM - Professor
 // ============================================================================
@@ -293,7 +304,7 @@ export const fetchAllStudentProfessorGrades = (studentId) => handleRequest(() =>
 export const fetchStudentProfessorDossierGrades = (studentId, dossierId) => handleRequest(() => feedbackClient.get(`/studentprofessor/${studentId}/dossier/${dossierId}/grades`), 'fetchStudentProfessorDossierGrades');
 
 // Dossier Management
-export const fetchDossiersByDiscipline = (disciplineId) => handleRequest(() => feedbackClient.get(`/dossies/${disciplineId}/pesquisa`), 'fetchDossiersByDiscipline');
+export const fetchDossiersByDiscipline = (disciplineId) => handleRequest(() => feedbackClient.get(`/dossies/for-assignment/${disciplineId}`), 'fetchDossiersByDiscipline');
 export const saveDossier = (dossierData) => handleRequest(() => feedbackClient.post(`/dossies/save`, dossierData), 'saveDossier');
 export const updateDossier = (dossieId, dossierData) => handleRequest(() => feedbackClient.post(`/dossies/${dossieId}/atualiza`, dossierData), 'updateDossier');
 export const deleteDossier = (dossieId) => handleRequest(() => feedbackClient.get(`/dossies/${dossieId}/delete?hard=true`), 'deleteDossier');
@@ -342,16 +353,29 @@ export const saveBatchNotasFinais = (momentoId, notas) => handleRequest(() => fe
 export const fetchNotasFinaisByMomento = (momentoId) => handleRequest(() => feedbackClient.get(`/momentos-avaliacao/momento-avaliacao/${momentoId}/notas-finais`), 'fetchNotasFinaisByMomento');
 
 // ============================================================================
+
 // FEEDBACK SYSTEM - Student
+
 // ============================================================================
+
+export const getStudentDashboardSummary = (studentId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/summary`), 'getStudentDashboardSummary');
+
 export const getStudentFeedbackDashboard = () => handleRequest(() => feedbackClient.get('/students/feedback-dashboard'), 'getStudentFeedbackDashboard');
+
 export const fetchStudentDisciplines = (studentId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/disciplines`), 'fetchStudentDisciplines');
+
 export const fetchStudentDisciplineGrades = (studentId, disciplineId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/disciplines/${disciplineId}/grades`), 'fetchStudentDisciplineGrades');
+
 export const fetchStudentDossiers = (studentId, disciplineId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/disciplines/${disciplineId}/dossiers`), 'fetchStudentDossiers');
+
 export const fetchStudentDossierGrades = (studentId, dossierId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/dossier/${dossierId}/grades`), 'fetchStudentDossierGrades');
+
 export const fetchAllStudentGrades = (studentId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/all-grades`), 'fetchAllStudentGrades');
+
 export const fetchStudentCounters = (studentId, disciplineId, counterId, sortBy, sortOrder) => handleRequest(() => feedbackClient.get(`/students/${studentId}/counters`, { params: { disciplineId, counterId, sortBy, sortOrder } }), 'fetchStudentCounters');
+
 export const fetchStudentCountersList = (studentId) => handleRequest(() => feedbackClient.get(`/students/${studentId}/counters/all`), 'fetchStudentCountersList');
+
 export const getStudentCrisucessoFeedback = () => handleRequest(() => feedbackClient.get('/students/crisucessofeedback'), 'getStudentCrisucessoFeedback');
 
 // ============================================================================

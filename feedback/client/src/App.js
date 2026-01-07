@@ -43,28 +43,8 @@ function App() {
   const [activeTab, setActiveTab] = useState(
     user?.tipo_utilizador === 'PROFESSOR' ? 'dashboard' : 'dashboard'
   );
-  const [departments, setDepartments] = useState([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(true);
 
-  useEffect(() => {
-    if (user && (user.tipo_utilizador === 'PROFESSOR' || user.tipo_utilizador === 'ADMIN')) {
-      const fetchDepartments = async () => {
-        try {
-          const data = await getDepartments();
-          setDepartments(data);
-        } catch (err) {
-          console.error('Failed to fetch departments:', err);
-        } finally {
-          setDepartmentsLoading(false);
-        }
-      };
-      fetchDepartments();
-    } else {
-      setDepartmentsLoading(false);
-    }
-  }, [user]);
-
-  if (loading || departmentsLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <p>A carregar...</p>
@@ -91,7 +71,6 @@ function App() {
               userType={user.tipo_utilizador}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
-              departments={departments}
             />
           }
         >
@@ -130,7 +109,7 @@ function App() {
               {user.isCoordinator && (
                 <Route
                   path="crisucessofeedback"
-                  element={<CrisucessoFeedback departments={departments} />}
+                  element={<CrisucessoFeedback />}
                 />
               )}
             </>

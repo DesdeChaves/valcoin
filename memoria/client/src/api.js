@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 // Base URL do backend memória (ajusta conforme o teu docker-compose ou env)
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api/memoria';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/memoria';
 
 // Axios instance dedicado
 const api = axios.create({
@@ -34,4 +34,33 @@ api.interceptors.response.use(
   }
 );
 
+// Axios instance para o serviço de áudio
+const audioApi = axios.create({
+  baseURL: '/apiaudio',
+  withCredentials: true,
+});
+
+// Adicionar os mesmos interceptors ao audioApi
+audioApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+audioApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export { api, audioApi };
 export default api;

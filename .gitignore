@@ -1,14 +1,8 @@
-
 # Dependencies
 /node_modules
 /valcoin-admin/node_modules
 /valcoin-store/server/node_modules
-
-# Data and credentials
-/data/
-.env.admin
-credentials.txt
-dados.alunos_rita.csv-autosaveods
+portal/node_modules
 
 # Build artifacts and logs
 *.log
@@ -17,8 +11,38 @@ dados.alunos_rita.csv-autosaveods
 *.pdf
 *.docx
 feedback/client/build/
+*.pyc
+__pycache__/
 
 # OS-specific files
 ._*
 .DS_Store
-portal/node_modules
+
+# Data and credentials
+/data/
+.env.admin
+credentials.txt
+dados.alunos_rita.csv-autosaveods
+/dados/
+
+# Audio service cache, models, and large libraries
+/audio_service/audio_cache/
+/audio_service/libs/
+/audio_service/vosk-model-pt/
+
+# Generic cache/temp/binary files
+*.zip
+*.mp4
+*.wav
+*.webp
+*.dump
+
+# Piper data/models
+/piper-data/
+
+# User-specific temp files
+user_instruction.txt
+user_response.txt
+
+# IDE/Editor folders
+.vscode/

@@ -22,7 +22,14 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
             const fetchDisciplines = async () => {
                 try {
                     const response = await fetchProfessorDisciplines(professorId);
-                    setDisciplines(response);
+                    // Correctly flatten the nested structure from the API response
+                    const flattenedDisciplines = response.flatMap(subject =>
+                        subject.turmas.map(turma => ({
+                            professor_disciplina_turma_id: turma.professor_disciplina_turma_id,
+                            display_name: `${subject.subject_name} (${turma.class_name})`
+                        }))
+                    );
+                    setDisciplines(flattenedDisciplines);
                     setLoadingData(false);
                 } catch (err) {
                     setErrorData('Error fetching disciplines');
@@ -45,16 +52,9 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
                 ordem: criterion.ordem || '',
             });
             // Set the selected discipline based on the criterion's dossier's discipline
-            // Assuming criterion object has a discipline_id or similar property
-            // This might need adjustment based on the actual structure of 'criterion'
-            if (criterion.disciplina_id) { // Assuming 'disciplina_id' exists in criterion
-                setSelectedDisciplineId(criterion.disciplina_id);
-            } else if (criterion.dossie_id && disciplines.length > 0) {
-                // Fallback: find discipline from dossiers if disciplina_id is not direct
-                const foundDiscipline = disciplines.find(d => d.dossies?.some(dos => dos.id === criterion.dossie_id));
-                if (foundDiscipline) {
-                    setSelectedDisciplineId(foundDiscipline.professor_disciplina_turma_id);
-                }
+            // This logic might need adjustment based on full data structure, but provides a fallback
+            if (criterion.professor_disciplina_turma_id) {
+                setSelectedDisciplineId(criterion.professor_disciplina_turma_id);
             }
         } else {
             setFormData({
@@ -66,15 +66,16 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
             });
             setSelectedDisciplineId('');
         }
-    }, [criterion, disciplines]); // Add disciplines to dependency array
+    }, [criterion]);
 
-    // Fetch dossiers when selectedDisciplineId changes OR when criterion is set for editing
+    // Fetch dossiers when selectedDisciplineId changes
     useEffect(() => {
         if (selectedDisciplineId) {
             const fetchDossiers = async () => {
                 try {
                     const response = await fetchDossiersByDiscipline(selectedDisciplineId);
-                    setDossiers(response.dossies);
+                    // The API returns the dossies directly now if the new route is used.
+                    setDossiers(response);
                 } catch (err) {
                     setErrorData('Error fetching dossiers');
                     console.error('Error fetching dossiers:', err);
@@ -84,7 +85,7 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
         } else {
             setDossiers([]);
         }
-    }, [selectedDisciplineId]); // Removed criterion from dependency array to avoid re-fetching on every criterion change
+    }, [selectedDisciplineId]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -96,9 +97,7 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
 
     const handleDisciplineChange = (e) => {
         const { value } = e.target;
-        console.log('Discipline selected value:', value);
         setSelectedDisciplineId(value);
-        console.log('selectedDisciplineId after update:', value);
         setFormData((prevData) => ({
             ...prevData,
             dossie_id: '', // Reset dossier when discipline changes
@@ -171,7 +170,7 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
                                         <option value="">Selecione uma disciplina</option>
                                         {disciplines.map((discipline) => (
                                             <option key={discipline.professor_disciplina_turma_id} value={discipline.professor_disciplina_turma_id}>
-                                                {discipline.subject_name} ({discipline.class_name})
+                                                {discipline.display_name}
                                             </option>
                                         ))}
                                     </select>
@@ -186,7 +185,7 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
                                 </p>
                             )}
                         </div>
-
+                        
                         {/* Dossier Selection */}
                         <div className="mb-6">
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -208,7 +207,6 @@ const CriterionForm = ({ isOpen, onClose, onSave, criterion, professorId }) => {
                                         disabled={!!criterion || !selectedDisciplineId}
                                     >
                                         <option value="">Selecione um dossiê</option>
-                                        {console.log('Dossiers for rendering:', dossiers)}
                                         {dossiers.map((dossier) => (
                                             <option key={dossier.id} value={dossier.id}>
                                                 {dossier.nome}

@@ -42,9 +42,6 @@ services:
 
   valcoin-admin-server:
     image: desdechaves/valcoin-admin-server:latest
-    build:
-      context: ./valcoin-admin
-      dockerfile: Dockerfile
     container_name: valcoin_admin_server
     environment:
       NODE_ENV: production
@@ -62,14 +59,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - memoria_images:/usr/src/app/uploads
+    # The 'memoria_images' volume was removed as it pointed to a local directory
+    # that may not exist on your production server.
 
   valcoin-admin-client:
     image: desdechaves/valcoin-admin-client:latest
-    build:
-      context: ./valcoin-admin
-      dockerfile: Dockerfile.client
     container_name: valcoin_admin_client
     ports:
       - "3000:80"
@@ -85,9 +79,6 @@ services:
 
   valcoin-store-server:
     image: desdechaves/valcoin-store-server:latest
-    build:
-      context: ./valcoin-store/server
-      dockerfile: Dockerfile
     container_name: valcoin_store_server
     environment:
       NODE_ENV: production
@@ -112,11 +103,6 @@ services:
 
   valcoin-store-client:
     image: desdechaves/valcoin-store-client:latest
-    build:
-      context: ./valcoin-store/client
-      dockerfile: Dockerfile.client
-      args:
-        PUBLIC_URL: /store
     container_name: valcoin_store_client
     networks:
       - valcoin-network
@@ -134,6 +120,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    # The following volumes point to local files. You need to make sure these files
+    # exist on your server and uncomment these lines.
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./portal/build:/usr/share/nginx/html
@@ -188,11 +176,6 @@ services:
 
   feedback-client:
     image: desdechaves/feedback-client:latest
-    build:
-      context: ./feedback/client
-      dockerfile: Dockerfile.client
-      args:
-        PUBLIC_URL: /feedback
     container_name: feedback_client
     ports:
       - "3003:80"
@@ -211,16 +194,11 @@ services:
 
   memoria-client:
     image: desdechaves/memoria-client:latest
-    build:
-      context: ./memoria/client
-      dockerfile: Dockerfile.client
-      args:
-        PUBLIC_URL: /memoria
     container_name: memoria_client
     networks:
       - valcoin-network
-    volumes:
-      - memoria_images:/usr/share/nginx/html/images
+    # The 'memoria_images' volume was removed as it pointed to a local directory
+    # that may not exist on your production server.
     depends_on:
       valcoin-admin-server:
         condition: service_healthy
@@ -234,11 +212,6 @@ services:
 
   qualidade-client:
     image: desdechaves/qualidade-client:latest
-    build:
-      context: ./qualidade
-      dockerfile: Dockerfile
-      args:
-        PUBLIC_URL: /qualidade
     container_name: qualidade_client
     networks:
       - valcoin-network
@@ -264,9 +237,6 @@ services:
 
   audio_service:
     image: desdechaves/audio_service:latest
-    build:
-      context: ./audio_service
-      dockerfile: Dockerfile
     container_name: valcoin_audio_service
     environment:
       - COQUI_TOS_AGREED=1
@@ -282,11 +252,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 40s
-    volumes:
-      - ./audio_service:/app
-      - ./audio_service/libs/Coqui:/root/.local/share/tts
-      - ./audio_service/libs/Whisper:/root/.cache/whisper
-
+    # The following volumes point to local directories for development and have been removed.
+    # volumes:
+    #   - ./audio_service:/app
+    #   - ./audio_service/libs/Coqui:/root/.local/share/tts
+    #   - ./audio_service/libs/Whisper:/root/.cache/whisper
 
 networks:
   valcoin-network:
@@ -314,9 +284,11 @@ volumes:
       type: none
       o: bind
       device: ./data/pgadmin
-  memoria_images:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./memoria/images
+  # The 'memoria_images' volume was removed as it pointed to a local directory
+  # that may not exist on your production server.
+  # memoria_images:
+  #   driver: local
+  #   driver_opts:
+  #     type: none
+  #     o: bind
+  #     device: ./memoria/images

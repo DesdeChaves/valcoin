@@ -15,13 +15,7 @@ const clearDepartmentsCache = async () => {
 
 const getDepartments = async (req, res) => {
     try {
-        const cachedDepartments = await redisClient.get(DEPARTMENTS_CACHE_KEY);
-        if (cachedDepartments) {
-            console.log(`[CACHE HIT] Serving departments from cache.`);
-            return res.json(JSON.parse(cachedDepartments));
-        }
-
-        console.log(`[CACHE MISS] Fetching departments from DB.`);
+        console.log(`Fetching departments directly from DB.`);
         const { rows } = await db.query(`
             SELECT 
                 d.*,
@@ -34,10 +28,11 @@ const getDepartments = async (req, res) => {
                 d.ativo DESC, d.nome, d.codigo
         `);
         
-        await redisClient.set(DEPARTMENTS_CACHE_KEY, JSON.stringify(rows), { EX: 3600 }); // Cache for 1 hour
-        console.log(`[CACHE SET] Departments stored in cache.`);
+        // Manually and safely serialize the data to prevent crashes
+        const jsonResponse = JSON.stringify(rows);
+        res.setHeader('Content-Type', 'application/json');
+        res.send(jsonResponse);
 
-        res.json(rows);
     } catch (err) {
         console.error('Error fetching departments:', err);
         res.status(500).json({ error: 'Internal server error' });

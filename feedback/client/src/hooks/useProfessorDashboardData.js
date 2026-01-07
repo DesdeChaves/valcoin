@@ -10,6 +10,8 @@ const useProfessorDashboardData = () => {
         totalCriterios: 0,
         totalInstrumentos: 0,
         totalContadores: 0,
+        totalCompetencias: 0,
+        totalAvaliacoesCriterios: 0,
     });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -43,6 +45,8 @@ const useProfessorDashboardData = () => {
                         totalCriterios: data.totalCriterios || 0,
                         totalInstrumentos: data.totalInstrumentos || 0,
                         totalContadores: data.totalContadores || 0,
+                        totalCompetencias: data.totalCompetencias || 0,
+                        totalAvaliacoesCriterios: data.totalAvaliacoesCriterios || 0,
                     });
                 }
 
