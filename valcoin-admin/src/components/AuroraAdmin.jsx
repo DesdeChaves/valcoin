@@ -121,6 +121,7 @@ const tabs = [
 ];
 
 const AuroraAdmin = ({ onLogout, currentUser }) => {
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [alunoTurma, setAlunoTurma] = useState([]);
   const [activeTab, setActiveTab] = useState(currentUser.tipo_utilizador === 'ADMIN' ? 'dashboard' : 'my-house');
   const [users, setUsers] = useState([]);
@@ -1195,9 +1196,9 @@ case 'tapTransactions':
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <Sidebar tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar tabs={visibleTabs} activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header currentUser={currentUser} openChangePasswordModal={openChangePasswordModal} onLogout={onLogout} />
+        <Header currentUser={currentUser} openChangePasswordModal={openChangePasswordModal} onLogout={onLogout} setSidebarOpen={setSidebarOpen} />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
           {isLoading && <p>Loading...</p>}
           {error && <p className="text-red-500">{error}</p>}

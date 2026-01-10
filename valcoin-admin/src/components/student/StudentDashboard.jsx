@@ -13,6 +13,7 @@ import ChangePasswordModal from '../ChangePasswordModal';
 import StudentHeader from './StudentHeader'; // Import StudentHeader
 
 const StudentDashboard = ({ onLogout, currentUser }) => {
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dashboardData, setDashboardData] = useState(null);
   const [error, setError] = useState('');
@@ -161,9 +162,9 @@ const StudentDashboard = ({ onLogout, currentUser }) => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <StudentSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <StudentSidebar activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <StudentHeader onLogout={onLogout} openChangePasswordModal={openChangePasswordModal} currentUser={currentUser} />
+        <StudentHeader onLogout={onLogout} openChangePasswordModal={openChangePasswordModal} currentUser={currentUser} setSidebarOpen={setSidebarOpen} />
         <main className="flex-1 p-6 overflow-auto">
           {renderContent()}
         </main>

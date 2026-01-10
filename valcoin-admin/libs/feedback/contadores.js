@@ -174,7 +174,7 @@ router.post('/contadore/:contadorId/atualiza', async (req, res) => {
  * GET /api/svelte/contadore/:contadorId/delete
  * Deleta um contador (e seus registos em cascata)
  */
-router.get('/contadore/:contadorId/delete', async (req, res) => {
+router.get('/contador/:contadorId/delete', async (req, res) => {
   try {
     const { contadorId } = req.params;
     

@@ -3,6 +3,21 @@ import { Routes, Route, Link } from 'react-router-dom';
 import IndicadoresPublicosPage from './pages/IndicadoresPublicosPage';
 import { Menu, LogOut, DollarSign, Store, BookOpen, Settings, User, ArrowRight, Check, BarChart } from 'lucide-react';
 
+
+// ============================================
+// CONFIGURAÇÃO DA API - ADICIONE AQUI!
+// ============================================
+const API_CONFIG = {
+  baseURL: typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001'
+    : '',
+  
+  getUrl(endpoint) {
+    return `${this.baseURL}${endpoint}`;
+  }
+};
+
+
 // Simula o estado de autenticação global
 const AuthService = {
   token: null,
@@ -273,7 +288,7 @@ const LoginPage = ({ app, onLogin, onBack }) => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/login', {
+      const response = await fetch(API_CONFIG.getUrl('/api/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -2,6 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { fetchProfessorDossiers } from '../../utils/api';
 import { X, Save, Plus, Trash2, AlertCircle, Target, Settings, Palette, Clock } from 'lucide-react';
 
+const counterSuggestions = {
+    atitudinal: [
+      { shortname: 'Empenho', descritor: 'Demonstrou empenho e esforço na realização da tarefa.' },
+      { shortname: 'Superação', descritor: 'Superou as expectativas ou venceu uma dificuldade.' },
+      { shortname: 'Resiliência', descritor: 'Mostrou persistência e não desistiu perante os obstáculos.' },
+    ],
+    participacao: [
+      { shortname: 'Intervenção Pertinente', descritor: 'Colocou uma questão ou deu uma resposta que enriqueceu a aula.' },
+      { shortname: 'Voluntariado', descritor: 'Ofereceu-se para uma tarefa ou para responder a uma questão.' },
+      { shortname: 'Apresentação', descritor: 'Apresentou um trabalho ou uma ideia à turma.' },
+    ],
+    experimental: [
+      { shortname: 'Segurança', descritor: 'Cumpriu as regras de segurança no laboratório ou na atividade.' },
+      { shortname: 'Rigor', descritor: 'Demonstrou rigor e precisão na execução da atividade experimental.' },
+      { shortname: 'Registo', descritor: 'Realizou um registo cuidado e detalhado das suas observações.' },
+    ],
+    social: [
+      { shortname: 'Ajudou Colega', descritor: 'Ajudou um ou mais colegas que estavam com dificuldades.' },
+      { shortname: 'Trabalho de Grupo', descritor: 'Colaborou ativamente e de forma construtiva no trabalho de grupo.' },
+      { shortname: 'Mediação', descritor: 'Ajudou a resolver um conflito ou um impasse no grupo.' },
+    ],
+    vocacional: [
+      { shortname: 'Iniciativa', descritor: 'Mostrou iniciativa e explorou o tema para além do solicitado.' },
+      { shortname: 'Liderança', descritor: 'Assumiu um papel de liderança positiva no seu grupo de trabalho.' },
+      { shortname: 'Criatividade', descritor: 'Apresentou uma solução ou ideia original e criativa.' },
+    ]
+};
+
 const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
     const [formData, setFormData] = useState({
         shortname: '',
@@ -25,18 +53,21 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
     const [calibrationPoints, setCalibrationPoints] = useState([]);
     const [exponentialParams, setExponentialParams] = useState({ a: 1, b: 0.1 });
     const [logisticParams, setLogisticParams] = useState({ L: 20, k: 0.5, x0: 10 });
+    const [shortnameSuggestions, setShortnameSuggestions] = useState([]);
 
     const inactivityOptions = [
         { label: 'Sem inativação', value: 0 },
         { label: '5 segundos', value: 5 },
-        { label: '50 minutos', value: 50 * 60 },
-        { label: '100 minutos', value: 100 * 60 },
-        { label: '1 dia', value: 1 * 24 * 60 * 60 },
-        { label: '5 dias', value: 5 * 24 * 60 * 60 },
-        { label: '30 dias', value: 30 * 24 * 60 * 60 },
-        { label: '90 dias', value: 90 * 24 * 60 * 60 },
-        { label: '120 dias', value: 120 * 24 * 60 * 60 },
-    ];
+        { label: '5 minutos', value: 300 },
+        { label: '25 minutos', value: 1500 },
+        { label: '50 minutos', value: 3000 },
+        { label: '100 minutos', value: 6000 },
+        { label: '1 dia', value: 86400 },
+        { label: '5 dias', value: 432000 },
+        { label: '30 dias', value: 2592000 },
+        { label: '90 dias', value: 7776000 },
+        { label: '120 dias', value: 10368000 },
+    ].sort((a, b) => a.value - b.value);
 
     const calibrationModels = [
         { label: 'Nenhum', value: 'nenhum' },
@@ -118,28 +149,42 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
             });
         }
     }, [counter]);
+    
+    // Update suggestions when type changes
+    useEffect(() => {
+        setShortnameSuggestions(counterSuggestions[formData.tipo] || []);
+    }, [formData.tipo]);
+
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData((prevData) => {
-            const newFormData = {
-                ...prevData,
-                [name]: type === 'checkbox' ? checked : value,
-            };
+        
+        let newFormData = {
+            ...formData,
+            [name]: type === 'checkbox' ? checked : value,
+        };
 
-            // Handle changes to modelo_calibracao
-            if (name === 'modelo_calibracao') {
-                setCalibrationPoints([]);
-                setExponentialParams({ a: 1, b: 0.1 });
-                setLogisticParams({ L: newFormData.escala, k: 0.5, x0: 10 });
-                newFormData.parametros_calibracao = JSON.stringify({});
+        // Handle changes to modelo_calibracao
+        if (name === 'modelo_calibracao') {
+            setCalibrationPoints([]);
+            setExponentialParams({ a: 1, b: 0.1 });
+            setLogisticParams({ L: newFormData.escala, k: 0.5, x0: 10 });
+            newFormData.parametros_calibracao = JSON.stringify({});
 
-                if (value === 'linear') {
-                    setCalibrationPoints([{ raw: '', calibrated: '' }]);
-                } 
+            if (value === 'linear') {
+                setCalibrationPoints([{ raw: '', calibrated: '' }]);
+            } 
+        }
+
+        // Handle selection from suggestions for shortname
+        if (name === 'shortname') {
+            const suggestion = (counterSuggestions[formData.tipo] || []).find(s => s.shortname === value);
+            if (suggestion) {
+                newFormData.descritor = suggestion.descritor;
             }
-            return newFormData;
-        });
+        }
+        
+        setFormData(newFormData);
     };
 
     const handleJsonChange = (e) => {
@@ -235,7 +280,6 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
             }
             dataToSave.parametros_calibracao = JSON.stringify(logisticParams);
         } else {
-            // This 'else' block handles 'nenhum' and any other custom JSON input
             try {
                 if (dataToSave.modelo_calibracao === 'nenhum') {
                     dataToSave.parametros_calibracao = JSON.stringify({});
@@ -249,7 +293,6 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
             }
         }
 
-        // Refine forgetting parameters handling
         try {
             if (dataToSave.modelo_esquecimento === 'nenhum') {
                 dataToSave.parametros_esquecimento = JSON.stringify({});
@@ -335,6 +378,24 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
                         {/* Nome e Tipo */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
+                                <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="tipo">
+                                    Tipo
+                                </label>
+                                <select
+                                    id="tipo"
+                                    name="tipo"
+                                    value={formData.tipo}
+                                    onChange={handleChange}
+                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all"
+                                >
+                                    <option value="atitudinal">Atitudinal</option>
+                                    <option value="participacao">Participação</option>
+                                    <option value="experimental">Experimental</option>
+                                    <option value="social">Social</option>
+                                    <option value="vocacional">Vocacional</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="shortname">
                                     Nome Curto *
                                 </label>
@@ -347,24 +408,11 @@ const CounterForm = ({ isOpen, onClose, onSave, counter, professorId }) => {
                                     className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all"
                                     placeholder="Ex: Participação"
                                     required
+                                    list="shortname-suggestions"
                                 />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-700 text-sm font-semibold mb-2" htmlFor="tipo">
-                                    Tipo
-                                </label>
-                                <select
-                                    id="tipo"
-                                    name="tipo"
-                                    value={formData.tipo}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:bg-white transition-all"
-                                >
-                                    <option value="atitudinal">Atitudinal</option>
-                                    <option value="procedimental">Procedimental</option>
-                                    <option value="conceitual">Conceitual</option>
-                                </select>
+                                <datalist id="shortname-suggestions">
+                                    {shortnameSuggestions.map(s => <option key={s.shortname} value={s.shortname} />)}
+                                </datalist>
                             </div>
                         </div>
 

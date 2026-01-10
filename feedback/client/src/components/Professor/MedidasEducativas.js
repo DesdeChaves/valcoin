@@ -368,8 +368,8 @@ const MedidasEducativas = () => {
                 {selectedStudent && (
                     <div>
                         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-                            <div className="flex items-center justify-between">
-                                <div>
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                                <div className="mb-4 md:mb-0">
                                     <h2 className="text-xl font-semibold text-gray-800">{selectedStudentName}</h2>
                                     <p className="text-sm text-gray-500 mt-1">
                                         {medidas.length} {medidas.length === 1 ? 'medida educativa' : 'medidas educativas'}
@@ -377,7 +377,7 @@ const MedidasEducativas = () => {
                                 </div>
                                 <button
                                     onClick={() => handleOpenModal()}
-                                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors shadow-lg"
+                                    className="flex items-center justify-center w-full md:w-auto gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors shadow-lg"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -401,9 +401,9 @@ const MedidasEducativas = () => {
                                     <div className="divide-y divide-gray-200">
                                         {medidas.map(medida => (
                                             <div key={medida.id} className="p-6 hover:bg-gray-50 transition-colors">
-                                                <div className="flex items-start justify-between">
+                                                <div className="flex flex-col md:flex-row md:items-start md:justify-between">
                                                     <div className="flex-1">
-                                                        <div className="flex items-center gap-3 mb-3">
+                                                        <div className="flex items-center flex-wrap gap-3 mb-3">
                                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTipoMedidaBadgeClass(medida.tipo_medida)}`}>
                                                                 {medida.tipo_medida.charAt(0).toUpperCase() + medida.tipo_medida.slice(1)}
                                                             </span>
@@ -414,7 +414,7 @@ const MedidasEducativas = () => {
                                                         
                                                         <p className="text-gray-900 mb-3 leading-relaxed">{medida.descricao}</p>
                                                         
-                                                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm text-gray-500">
                                                             <div className="flex items-center gap-1">
                                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -440,7 +440,7 @@ const MedidasEducativas = () => {
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="flex items-center gap-2 ml-4">
+                                                    <div className="flex items-center self-start md:self-center gap-2 mt-4 md:mt-0 md:ml-4">
                                                         <button 
                                                             onClick={() => handleOpenModal(medida)} 
                                                             className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"

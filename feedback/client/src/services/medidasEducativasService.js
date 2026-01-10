@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api/feedback/medidas';
-const STUDENTS_API_URL = 'http://localhost:3001/api/feedback/students';
-const USERS_API_URL = 'http://localhost:3001/api/feedback/users';
+const API_URL = '/api/feedback/medidas';
+const STUDENTS_API_URL = '/api/feedback/students';
+const USERS_API_URL = '/api/feedback/users';
 
 
 const getToken = () => {

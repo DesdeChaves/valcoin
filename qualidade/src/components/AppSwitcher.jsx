@@ -5,11 +5,11 @@ const AppSwitcher = ({ currentApp, user, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const apps = [
-    { id: 'portal', name: 'Portal', icon: Menu, color: 'text-gray-500', path: 'http://localhost/' },
-    { id: 'admin', name: 'Aurora Admin', icon: DollarSign, color: 'text-blue-500', path: 'http://localhost/admin' },
-    { id: 'store', name: 'Aurora Store', icon: Store, color: 'text-green-500', path: 'http://localhost/store' },
-    { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, color: 'text-purple-500', path: 'http://localhost/feedback' },
-    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, color: 'text-orange-500', path: 'http://localhost/qualidade' }
+    { id: 'portal', name: 'Portal', icon: Menu, color: 'text-gray-500', path: '/' },
+    { id: 'admin', name: 'Aurora Admin', icon: DollarSign, color: 'text-blue-500', path: '/admin' },
+    { id: 'store', name: 'Aurora Store', icon: Store, color: 'text-green-500', path: '/store' },
+    { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, color: 'text-purple-500', path: '/feedback' },
+    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, color: 'text-orange-500', path: '/qualidade' }
   ];
 
   const handleSwitchApp = (app) => {

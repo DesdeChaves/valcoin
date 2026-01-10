@@ -11,6 +11,7 @@ import ChangePasswordModal from '../ChangePasswordModal';
 import ProfessorHeader from './ProfessorHeader'; // Import ProfessorHeader
 
 const ProfessorDashboard = ({ currentUser, onLogout }) => {
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dashboardData, setDashboardData] = useState(null);
   const [users, setUsers] = useState([]);
@@ -297,7 +298,7 @@ const ProfessorDashboard = ({ currentUser, onLogout }) => {
   if (error && !dashboardData) {
     return (
       <div className="flex h-screen bg-gray-100">
-        <ProfessorSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <ProfessorSidebar activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
         <div className="flex-1 p-6 overflow-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <div className="flex items-center">
@@ -327,7 +328,7 @@ const ProfessorDashboard = ({ currentUser, onLogout }) => {
   if (loading && !dashboardData) {
     return (
       <div className="flex h-screen bg-gray-100">
-        <ProfessorSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <ProfessorSidebar activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
         <div className="flex-1 p-6 overflow-auto">
           <div className="animate-pulse space-y-6">
             {/* Header skeleton */}
@@ -360,9 +361,9 @@ const ProfessorDashboard = ({ currentUser, onLogout }) => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      <ProfessorSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <ProfessorSidebar activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <ProfessorHeader onLogout={onLogout} openChangePasswordModal={openChangePasswordModal} currentUser={currentUser} />
+        <ProfessorHeader onLogout={onLogout} openChangePasswordModal={openChangePasswordModal} currentUser={currentUser} setSidebarOpen={setSidebarOpen} />
         <main className="flex-1 p-6 overflow-auto">
           {renderContent()}
         </main>
