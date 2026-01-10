@@ -1,0 +1,1 @@
+INSERT INTO settings (key, value) VALUES ('allow_external_registration', 'false') ON CONFLICT (key) DO NOTHING;

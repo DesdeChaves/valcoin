@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
-import { Brain, PlusCircle, List, LogOut, Menu, X, PieChart } from 'lucide-react';
+import { Brain, PlusCircle, List, LogOut, Menu, X, PieChart, BookOpen } from 'lucide-react';
 
 const MemoriaLayout = ({ user, onLogout }) => {
   const location = useLocation();
@@ -28,6 +28,7 @@ const MemoriaLayout = ({ user, onLogout }) => {
   const alunoLinks = [
     { path: '/practice', label: 'Revisão Diária', icon: Brain, tab: null },
     { path: '/stats', label: 'Estatísticas', icon: List, tab: null },
+    { path: '/disciplines', label: 'Gerir Disciplinas', icon: BookOpen, tab: null, externalOnly: true }, // New link
   ];
 
   const links = isProfessor ? professorLinks : alunoLinks;
@@ -90,22 +91,27 @@ const MemoriaLayout = ({ user, onLogout }) => {
           {/* Navigation */}
           <nav className="flex-1 px-6 py-8 overflow-y-auto">
             <ul className="space-y-3">
-              {links.map((link) => (
-                <li key={link.path}>
-                  <Link
-                    to={link.path}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-4 px-6 py-4 rounded-xl transition-all ${
-                      isLinkActive(link)
-                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                        : 'text-gray-700 hover:bg-indigo-100 hover:text-indigo-800'
-                    }`}
-                  >
-                    <link.icon className="w-6 h-6" />
-                    <span className="font-medium text-lg">{link.label}</span>
-                  </Link>
-                </li>
-              ))}
+              {links.map((link) => {
+                if (link.externalOnly && user?.tipo_utilizador !== 'EXTERNO') {
+                  return null;
+                }
+                return (
+                  <li key={link.path}>
+                    <Link
+                      to={link.path}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center gap-4 px-6 py-4 rounded-xl transition-all ${
+                        isLinkActive(link)
+                          ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
+                          : 'text-gray-700 hover:bg-indigo-100 hover:text-indigo-800'
+                      }`}
+                    >
+                      <link.icon className="w-6 h-6" />
+                      <span className="font-medium text-lg">{link.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
 

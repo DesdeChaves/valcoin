@@ -69,6 +69,7 @@ import {
   StudentLoans,
   Houses,
   CiclosFormativosManager,
+  PendingRegistrations, // Add this line
 } from './';
 import CrisucessoFeedback from './CrisucessoFeedback';
 import ProfessorHouse from './ProfessorHouse';
@@ -101,6 +102,7 @@ const debounce = (func, wait) => {
 const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: TrendingUp, roles: ['ADMIN'] },
     { id: 'users', label: 'Utilizadores', icon: UsersIcon, roles: ['ADMIN'] },
+    { id: 'pending-registrations', label: 'Registos Pendentes', icon: UserPlus, roles: ['ADMIN'] }, // New tab
     { id: 'transactions', label: 'Transações', icon: Coins, roles: ['ADMIN', 'PROFESSOR'] },
     { id: 'subjects', label: 'Disciplinas', icon: BookOpen, roles: ['ADMIN'] },
     { id: 'departments', label: 'Departamentos', icon: BookOpen, roles: ['ADMIN'] },
@@ -850,6 +852,8 @@ const handleDeleteCicloFormativo = async (item) => {
             refreshUsers={fetchUsers}
           />
         );
+      case 'pending-registrations': // New case
+        return <PendingRegistrations />;
       case 'transactions':
         return (
           <Transactions

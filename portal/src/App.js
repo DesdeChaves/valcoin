@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import IndicadoresPublicosPage from './pages/IndicadoresPublicosPage';
-import { Menu, LogOut, DollarSign, Store, BookOpen, Settings, User, ArrowRight, Check, BarChart } from 'lucide-react';
+import RegisterPage from './pages/RegisterPage'; // Import new page
+import { Menu, LogOut, DollarSign, Store, BookOpen, Settings, User, ArrowRight, Check, BarChart, UserPlus } from 'lucide-react';
 
 
 // ============================================
@@ -17,6 +18,19 @@ const API_CONFIG = {
   }
 };
 
+const getAllowExternalRegistrationSetting = async () => {
+  try {
+    const response = await fetch(API_CONFIG.getUrl('/api/settings')); // No auth needed for this specific public setting
+    if (!response.ok) {
+      throw new Error('Failed to fetch external registration setting');
+    }
+    const settings = await response.json();
+    return settings.allow_external_registration === 'true' || settings.allow_external_registration === true;
+  } catch (error) {
+    console.error('Error fetching allow_external_registration setting:', error);
+    return false; // Default to false if there's an error
+  }
+};
 
 // Simula o estado de autenticação global
 const AuthService = {
@@ -53,6 +67,15 @@ const AuthService = {
 
 // Página Inicial - Escolha de Aplicação
 const LandingPage = ({ onSelectApp }) => {
+  const [allowExternalRegistration, setAllowExternalRegistration] = useState(false);
+
+  useEffect(() => {
+    const fetchSetting = async () => {
+      const isAllowed = await getAllowExternalRegistrationSetting();
+      setAllowExternalRegistration(isAllowed);
+    };
+    fetchSetting();
+  }, []);
   const apps = [
     {
       id: 'admin',
@@ -177,6 +200,12 @@ const LandingPage = ({ onSelectApp }) => {
               <BarChart size={16} />
               Indicadores Públicos
             </Link>
+            {allowExternalRegistration && (
+              <Link to="/register" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors flex items-center gap-2">
+                <UserPlus size={16} />
+                Registar
+              </Link>
+            )}
             <div className="flex items-center gap-2">
                 <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">Respeito</span>
                 <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">Resiliência</span>
@@ -692,6 +721,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<MainPage />} />
       <Route path="/indicadores" element={<IndicadoresPublicosPage />} />
+      <Route path="/register" element={<RegisterPage />} /> {/* New route */}
     </Routes>
   );
 }

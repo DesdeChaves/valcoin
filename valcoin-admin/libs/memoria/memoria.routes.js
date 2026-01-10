@@ -37,6 +37,12 @@ const {
   getAudioFlashcardQueue
 } = require('./audio_flashcards_controller');
 
+const {
+    getAvailableDisciplinesForExternalUser,
+    subscribeExternalUserToDiscipline,
+    getMySubscribedDisciplines
+} = require('./memoria.external');
+
 const imageUpload = require('./memoria.uploads');
 
 const db = require('../db');
@@ -109,6 +115,11 @@ router.get('/fila-diaria', obterFilaDiaria);
 router.post('/revisao', registarRevisao);
 
 router.get('/flashcards/:id/review-times-percentiles', getFlashcardReviewTimePercentiles);
+
+// New routes for external users to manage discipline subscriptions
+router.get('/disciplines/available', getAvailableDisciplinesForExternalUser);
+router.post('/disciplines/:discipline_id/subscribe', subscribeExternalUserToDiscipline);
+router.get('/disciplines/my', getMySubscribedDisciplines);
 
 
 // ============================================================================

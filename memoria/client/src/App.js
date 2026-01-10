@@ -6,6 +6,8 @@ import Login from './components/Login.js';
 import MemoriaLayout from './components/Layout/MemoriaLayout';
 import MemoriaProfessorDashboard from './components/Professor/MemoriaProfessorDashboard';
 import MemoriaStudentPage from './components/Student/MemoriaStudentPage';
+import DisciplineManagement from './components/Student/DisciplineManagement'; // New Import
+
 import useAuth from './hooks/useAuth';
 import CreateFlashcardPage from './components/Professor/CreateFlashcardPage';
 import ManageFlashcardsPage from './components/Professor/ManageFlashcardsPage';
@@ -67,10 +69,13 @@ function App() {
           )}
 
           {/* Rotas Aluno */}
-          {user.tipo_utilizador === 'ALUNO' && (
+          {(user.tipo_utilizador === 'ALUNO' || user.tipo_utilizador === 'EXTERNO') && ( // Added EXTERNO
             <>
               <Route path="practice" element={<MemoriaStudentPage />} />
               <Route path="stats" element={<div>Estatísticas em desenvolvimento</div>} />
+              {user.tipo_utilizador === 'EXTERNO' && (
+                <Route path="disciplines" element={<DisciplineManagement currentUser={user} />} /> // New route
+              )}
             </>
           )}
 

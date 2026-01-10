@@ -43,7 +43,9 @@ const Settings = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const val = type === 'checkbox' ? checked : value;
+    const val = (type === 'checkbox' || (e.target.tagName === 'SELECT' && (value === 'true' || value === 'false'))) 
+                ? (checked || value === 'true') 
+                : value;
 
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
@@ -143,6 +145,18 @@ const Settings = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-medium mb-4">Configurações Gerais</h3>
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Permitir Registo Externo</label>
+                  <select
+                    name="allow_external_registration"
+                    value={settings.allow_external_registration ? 'true' : 'false'}
+                    onChange={handleChange}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="true">Sim</option>
+                    <option value="false">Não</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Sistema Ativo</label>
                   <select

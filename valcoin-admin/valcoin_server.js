@@ -115,6 +115,7 @@ const {
 const { getAllDominios, createDominio, updateDominio, deleteDominio } = require('./libs/qualidade/dominios');
 
 const { getSettings, updateSettings } = require('./libs/settings');
+const { registerExternalUser, getPendingRegistrations, approvePendingRegistration, rejectPendingRegistration } = require('./libs/pendingRegistrations');
 const { getSchoolRevenues, createSchoolRevenue, updateSchoolRevenue, deleteSchoolRevenue } = require('./libs/schoolRevenues');
 const { getDashboardMetrics } = require('./libs/dashboard');
 const { getAllCategories, createCategory, updateCategory, deleteCategory } = require('./libs/categories');
@@ -236,6 +237,9 @@ app.use('/api/public/houses', publicHousesRouter);
 app.use('/api/public/criterios-sucesso', publicCriteriosSucessoRouter);
 app.use('/api/public/competencias', publicCompetenciasRouter);
 app.use('/api/public/memoria', publicMemoriaRouter);
+
+// Public route for external registration
+app.post('/api/external-register', registerExternalUser);
 
 // ============================================================================
 // AUTHENTICATION MIDDLEWARE
@@ -860,6 +864,11 @@ app.put('/api/admin/users/:id/password', authenticateAdminJWT, updateUserPasswor
 app.delete('/api/users/:id', authenticateAdminOrProfessor, deleteUser);
 
 app.get('/api/professors', authenticateAdminOrProfessor, getProfessors);
+
+// Routes for managing pending external registrations
+app.get('/api/pending-registrations', authenticateAdminJWT, getPendingRegistrations);
+app.put('/api/pending-registrations/:id/approve', authenticateAdminJWT, approvePendingRegistration);
+app.put('/api/pending-registrations/:id/reject', authenticateAdminJWT, rejectPendingRegistration);
 
 // ============================================================================
 // ADMIN ROUTES - Transactions

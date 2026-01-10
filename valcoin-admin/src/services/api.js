@@ -150,6 +150,14 @@ export const updateUser = (id, data) => handleRequest(() => apiClient.put(`/user
 export const updateUserRoles = (id, roles) => handleRequest(() => apiClient.put(`/users/${id}/roles`, { roles }), 'updateUserRoles');
 export const deleteUser = (id) => handleRequest(() => apiClient.delete(`/users/${id}`), 'deleteUser');
 
+// ============================================================================
+// EXTERNAL REGISTRATION
+// ============================================================================
+export const registerExternalUser = (data) => handleRequest(() => apiClient.post('/external-register', data), 'registerExternalUser');
+export const getPendingRegistrations = () => handleRequest(() => apiClient.get('/pending-registrations'), 'getPendingRegistrations');
+export const approvePendingRegistration = (id) => handleRequest(() => apiClient.put(`/pending-registrations/${id}/approve`), 'approvePendingRegistration');
+export const rejectPendingRegistration = (id) => handleRequest(() => apiClient.put(`/pending-registrations/${id}/reject`), 'rejectPendingRegistration');
+
 export const getTransactions = (timeFilter = 'all', startDate, endDate) => {
   const params = new URLSearchParams();
   if (timeFilter !== 'all') params.append('timeFilter', timeFilter);

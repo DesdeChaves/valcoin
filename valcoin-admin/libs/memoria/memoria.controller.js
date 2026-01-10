@@ -299,22 +299,36 @@ const getAssuntos = async (req, res) => {
  * Obter fila diária
  */
 /**
- * Obter fila diária - VERSÃO CORRIGIDA
+ * Obter fila diária - VERSÃO CORRIGIDA E ATUALIZADA PARA EXTERNOS
  */
 const obterFilaDiaria = async (req, res) => {
-  console.log(`[MEMORIA_LOG] Entering obterFilaDiaria for student_id: ${req.user.id}`);
+  console.log(`[MEMORIA_LOG] Entering obterFilaDiaria for student_id: ${req.user.id}, user_type: ${req.user.tipo_utilizador}`);
   try {
     const student_id = req.user.id;
+    const user_type = req.user.tipo_utilizador;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const query = `
-      WITH user_disciplines AS (
+    let disciplineQuery = '';
+    if (user_type === 'ALUNO') {
+      disciplineQuery = `
         SELECT dt.disciplina_id
         FROM aluno_disciplina ad
         JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id
-        WHERE ad.aluno_id = $1
-      ),
+        WHERE ad.aluno_id = $1 AND ad.ativo = TRUE
+      `;
+    } else if (user_type === 'EXTERNO') {
+      disciplineQuery = `
+        SELECT eud.discipline_id
+        FROM external_user_disciplines eud
+        WHERE eud.user_id = $1 AND eud.ativo = TRUE
+      `;
+    } else {
+      return res.status(403).json({ success: false, message: 'O seu tipo de utilizador não tem acesso à fila diária de flashcards.' });
+    }
+
+    const query = `
+      WITH user_disciplines AS (${disciplineQuery}),
       base_flashcards AS (
         SELECT
           f.id AS flashcard_id,
@@ -323,9 +337,10 @@ const obterFilaDiaria = async (req, res) => {
           f.back,
           f.cloze_text,
           f.image_url,
-          f.occlusion_data,
           f.hints,
-          s.nome as discipline_name
+          s.nome as discipline_name,
+          f.occlusion_data,
+          f.scheduled_date
         FROM flashcards f
         JOIN subjects s ON f.discipline_id = s.id
         WHERE f.active = true
