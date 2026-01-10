@@ -1,4 +1,4 @@
-const db = require('../../db');
+const db = require('../db');
 
 const MAX_EXTERNAL_DISCIPLINES = 5;
 
