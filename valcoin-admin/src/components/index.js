@@ -32,4 +32,5 @@ export { default as HouseModal } from './HouseModal';
 export { default as CiclosFormativosManager } from './CiclosFormativosManager';
 export { default as CicloFormativoModal } from './CicloFormativoModal';
 export { default as AssociarTurmasModal } from './AssociarTurmasModal';
+export { default as PendingRegistrations } from './PendingRegistrations';
 
