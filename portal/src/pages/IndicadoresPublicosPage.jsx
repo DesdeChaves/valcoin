@@ -1,7 +1,7 @@
 // portal/src/pages/IndicadoresPublicosPage.jsx
 import React, { useEffect, useState } from 'react';
 import { getEqavetResumoAnual } from '../services/api';
-import { ArrowLeft, Check, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Check, AlertTriangle, Menu as MenuIcon, X } from 'lucide-react'; // Import Menu and X icons
 import { Link } from 'react-router-dom';
 
 import InstrumentoAnalise from './InstrumentoAnalise';
@@ -153,6 +153,7 @@ const EqavetDashboardContent = () => {
 
 export default function IndicadoresPublicosPage() {
     const [activeTab, setActiveTab] = useState('eqavet');
+    const [isMenuOpen, setIsMenuOpen] = useState(false); // State for mobile menu
 
     const tabs = [
         { id: 'eqavet', label: 'Indicadores EQAVET' },
@@ -163,6 +164,8 @@ export default function IndicadoresPublicosPage() {
         { id: 'competencias', label: 'Competências' },
         { id: 'memoria', label: 'Memória' },
     ];
+
+    const currentTabLabel = tabs.find(tab => tab.id === activeTab)?.label;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
@@ -190,7 +193,8 @@ export default function IndicadoresPublicosPage() {
                     </p>
                 </div>
 
-                <div className="border-b border-slate-200 mb-8">
+                {/* Desktop Tabs */}
+                <div className="hidden md:block border-b border-slate-200 mb-8">
                     <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                         {tabs.map((tab) => (
                         <button
@@ -206,6 +210,35 @@ export default function IndicadoresPublicosPage() {
                         </button>
                         ))}
                     </nav>
+                </div>
+
+                {/* Mobile Dropdown Menu */}
+                <div className="md:hidden relative mb-8">
+                    <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className="w-full flex justify-between items-center px-4 py-3 bg-white border border-slate-300 rounded-lg shadow-sm text-lg font-semibold text-slate-700"
+                    >
+                        <span>{currentTabLabel}</span>
+                        {isMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
+                    </button>
+                    {isMenuOpen && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-300 rounded-lg shadow-lg z-10">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => {
+                                        setActiveTab(tab.id);
+                                        setIsMenuOpen(false);
+                                    }}
+                                    className={`w-full text-left px-4 py-3 ${
+                                        activeTab === tab.id ? 'bg-blue-50 text-blue-700' : 'text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div>

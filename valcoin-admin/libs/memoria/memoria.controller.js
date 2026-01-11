@@ -345,7 +345,7 @@ const obterFilaDiaria = async (req, res) => {
         JOIN subjects s ON f.discipline_id = s.id
         WHERE f.active = true
           AND f.scheduled_date <= CURRENT_DATE
-          AND f.discipline_id IN (SELECT disciplina_id FROM user_disciplines)
+          AND f.discipline_id IN (SELECT discipline_id FROM user_disciplines)
       ),
       expanded_flashcards AS (
         -- Basic e Image+Text cards (sem sub_id)

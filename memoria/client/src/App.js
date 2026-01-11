@@ -32,8 +32,12 @@ function App() {
     );
   }
 
-  if (!user) {
-    return null;
+  if (!user || !user.tipo_utilizador) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-xl font-semibold text-indigo-800">Aguardando dados do utilizador...</div>
+      </div>
+    );
   }
 
   return (
@@ -52,7 +56,13 @@ function App() {
             index 
             element={
               <Navigate 
-                to={user.tipo_utilizador === 'ALUNO' ? '/practice' : '/dashboard'} 
+                to={
+                  user.tipo_utilizador === 'ALUNO'
+                    ? '/practice'
+                    : user.tipo_utilizador === 'EXTERNO'
+                      ? '/disciplines' // Redirect EXTERNO to manage disciplines
+                      : '/dashboard' // Assumes PROFESSOR/ADMIN go to /dashboard
+                } 
                 replace 
               />
             } 

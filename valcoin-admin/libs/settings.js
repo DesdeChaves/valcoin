@@ -31,7 +31,19 @@ const updateSettings = async (req, res) => {
     }
 };
 
+const getAllowExternalRegistrationSettingPublic = async (req, res) => {
+    try {
+        const { rows } = await db.query("SELECT value FROM settings WHERE key = 'allow_external_registration'");
+        const isAllowed = rows.length > 0 ? (rows[0].value === true || rows[0].value === 'true') : false;
+        res.json({ allow_external_registration: isAllowed });
+    } catch (err) {
+        console.error('Error fetching public external registration setting:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 module.exports = {
     getSettings,
-    updateSettings
+    updateSettings,
+    getAllowExternalRegistrationSettingPublic
 };

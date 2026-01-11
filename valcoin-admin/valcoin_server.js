@@ -114,7 +114,7 @@ const {
 } = require('./libs/aluno_turma');
 const { getAllDominios, createDominio, updateDominio, deleteDominio } = require('./libs/qualidade/dominios');
 
-const { getSettings, updateSettings } = require('./libs/settings');
+const { getSettings, updateSettings, getAllowExternalRegistrationSettingPublic } = require('./libs/settings');
 const { registerExternalUser, getPendingRegistrations, approvePendingRegistration, rejectPendingRegistration } = require('./libs/pendingRegistrations');
 const { getSchoolRevenues, createSchoolRevenue, updateSchoolRevenue, deleteSchoolRevenue } = require('./libs/schoolRevenues');
 const { getDashboardMetrics } = require('./libs/dashboard');
@@ -240,6 +240,9 @@ app.use('/api/public/memoria', publicMemoriaRouter);
 
 // Public route for external registration
 app.post('/api/external-register', registerExternalUser);
+
+// Public route for fetching specific public settings
+app.get('/api/public/settings/external-registration', getAllowExternalRegistrationSettingPublic);
 
 // ============================================================================
 // AUTHENTICATION MIDDLEWARE
@@ -375,7 +378,7 @@ const authorizeStudent = (req, res, next) => {
   if (!req.user) {
     return res.sendStatus(401);
   }
-  if (req.user.tipo_utilizador !== 'ALUNO') {
+  if (req.user.tipo_utilizador !== 'ALUNO' && req.user.tipo_utilizador !== 'EXTERNO') { // ADDED EXTERNO
     return res.sendStatus(403);
   }
   next();
@@ -408,43 +411,52 @@ const authorizeAdminOrCoordinator = async (req, res, next) => {
 // ============================================================================
 
 app.post('/api/login', async (req, res) => {
-  const { numero_mecanografico, password } = req.body;
+  const { identifier, password } = req.body; // Use 'identifier' to cover both email and numero_mecanografico
   try {
-    const { rows } = await db.query('SELECT * FROM users WHERE numero_mecanografico = $1', [numero_mecanografico]);
-    if (rows.length > 0) {
-      const user = rows[0];
-      if (bcrypt.compareSync(password, user.password_hash)) {
-        // New RBAC logic: Fetch all active roles for the user
-        const rolesQuery = `
-          SELECT r.name
-          FROM roles r
-          JOIN user_roles ur ON r.id = ur.role_id
-          WHERE ur.user_id = $1 AND r.is_active = TRUE;
-        `;
-        const rolesResult = await db.query(rolesQuery, [user.id]);
-        const roles = rolesResult.rows.map(row => row.name);
+    let user;
+    const isEmail = identifier && identifier.includes('@'); // Simple check for email format
 
-        // Create JWT payload with roles array
-        const accessToken = jwt.sign(
-          {
-            id: user.id,
-            numero_mecanografico: user.numero_mecanografico,
-            tipo_utilizador: user.tipo_utilizador,
-            roles: roles // Include the roles array
-          },
-          JWT_SECRET,
-          { expiresIn: '8h' }
-        );
-
-        const { password_hash, ...userWithoutPassword } = user;
-        
-        // Return user object with roles for immediate use on the frontend
-        res.json({ accessToken, user: { ...userWithoutPassword, roles } });
-      } else {
-        res.status(401).json({ error: 'Invalid credentials' });
-      }
+    if (isEmail) {
+      const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [identifier]);
+      user = rows.length > 0 ? rows[0] : null;
     } else {
-      res.status(401).json({ error: 'Invalid credentials' });
+      const { rows } = await db.query('SELECT * FROM users WHERE numero_mecanografico = $1', [identifier]);
+      user = rows.length > 0 ? rows[0] : null;
+    }
+
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+    
+    if (bcrypt.compareSync(password, user.password_hash)) {
+      // New RBAC logic: Fetch all active roles for the user
+      const rolesQuery = `
+        SELECT r.name
+        FROM roles r
+        JOIN user_roles ur ON r.id = ur.role_id
+        WHERE ur.user_id = $1 AND r.is_active = TRUE;
+      `;
+      const rolesResult = await db.query(rolesQuery, [user.id]);
+      const roles = rolesResult.rows.map(row => row.name);
+
+      // Create JWT payload with roles array
+      const accessToken = jwt.sign(
+        {
+          id: user.id,
+          numero_mecanografico: user.numero_mecanografico,
+          tipo_utilizador: user.tipo_utilizador,
+          roles: roles // Include the roles array
+        },
+        JWT_SECRET,
+        { expiresIn: '8h' }
+      );
+
+      const { password_hash, ...userWithoutPassword } = user;
+      
+      // Return user object with roles for immediate use on the frontend
+      res.json({ accessToken, user: { ...userWithoutPassword, roles } });
+    } else {
+      res.status(401).json({ error: 'Credenciais inválidas' });
     }
   } catch (err) {
     console.error('Login error:', err);
@@ -1139,8 +1151,8 @@ app.use(
     // Autorização por tipo de utilizador
     if (req.user.tipo_utilizador === 'PROFESSOR') {
       return authorizeProfessor(req, res, next);
-    } else if (req.user.tipo_utilizador === 'ALUNO') {
-      return authorizeStudent(req, res, next);
+    } else if (req.user.tipo_utilizador === 'ALUNO' || req.user.tipo_utilizador === 'EXTERNO') { // ADDED EXTERNO
+      return authorizeStudent(req, res, next); // Treat EXTERNO like ALUNO for general access
     } else {
       return res.status(403).json({ success: false, message: 'Acesso negado' });
     }

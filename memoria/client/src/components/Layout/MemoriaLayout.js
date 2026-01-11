@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { Brain, PlusCircle, List, LogOut, Menu, X, PieChart, BookOpen } from 'lucide-react';
+import AppSwitcher from '../AppSwitcher'; // New import for AppSwitcher
 
 const MemoriaLayout = ({ user, onLogout }) => {
   const location = useLocation();
@@ -13,9 +14,7 @@ const MemoriaLayout = ({ user, onLogout }) => {
   const isAluno = user?.tipo_utilizador === 'ALUNO';
 
   const handleLogout = () => {
-    if (onLogout) onLogout();
-    localStorage.removeItem('accessToken');
-    window.location.href = 'http://localhost:3000/login';
+    if (onLogout) onLogout(); // This will call the useAuth logout which redirects to window.location.origin
   };
 
   const professorLinks = [
@@ -131,15 +130,18 @@ const MemoriaLayout = ({ user, onLogout }) => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top Bar (mobile menu + title) */}
-        <header className="bg-white shadow-md px-6 py-4 flex items-center justify-between lg:hidden">
+        <header className="bg-white shadow-md px-6 py-4 flex items-center justify-between"> {/* Removed lg:hidden, as AppSwitcher will be there always */}
           <button
             onClick={toggleSidebar}
-            className="p-3 rounded-lg hover:bg-gray-100 transition"
+            className="p-3 rounded-lg hover:bg-gray-100 transition lg:hidden" // Only show hamburger on small screens
           >
             {sidebarOpen ? <X className="w-8 h-8 text-indigo-600" /> : <Menu className="w-8 h-8 text-indigo-600" />}
           </button>
-          <h2 className="text-2xl font-bold text-indigo-800">Memória</h2>
-          <div className="w-12" />
+          <h2 className="text-2xl font-bold text-indigo-800 lg:block hidden">Memória</h2> {/* Hide title on small screens, show on large */}
+          
+          <AppSwitcher currentApp="memoria" user={user} onLogout={onLogout} /> {/* Integrated AppSwitcher */}
+
+          <div className="w-12 lg:hidden" /> {/* Adjust spacing for mobile hamburger menu */}
         </header>
 
         {/* Page Content */}

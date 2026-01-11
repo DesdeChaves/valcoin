@@ -9,10 +9,17 @@ const AppSwitcher = ({ currentApp, user, onLogout }) => {
     { id: 'admin', name: 'Aurora Admin', icon: DollarSign, color: 'text-blue-500', path: '/admin' },
     { id: 'store', name: 'Aurora Store', icon: Store, color: 'text-green-500', path: '/store' },
     { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, color: 'text-purple-500', path: '/feedback' },
-    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, color: 'text-orange-500', path: '/qualidade' }
+    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, color: 'text-orange-500', path: '/qualidade' }, // Added Qualidade
+    { id: 'memoria', name: 'Memoria', icon: BookOpen, color: 'text-cyan-500', path: '/memoria' } // Added Memoria
   ];
 
   const handleSwitchApp = (app) => {
+    // Special handling for EXTERNO users only allowed in Memoria and Portal
+    if (user.tipo_utilizador === 'EXTERNO' && app.id !== 'memoria' && app.id !== 'portal') {
+      // Optional: show a toast message or handle this more gracefully
+      alert("Como utilizador externo, só pode aceder à aplicação Memoria e Portal.");
+      return;
+    }
     window.location.href = app.path;
   };
 
@@ -52,6 +59,10 @@ const AppSwitcher = ({ currentApp, user, onLogout }) => {
                 Mudar de Aplicação
               </p>
               {apps.map((app) => {
+                // Filter apps for EXTERNO users
+                if (user.tipo_utilizador === 'EXTERNO' && app.id !== 'memoria' && app.id !== 'portal') {
+                  return null;
+                }
                 const Icon = app.icon;
                 const isActive = app.id === currentApp;
                 return (

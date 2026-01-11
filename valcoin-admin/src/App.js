@@ -32,7 +32,7 @@ const App = () => {
     setToken(null);
     setUser(null);
     toast.info('Sessão encerrada');
-    window.location.replace('http://localhost');
+    window.location.replace(window.location.origin);
   };
 
   if (!token || !user) {

@@ -28,7 +28,7 @@ const useAuth = () => {
     localStorage.removeItem('user');
     setUser(null);
     setToken(null);
-    window.location.replace('http://localhost/'); // Redirect to main portal landing page
+    window.location.replace(window.location.origin); // Redirect to the root of the current origin
   };
 
   const isCoordinator = user?.roles?.includes('coordenador_departamento') || false;

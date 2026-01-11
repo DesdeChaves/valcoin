@@ -26,7 +26,7 @@ const useAuth = () => {
     localStorage.removeItem('user');
     setUser(null);
     setToken(null);
-    window.location.replace('http://localhost');
+    window.location.replace(window.location.origin);
   };
 
   return { user, token, login, logout };

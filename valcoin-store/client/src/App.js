@@ -15,6 +15,7 @@ import StoreHeader from './components/StoreHeader';   // Import StoreHeader
 function App() {
   const { user, token, login, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('home'); // State for active sidebar tab
+  const [isSidebarOpen, setSidebarOpen] = useState(false); // New state for sidebar visibility
 
   if (!user) {
     return <Login onLogin={login} />;
@@ -23,10 +24,9 @@ function App() {
   return (
     <Router basename={process.env.PUBLIC_URL}>
       <div className="min-h-screen bg-gray-100 flex"> {/* Changed bg-gray-50 to bg-gray-100 for consistency */}
-        <StoreSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <StoreSidebar activeTab={activeTab} setActiveTab={setActiveTab} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <StoreHeader onLogout={logout} currentUser={user} />
-          {/* Main Content */}
+          <StoreHeader onLogout={logout} currentUser={user} setSidebarOpen={setSidebarOpen} />
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
             <Routes>
               <Route path="/" element={<ProductList user={user} token={token} />} />

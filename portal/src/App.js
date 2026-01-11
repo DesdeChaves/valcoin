@@ -20,12 +20,14 @@ const API_CONFIG = {
 
 const getAllowExternalRegistrationSetting = async () => {
   try {
-    const response = await fetch(API_CONFIG.getUrl('/api/settings')); // No auth needed for this specific public setting
+    // Change this URL to the new public endpoint
+    const response = await fetch(API_CONFIG.getUrl('/api/public/settings/external-registration')); 
     if (!response.ok) {
       throw new Error('Failed to fetch external registration setting');
     }
-    const settings = await response.json();
-    return settings.allow_external_registration === 'true' || settings.allow_external_registration === true;
+    const settings = await response.json(); // This will now directly return { allow_external_registration: true/false }
+    const isAllowed = settings.allow_external_registration === true; // No need for 'true' string check
+    return isAllowed;
   } catch (error) {
     console.error('Error fetching allow_external_registration setting:', error);
     return false; // Default to false if there's an error
@@ -129,6 +131,14 @@ const LandingPage = ({ onSelectApp }) => {
     }
   ];
 
+  const responsibilityBadges = (
+    <div className="flex items-center gap-2">
+      <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">Respeito</span>
+      <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">Resiliência</span>
+      <span className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-semibold rounded-full">Aspiração</span>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50">
       {/* Header */}
@@ -206,10 +216,8 @@ const LandingPage = ({ onSelectApp }) => {
                 Registar
               </Link>
             )}
-            <div className="flex items-center gap-2">
-                <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full">Respeito</span>
-                <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">Resiliência</span>
-                <span className="px-3 py-1.5 bg-purple-50 text-purple-700 text-xs font-semibold rounded-full">Aspiração</span>
+            <div className="hidden md:flex items-center gap-2"> {/* Hide badges on small screens in header */}
+              {responsibilityBadges}
             </div>
           </div>
         </div>
@@ -222,6 +230,12 @@ const LandingPage = ({ onSelectApp }) => {
             <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
             <span className="text-sm font-semibold text-blue-700">Plataforma Integrada</span>
           </div>
+
+          {/* Show badges here on small screens, hide on medium/large screens */}
+          <div className="mb-6 flex items-center justify-center gap-2 md:hidden">
+            {responsibilityBadges}
+          </div>
+
           <h2 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 tracking-tight">
             Educação que
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Transforma</span>
@@ -307,7 +321,7 @@ const LandingPage = ({ onSelectApp }) => {
 
 // Página de Login Universal (SSO)
 const LoginPage = ({ app, onLogin, onBack }) => {
-  const [credentials, setCredentials] = useState({ numero_mecanografico: '', password: '' });
+  const [credentials, setCredentials] = useState({ identifier: '', password: '' }); // Changed from numero_mecanografico
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -323,7 +337,7 @@ const LoginPage = ({ app, onLogin, onBack }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          numero_mecanografico: credentials.numero_mecanografico,
+          identifier: credentials.identifier, // Changed from numero_mecanografico
           password: credentials.password,
         }),
       });
@@ -383,14 +397,14 @@ const LoginPage = ({ app, onLogin, onBack }) => {
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Número Mecanográfico
+                Número Mecanográfico ou Email
               </label>
               <input
                 type="text"
-                value={credentials.numero_mecanografico}
-                onChange={(e) => setCredentials({ ...credentials, numero_mecanografico: e.target.value })}
+                value={credentials.identifier} // Changed from numero_mecanografico
+                onChange={(e) => setCredentials({ ...credentials, identifier: e.target.value })} // Changed field name
                 className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-slate-900 placeholder-slate-400"
-                placeholder="123456"
+                placeholder="123456 ou o-seu-email@example.com" // Updated placeholder
                 required
               />
             </div>
@@ -454,12 +468,25 @@ const AppSwitcher = ({ currentApp, user, onSwitchApp, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const apps = [
-    { id: 'admin', name: 'Aurora Admin', icon: DollarSign, gradient: 'from-blue-600 to-blue-700', path: '/admin' },
-    { id: 'store', name: 'Aurora Store', icon: Store, gradient: 'from-emerald-600 to-emerald-700', path: '/store' },
-    { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, gradient: 'from-purple-600 to-purple-700', path: '/feedback' },
-    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, gradient: 'from-orange-500 to-orange-600', path: '/qualidade' },
-    { id: 'memoria', name: 'Memoria', icon: BookOpen, gradient: 'from-cyan-500 to-cyan-600', path: '/memoria' }
+    { id: 'portal', name: 'Portal', icon: Menu, color: 'text-gray-500', path: '/' },
+    { id: 'admin', name: 'Aurora Admin', icon: DollarSign, color: 'text-blue-500', path: '/admin' },
+    { id: 'store', name: 'Aurora Store', icon: Store, color: 'text-green-500', path: '/store' },
+    { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, color: 'text-purple-500', path: '/feedback' },
+    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, color: 'text-orange-500', path: '/qualidade' }, // Added Qualidade
+    { id: 'memoria', name: 'Memoria', icon: BookOpen, color: 'text-cyan-500', path: '/memoria' } // Added Memoria
   ];
+
+  const handleSwitchApp = (app) => {
+    // Special handling for EXTERNO users only allowed in Memoria and Portal
+    if (user.tipo_utilizador === 'EXTERNO' && app.id !== 'memoria' && app.id !== 'portal') {
+      // Optional: show a toast message or handle this more gracefully
+      alert("Como utilizador externo, só pode aceder à aplicação Memoria e Portal.");
+      return;
+    }
+    window.location.href = app.path;
+  };
+
+  const currentAppName = apps.find(app => app.id === currentApp)?.name || 'Current App';
 
   return (
     <div className="relative">
@@ -468,7 +495,7 @@ const AppSwitcher = ({ currentApp, user, onSwitchApp, onLogout }) => {
         className="flex items-center gap-3 px-4 py-2.5 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-slate-200/60"
       >
         <Menu className="w-5 h-5 text-slate-600" />
-        <span className="font-semibold text-slate-900 hidden md:block">{currentApp.name}</span>
+        <span className="font-semibold text-slate-900 hidden md:block">{currentAppName}</span>
       </button>
 
       {isOpen && (
@@ -497,8 +524,12 @@ const AppSwitcher = ({ currentApp, user, onSwitchApp, onLogout }) => {
                 Aplicações
               </p>
               {apps.map((app) => {
+                // Filter apps for EXTERNO users
+                if (user.tipo_utilizador === 'EXTERNO' && app.id !== 'memoria' && app.id !== 'portal') {
+                  return null;
+                }
                 const Icon = app.icon;
-                const isActive = app.id === currentApp.id;
+                const isActive = app.id === currentApp;
                 return (
                   <button
                     key={app.id}
@@ -534,7 +565,7 @@ const AppSwitcher = ({ currentApp, user, onSwitchApp, onLogout }) => {
                 className="w-full flex items-center gap-3 px-3 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300"
               >
                 <LogOut className="w-5 h-5" />
-                <span className="font-semibold">Terminar Sessão</span>
+                <span className="font-medium">Terminar Sessão</span>
               </button>
             </div>
           </div>
