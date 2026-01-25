@@ -80,7 +80,7 @@ export const getFlashcardReviewTimePercentiles = (flashcardId) =>
 // ============================================================================
 
 export const getProfessorDisciplines = () =>
-  handleRequest(() => apiClient.get('/disciplina_turma/professor/me'), 'getProfessorDisciplines');
+  handleRequest(() => apiClient.get('/professor/disciplines'), 'getProfessorDisciplines');
 
 export const createFlashcard = (data) =>
   handleRequest(() => apiClient.post('/flashcards', data), 'createFlashcard');
@@ -98,6 +98,12 @@ export const deleteFlashcard = (id) =>
 
 export const getProfessorAssuntos = (disciplineId) =>
   handleRequest(() => apiClient.get(`/assuntos/disciplina/${disciplineId}`), 'getProfessorAssuntos');
+  
+export const shareFlashcard = (flashcardId, disciplina_ids) =>
+  handleRequest(() => apiClient.post(`/flashcards/${flashcardId}/share`, { disciplina_ids }), 'shareFlashcard');
+
+export const getSharedDisciplines = (flashcardId) =>
+  handleRequest(() => apiClient.get(`/flashcards/${flashcardId}/shared-disciplines`), 'getSharedDisciplines');
 
 export const uploadImage = (formData) =>
   handleRequest(() => apiClient.post('/upload-image', formData, {
@@ -147,3 +153,36 @@ export const getAudioFlashcardQueue = () =>
 // ============================================================================
 export const getProfessorAnalytics = (disciplineId) =>
   handleRequest(() => apiClient.get(`/analytics/disciplina/${disciplineId}`), 'getProfessorAnalytics');
+
+
+// Default export all named exports
+export default {
+  MAX_EXTERNAL_DISCIPLINES,
+  getAvailableDisciplines,
+  subscribeToDiscipline,
+  getMySubscribedDisciplines,
+  getDailyQueue,
+  registerReview,
+  getFlashcardReviewTimePercentiles,
+  getProfessorDisciplines,
+  createFlashcard,
+  getProfessorFlashcards,
+  editFlashcard,
+  deleteFlashcard,
+  getProfessorAssuntos,
+  shareFlashcard,
+  getSharedDisciplines,
+  uploadImage,
+  importFlashcardsCSV,
+  createPhoneticFlashcard,
+  createDictationFlashcard,
+  createAudioQuestionFlashcard,
+  createReadingFlashcard,
+  createSpellingFlashcard,
+  generateAudioFlashcard,
+  validateTextAnswer,
+  validateAudioAnswer,
+  getAudioAnalytics,
+  getAudioFlashcardQueue,
+  getProfessorAnalytics,
+};

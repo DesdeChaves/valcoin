@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import * as api from '../../services/memoria.api';
 import EditFlashcardModal from './EditFlashcardModal';
+import ShareFlashcardModal from './ShareFlashcardModal';
 import ImportCSVModal from './ImportCSVModal';
-import { Search, Filter, X, Calendar, Tag, ChevronDown, ChevronUp, FileText, Download, Loader2, FileUp, Upload } from 'lucide-react'; // Add FileText, Download, Loader2
+import { Search, Filter, X, Calendar, Tag, ChevronDown, ChevronUp, FileText, Download, Loader2, FileUp, Upload, Share2 } from 'lucide-react'; // Add FileText, Download, Loader2
 
 // Função auxiliar para formatar data
 const formatDate = (dateString) => {
@@ -30,7 +31,9 @@ const ManageFlashcardsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingFlashcard, setEditingFlashcard] = useState(null);
+  const [sharingFlashcard, setSharingFlashcard] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState('');
@@ -49,13 +52,9 @@ const ManageFlashcardsPage = () => {
     const fetchDisciplines = async () => {
       try {
         const response = await api.getProfessorDisciplines();
-        const myDisciplines = response.data.map(dt => ({
-          id: dt.disciplina_id,
-          name: dt.disciplina_nome || `Disciplina ${dt.disciplina_id}`
-        }));
-        setDisciplines(myDisciplines);
-        if (myDisciplines.length > 0) {
-          setSelectedDiscipline(myDisciplines[0].id);
+        setDisciplines(response.data);
+        if (response.data.length > 0) {
+          setSelectedDiscipline(response.data[0].id);
         } else {
           setLoading(false);
         }
@@ -116,6 +115,16 @@ const ManageFlashcardsPage = () => {
   const handleCloseEditModal = () => {
     setEditingFlashcard(null);
     setIsEditModalOpen(false);
+  };
+  
+  const handleOpenShareModal = (card) => {
+    setSharingFlashcard(card);
+    setIsShareModalOpen(true);
+  };
+
+  const handleCloseShareModal = () => {
+    setSharingFlashcard(null);
+    setIsShareModalOpen(false);
   };
 
   const handleSaveFlashcard = async (updatedCard) => {
@@ -708,6 +717,16 @@ const ManageFlashcardsPage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleOpenShareModal(card);
+                          }}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                          title="Partilhar"
+                        >
+                          <Share2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             handleOpenEditModal(card);
                           }}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -766,6 +785,13 @@ const ManageFlashcardsPage = () => {
           flashcard={editingFlashcard}
           onClose={handleCloseEditModal}
           onSave={handleSaveFlashcard}
+        />
+      )}
+      
+      {isShareModalOpen && (
+        <ShareFlashcardModal
+            flashcard={sharingFlashcard}
+            onClose={handleCloseShareModal}
         />
       )}
 

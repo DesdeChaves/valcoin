@@ -363,22 +363,28 @@ const obterFilaDiaria = async (req, res) => {
         WHERE discipline_id IS NOT NULL
       ),
       base_flashcards AS (
+        -- Flashcards whose main discipline is one of the user's
         SELECT
-          f.id AS flashcard_id,
-          f.type,
-          f.front,
-          f.back,
-          f.cloze_text,
-          f.image_url,
-          f.hints,
-          s.nome as discipline_name,
-          f.occlusion_data,
-          f.scheduled_date
-        FROM flashcards f
-        JOIN subjects s ON f.discipline_id = s.id
-        INNER JOIN disciplinas_ativas da ON f.discipline_id = da.discipline_id
+          f.id AS flashcard_id, f.type, f.front, f.back, f.cloze_text, f.image_url,
+          f.hints, s.nome as discipline_name, f.occlusion_data, f.scheduled_date
+        FROM public.flashcards f
+        JOIN public.subjects s ON f.discipline_id = s.id
         WHERE f.active = true
           AND f.scheduled_date <= CURRENT_DATE
+          AND f.discipline_id IN (SELECT discipline_id FROM disciplinas_ativas)
+        
+        UNION
+        
+        -- Flashcards shared with one of the user's disciplines
+        SELECT
+          f.id AS flashcard_id, f.type, f.front, f.back, f.cloze_text, f.image_url,
+          f.hints, s.nome as discipline_name, f.occlusion_data, f.scheduled_date
+        FROM public.flashcards f
+        JOIN public.subjects s ON f.discipline_id = s.id
+        JOIN public.flashcard_disciplinas fd ON f.id = fd.flashcard_id
+        WHERE f.active = true
+          AND f.scheduled_date <= CURRENT_DATE
+          AND fd.disciplina_id IN (SELECT discipline_id FROM disciplinas_ativas)
       ),
       expanded_flashcards AS (
         -- Basic e Image+Text cards (sem sub_id)
@@ -883,6 +889,115 @@ const getProfessorAnalytics = async (req, res) => {
   }
 };
 
+const getProfessorDisciplines = async (req, res) => {
+    try {
+        const professor_id = req.user.id;
+        const result = await db.query(`
+      SELECT DISTINCT d.id, d.nome
+      FROM disciplina_turma dt
+      JOIN subjects d ON dt.disciplina_id = d.id
+      WHERE dt.professor_id = $1 AND dt.ativo = true
+      ORDER BY d.nome;
+    `, [professor_id]);
+
+        res.json({
+            success: true,
+            data: result.rows,
+        });
+    } catch (error) {
+        console.error('Erro ao obter disciplinas do professor:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao carregar as suas disciplinas',
+        });
+    }
+};
+
+const getSharedDisciplines = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            'SELECT disciplina_id FROM public.flashcard_disciplinas WHERE flashcard_id = $1',
+            [id]
+        );
+        res.json({
+            success: true,
+            data: result.rows.map(row => row.disciplina_id),
+        });
+    } catch (error) {
+        console.error('Erro ao obter disciplinas partilhadas:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao obter disciplinas partilhadas',
+        });
+    }
+};
+
+
+const shareFlashcard = async (req, res) => {
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { id: flashcard_id } = req.params;
+        const { disciplina_ids } = req.body;
+        const professor_id = req.user.id;
+
+        if (!Array.isArray(disciplina_ids)) {
+            return res.status(400).json({
+                success: false,
+                message: 'disciplina_ids deve ser um array.',
+            });
+        }
+
+        // Verify professor teaches the target disciplines
+        if (disciplina_ids.length > 0) {
+            const taughtDisciplinesCheck = await client.query(
+                `SELECT COUNT(DISTINCT dt.disciplina_id) as count
+         FROM disciplina_turma dt
+         WHERE dt.professor_id = $1 AND dt.disciplina_id = ANY($2::int[])`,
+                [professor_id, disciplina_ids]
+            );
+
+            if (parseInt(taughtDisciplinesCheck.rows[0].count, 10) !== disciplina_ids.length) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Não pode partilhar com uma disciplina que não leciona.',
+                });
+            }
+        }
+
+
+        // Clear existing shares
+        await client.query('DELETE FROM public.flashcard_disciplinas WHERE flashcard_id = $1', [flashcard_id]);
+
+        // Insert new shares
+        if (disciplina_ids.length > 0) {
+            const insertQuery = 'INSERT INTO public.flashcard_disciplinas (flashcard_id, disciplina_id) VALUES ' +
+                disciplina_ids.map((_, i) => `($1, $${i + 2})`).join(',');
+
+            await client.query(insertQuery, [flashcard_id, ...disciplina_ids]);
+        }
+
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            message: 'Flashcard partilhado com sucesso!',
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Erro ao partilhar flashcard:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Ocorreu um erro ao partilhar o flashcard.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+
 module.exports = {
   criarFlashcard,
   importarFlashcardsCSV,
@@ -894,5 +1009,8 @@ module.exports = {
   getAssuntos,
   editarFlashcard,
   apagarFlashcard,
-  getProfessorAnalytics
+  getProfessorAnalytics,
+  shareFlashcard,
+  getSharedDisciplines,
+  getProfessorDisciplines
 };

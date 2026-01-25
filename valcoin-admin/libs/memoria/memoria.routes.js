@@ -15,6 +15,9 @@ const {
   editarFlashcard,
   apagarFlashcard,
   getProfessorAnalytics,
+  shareFlashcard,
+  getSharedDisciplines,
+  getProfessorDisciplines,
 } = require('./memoria.controller');
 
 const { calculateGlobalFlashcardStatistics } = require('./memoria.analytics'); // <-- New import
@@ -127,6 +130,8 @@ router.get('/disciplines/my', getMySubscribedDisciplines);
 // ROTAS PARA PROFESSORES
 // ============================================================================
 
+router.get('/professor/disciplines', getProfessorDisciplines);
+
 router.get('/analytics/disciplina/:discipline_id', validarProfessorDisciplina, getProfessorAnalytics);
 
 router.post('/flashcards', validarProfessorDisciplina, criarFlashcard);
@@ -135,6 +140,10 @@ router.post('/flashcards/import-csv', csvUpload.single('file'), validarProfessor
 router.get('/flashcards', listarFlashcardsProfessor);
 
 router.put('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, editarFlashcard);
+
+router.post('/flashcards/:id/share', validarProfessorDisciplina, validarOwnershipFlashcard, shareFlashcard);
+router.get('/flashcards/:id/shared-disciplines', validarProfessorDisciplina, validarOwnershipFlashcard, getSharedDisciplines);
+
 
 router.delete('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, apagarFlashcard);
 
