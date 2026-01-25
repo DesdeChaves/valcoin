@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import FlashCardCreator from './FlashCardCreator.js';
 
@@ -8,9 +7,8 @@ const CreateFlashcardPage = () => {
   const [selectedDiscipline, setSelectedDiscipline] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
-
-  const [selectedIdioma, setSelectedIdioma] = useState('pt'); // Default to Portuguese
+  const [selectedIdioma, setSelectedIdioma] = useState('pt');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const fetchDisciplines = async () => {
@@ -35,17 +33,24 @@ const CreateFlashcardPage = () => {
         setLoading(false);
       }
     };
-
     fetchDisciplines();
   }, []);
 
   const handleFlashcardCreated = () => {
-    navigate('/manage');
+    // Mostra mensagem de sucesso
+    setSuccessMessage('✓ Flashcard criado com sucesso!');
+    
+    // Remove a mensagem após 3 segundos
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 3000);
+    
+    // Não navega para outra página - permanece aqui
   };
   
   if (loading) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <p className="text-xl text-gray-600">A carregar...</p>
       </div>
     );
@@ -53,18 +58,24 @@ const CreateFlashcardPage = () => {
 
   return (
     <div className="bg-white rounded-2xl shadow-2xl p-10">
-        <header className="mb-12 text-center">
-          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4">
-            🧠 Memória — Criar Flashcard
-          </h1>
-          <p className="text-xl text-gray-700">Cria flashcards com repetição espaçada avançada</p>
-        </header>
-    
-        {error && (
-          <div className="mb-8 p-5 bg-red-100 border border-red-400 text-red-800 rounded-xl text-center">
-            {error}
-          </div>
-        )}
+      <header className="mb-12 text-center">
+        <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4">
+          🧠 Memória — Criar Flashcard
+        </h1>
+        <p className="text-xl text-gray-700">Cria flashcards com repetição espaçada avançada</p>
+      </header>
+  
+      {error && (
+        <div className="mb-8 p-5 bg-red-100 border border-red-400 text-red-800 rounded-xl text-center">
+          {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-8 p-5 bg-green-100 border border-green-400 text-green-800 rounded-xl text-center font-semibold animate-pulse">
+          {successMessage}
+        </div>
+      )}
 
       {disciplines.length > 0 && (
         <div className="mb-10 flex flex-col sm:flex-row gap-6 items-center justify-center">
@@ -83,7 +94,7 @@ const CreateFlashcardPage = () => {
               </option>
             ))}
           </select>
-
+          
           <label className="text-lg font-semibold text-gray-800">Idioma:</label>
           <select
             value={selectedIdioma}

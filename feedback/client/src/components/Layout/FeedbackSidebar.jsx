@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Folder, List, Settings, Hash, GraduationCap, Star, Users, X } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Folder, List, Settings, Hash, GraduationCap, Star, Users, X, ClipboardList } from 'lucide-react';
 
 const FeedbackSidebar = ({ isOpen, setIsOpen, activeTab, setActiveTab, userType, currentUser }) => {
   const professorTabs = [
@@ -10,6 +10,7 @@ const FeedbackSidebar = ({ isOpen, setIsOpen, activeTab, setActiveTab, userType,
     { id: 'criteria', label: 'Critérios', icon: List, path: '/criteria' },
     { id: 'instruments', label: 'Instrumentos', icon: Settings, path: '/instruments' },
     { id: 'counters', label: 'Contadores', icon: Hash, path: '/counters' },
+    { id: 'quizzes', label: 'Quizzes', icon: ClipboardList, path: '/quizzes' },
     { id: 'competencies', label: 'Competências', icon: GraduationCap, path: '/competencies' },
     { id: 'medidas', label: 'Medidas Educativas', icon: BookOpen, path: '/medidas' },
     { id: 'evaluate-crisucesso', label: 'Avaliar Crit. Sucesso', icon: Star, path: '/crisucessoFeedback-evaluation' },

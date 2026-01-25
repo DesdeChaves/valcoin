@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../api';
+import * as api from '../../services/memoria.api';
 import EditFlashcardModal from './EditFlashcardModal';
-import { Search, Filter, X, Calendar, Tag, ChevronDown, ChevronUp } from 'lucide-react';
+import ImportCSVModal from './ImportCSVModal';
+import { Search, Filter, X, Calendar, Tag, ChevronDown, ChevronUp, FileText, Download, Loader2, FileUp, Upload } from 'lucide-react'; // Add FileText, Download, Loader2
 
 // Função auxiliar para formatar data
 const formatDate = (dateString) => {
@@ -30,6 +31,12 @@ const ManageFlashcardsPage = () => {
   const [error, setError] = useState('');
   const [editingFlashcard, setEditingFlashcard] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState('');
+  const [worksheetNumQuestions, setWorksheetNumQuestions] = useState(10);
+  const [worksheetIncludeSolutions, setWorksheetIncludeSolutions] = useState(true);
+  
   
   // Novos estados para filtros
   const [assuntos, setAssuntos] = useState([]);
@@ -41,8 +48,8 @@ const ManageFlashcardsPage = () => {
   useEffect(() => {
     const fetchDisciplines = async () => {
       try {
-        const response = await api.get('/disciplina_turma/professor/me');
-        const myDisciplines = response.data.data.map(dt => ({
+        const response = await api.getProfessorDisciplines();
+        const myDisciplines = response.data.map(dt => ({
           id: dt.disciplina_id,
           name: dt.disciplina_nome || `Disciplina ${dt.disciplina_id}`
         }));
@@ -72,10 +79,8 @@ const ManageFlashcardsPage = () => {
   const fetchFlashcards = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/flashcards', {
-        params: { discipline_id: selectedDiscipline }
-      });
-      setFlashcards(response.data.data);
+      const response = await api.getProfessorFlashcards(selectedDiscipline);
+      setFlashcards(response.data);
     } catch (err) {
       setError('Erro ao carregar flashcards');
     } finally {
@@ -85,8 +90,8 @@ const ManageFlashcardsPage = () => {
 
   const fetchAssuntos = async () => {
     try {
-      const response = await api.get(`/assuntos/disciplina/${selectedDiscipline}`);
-      setAssuntos(response.data.data || []);
+      const response = await api.getProfessorAssuntos(selectedDiscipline);
+      setAssuntos(response.data || []);
     } catch (err) {
       console.error('Erro ao carregar assuntos:', err);
     }
@@ -96,7 +101,7 @@ const ManageFlashcardsPage = () => {
     if (!window.confirm('Tens a certeza que queres eliminar este flashcard?')) return;
 
     try {
-      await api.delete(`/flashcards/${id}`);
+      await api.deleteFlashcard(id);
       setFlashcards(prev => prev.filter(f => f.id !== id));
     } catch (err) {
       alert('Erro ao eliminar o flashcard.');
@@ -115,11 +120,160 @@ const ManageFlashcardsPage = () => {
 
   const handleSaveFlashcard = async (updatedCard) => {
     try {
-      await api.put(`/flashcards/${updatedCard.id}`, updatedCard);
+      await api.editFlashcard(updatedCard.id, updatedCard);
       fetchFlashcards();
       handleCloseEditModal();
     } catch (err) {
       alert('Erro ao guardar as alterações.');
+    }
+  };
+
+  const generateWorksheetHtml = (flashcards, disciplineName, professorName, includeSolutions) => {
+    let questionsHtml = '';
+    let solutionsHtml = '';
+
+    flashcards.forEach((flashcard, index) => {
+      const questionNumber = index + 1;
+      let frontContent = flashcard.front || '';
+      let solutionContent = flashcard.back || '';
+
+      // Make image URLs absolute for Gotenberg
+      const absoluteImageUrl = flashcard.image_url ? `http://nginx${flashcard.image_url}` : '';
+
+      switch (flashcard.type) {
+        case 'cloze':
+          frontContent = flashcard.cloze_text.replace(/{{c\d+::(.*?)}}/g, '_______');
+          solutionContent = flashcard.cloze_text.replace(/{{c\d+::(.*?)}}/g, '<strong>$1</strong>');
+          break;
+        case 'image_occlusion':
+          frontContent = `<img src="${absoluteImageUrl}" style="max-width: 100%; height: auto; max-height: 5cm; display: block; margin-bottom: 10px;" />`;
+          solutionContent = flashcard.occlusion_data?.map(occ => occ.label).join('<br/>') || 'N/A';
+          break;
+        case 'image_text':
+          frontContent = `<img src="${absoluteImageUrl}" style="max-width: 100%; height: auto; max-height: 5cm; display: block; margin-bottom: 10px;" /><p>${flashcard.front}</p>`;
+          solutionContent = flashcard.back;
+          break;
+        default:
+          solutionContent = flashcard.back;
+          break;
+      }
+
+      questionsHtml += `
+        <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px dashed #ccc;">
+          <p style="font-weight: bold;">${questionNumber}. ${frontContent}</p>
+          <div style="min-height: 20px; border: 1px dashed #eee; margin-top: 10px; padding: 5px;"></div>
+        </div>
+      `;
+
+      solutionsHtml += `
+        <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px dashed #ccc;">
+          <p style="font-weight: bold;">${questionNumber}. ${frontContent}</p>
+          <p style="color: green; margin-top: 5px;">Solução: ${solutionContent}</p>
+        </div>
+      `;
+    });
+
+    const headerHtml = `
+      <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px;">
+        <img src="http://nginx/qualidade/logotipo.jpg" alt="Logotipo" style="max-width: 718px; height: auto; margin-bottom: 20px;">
+        <h1 style="color: #333; font-size: 28px; margin: 0;">Ficha de Trabalho: ${disciplineName}</h1>
+        <p style="color: #666; font-size: 16px; margin: 5px 0 0;">Criado por: ${professorName}</p>
+        <p style="color: #666; font-size: 14px; margin: 5px 0 0;">Data: ${new Date().toLocaleDateString('pt-PT')}</p>
+      </div>
+    `;
+
+    return `
+      <html>
+      <head>
+          <title>Ficha de Trabalho - ${disciplineName}</title>
+          <style>
+              body { font-family: 'Arial', sans-serif; margin: 40px; color: #333; font-size: 12px; }
+              h1, h2, h3, p { margin: 0; padding: 0; }
+              .page-break { page-break-after: always; }
+              .questions-container { column-count: 2; column-gap: 20px; }
+              .questions-container > div { break-inside: avoid; }
+          </style>
+      </head>
+      <body>
+          ${headerHtml}
+          <h2>Questões</h2>
+          <div class="questions-container">
+            ${questionsHtml}
+          </div>
+          ${includeSolutions ? `
+              <div class="page-break"></div>
+              ${headerHtml}
+              <h2>Soluções</h2>
+              ${solutionsHtml}
+          ` : ''}
+      </body>
+      </html>
+    `;
+  };
+
+  const handleGeneratePdf = async () => {
+    if (!selectedDiscipline) {
+      alert('Por favor, selecione uma disciplina primeiro.');
+      return;
+    }
+    
+    // Shuffle the filtered flashcards to get a random selection
+    const shuffled = [...filteredFlashcards].sort(() => 0.5 - Math.random());
+    const questionsToGenerate = shuffled.slice(0, worksheetNumQuestions);
+
+    if (questionsToGenerate.length === 0) {
+      alert('Não há flashcards para gerar a ficha de trabalho.');
+      return;
+    }
+
+    setGeneratingPdf(true);
+    setPdfError('');
+
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      const professorName = user?.nome || 'Professor';
+      const discipline = disciplines.find(d => d.id === selectedDiscipline);
+      const disciplineName = discipline?.name || 'Disciplina';
+
+      const htmlContent = generateWorksheetHtml(questionsToGenerate, disciplineName, professorName, worksheetIncludeSolutions);
+
+      const formData = new FormData();
+      const htmlFile = new Blob([htmlContent], { type: 'text/html' });
+      formData.append('files', htmlFile, 'index.html');
+      formData.append('paperWidth', '8.27');
+      formData.append('paperHeight', '11.69');
+      formData.append('marginTop', '0.5');
+      formData.append('marginBottom', '0.5');
+      formData.append('marginLeft', '0.5');
+      formData.append('marginRight', '0.5');
+      formData.append('footerTemplate', '<div style="font-size: 10px; width: 100%; text-align: center;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>');
+
+
+      const response = await fetch('/gotenberg/forms/chromium/convert/html', {
+          method: 'POST',
+          body: formData,
+      });
+
+      if (!response.ok) {
+          throw new Error(`Erro ao gerar PDF: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const fileName = `Ficha_Trabalho_${disciplineName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      setPdfError('Erro ao gerar ficha de trabalho PDF.');
+      alert('Não foi possível gerar o PDF. Verifique a consola para mais detalhes.');
+    } finally {
+      setGeneratingPdf(false);
     }
   };
 
@@ -348,6 +502,66 @@ const ManageFlashcardsPage = () => {
           </div>
         )}
 
+        {/* Action Buttons Section */}
+        {selectedDiscipline && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* PDF Generation */}
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <FileText className="w-6 h-6" /> Gerar Ficha de Trabalho
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nº de Questões</label>
+                  <input
+                    type="number"
+                    value={worksheetNumQuestions}
+                    onChange={(e) => setWorksheetNumQuestions(Math.max(1, parseInt(e.target.value || 1, 10)))}
+                    min="1"
+                    className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="flex items-center pt-6">
+                  <input
+                    type="checkbox"
+                    id="includeSolutions"
+                    checked={worksheetIncludeSolutions}
+                    onChange={(e) => setWorksheetIncludeSolutions(e.target.checked)}
+                    className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="includeSolutions" className="ml-2 text-sm font-semibold text-gray-700">Incluir Soluções</label>
+                </div>
+              </div>
+              {pdfError && <p className="text-red-600 text-sm mt-2">{pdfError}</p>}
+              <button
+                onClick={handleGeneratePdf}
+                disabled={generatingPdf}
+                className="mt-6 w-full flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-200"
+              >
+                {generatingPdf ? <><Loader2 className="animate-spin h-5 w-5" />A Gerar...</> : <><Download className="w-5 h-5" />Gerar Ficha</>}
+              </button>
+            </div>
+            
+            {/* CSV Import */}
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <FileUp className="w-6 h-6" /> Importar Flashcards
+              </h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Importe múltiplos flashcards de uma só vez usando um ficheiro CSV.
+              </p>
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                disabled={!selectedDiscipline}
+                className="mt-6 w-full flex items-center justify-center gap-2 px-6 py-3 bg-purple-600 text-white font-bold rounded-lg shadow-md hover:bg-purple-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Upload className="w-5 h-5" />
+                Importar de CSV
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Filtros */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
@@ -552,6 +766,18 @@ const ManageFlashcardsPage = () => {
           flashcard={editingFlashcard}
           onClose={handleCloseEditModal}
           onSave={handleSaveFlashcard}
+        />
+      )}
+
+      {isImportModalOpen && (
+        <ImportCSVModal
+            disciplineId={selectedDiscipline}
+            assuntoName={selectedAssunto === 'all' || selectedAssunto === 'none' ? '' : selectedAssunto}
+            onClose={() => setIsImportModalOpen(false)}
+            onImportSuccess={() => {
+                fetchFlashcards();
+                // Maybe show a success toast
+            }}
         />
       )}
     </div>

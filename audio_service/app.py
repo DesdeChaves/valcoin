@@ -3,7 +3,7 @@ Serviço Python para processamento de áudio (TTS e STT)
 OTIMIZADO PARA CRIANÇAS - Com análise fonética avançada
 Versão 6.0 - Whisper + Phonemizer + Análise acústica
 """
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request, Query
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -19,6 +19,16 @@ import httpx
 import unicodedata
 import jellyfish
 import numpy as np
+import pandas as pd
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, func
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects.postgresql import JSONB  # <--- Esta é a linha correta
+from typing import Optional
+from sqlalchemy import Numeric 
+
+# === FIM NOVO ===
+
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -66,7 +76,10 @@ except Exception as e:
     whisper_model = None
     WHISPER_AVAILABLE = False
 
-app = FastAPI(title="Audio Processing Service - Phoneme Edition")
+app = FastAPI(title="Audio Processing Service - Phoneme Edition + Qualidade")
+
+
+
 
 # CORS
 app.add_middleware(
@@ -88,6 +101,44 @@ async def log_requests(request: Request, call_next):
 AUDIO_CACHE_DIR = Path("audio_cache")
 AUDIO_CACHE_DIR.mkdir(exist_ok=True)
 VALCOIN_SERVER_URL = os.getenv("VALCOIN_SERVER_URL", "http://valcoin_admin_server:3001")
+
+# === NOVO: CONFIGURAÇÃO DA BASE DE DADOS ===
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL não definida no environment")
+
+engine = create_engine(DATABASE_URL)
+Base = declarative_base()
+SessionLocal = sessionmaker(bind=engine)
+
+from sqlalchemy import Column, Integer, String, Float, Numeric, DateTime, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
+class AvaliacaoAluno(Base):
+    __tablename__ = "avaliacoes_alunos"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ano_letivo = Column(String, nullable=False)
+    periodo = Column(String, nullable=False)
+    ano = Column(String, nullable=False)
+    turma = Column(String, nullable=False)
+    disciplina = Column(String, nullable=False)
+    total_alunos = Column(Integer)
+    total_positivos = Column(Integer)
+    percent_positivos = Column(Float)
+    total_negativos = Column(Integer)
+    percent_negativos = Column(Float)
+    ciclo = Column(String, nullable=False)
+    classificacoes = Column(JSONB, nullable=False)
+    sheet_name = Column(String)
+    created_at = Column(DateTime, server_default=func.now())
+    media = Column(Numeric(4, 2), nullable=True)  # ⬅️ ESTE CAMPO É ESSENCIAL
+
+# Cria a tabela se ainda não existir
+Base.metadata.create_all(engine)
 
 # ============================================
 # MODELOS PYDANTIC
@@ -1042,6 +1093,310 @@ async def review_text_flashcard(
         "feedback": feedback,
         "detailed_analysis": analysis
     }
+
+
+@app.post("/upload/excel")
+async def upload_excel(
+    file: UploadFile = File(...),
+    ano_letivo: str = Form(...),
+    periodo: str = Form(...)
+):
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Ficheiro deve ser Excel")
+
+    if periodo not in ["1", "2", "3"]:
+        raise HTTPException(status_code=400, detail="Período deve ser 1, 2 ou 3")
+
+    # Lista de disciplinas a IGNORAR
+    disciplinas_ignoradas = {
+        "português língua não materna",
+        "português lingua não materna",
+        "cidadania e desenvolvimento",
+        "classe de conjunto",
+        "formação musical",
+        "instrumento",
+        "assembleia de turma",
+        "apoio tutorial específico",
+        "aia por",
+        "apoio português língua não materna",
+        "motricidade",
+        "atividades da vida diária",
+        "coadj",
+        "artes tradicionais",
+        "ciências experimentais",
+        "educação especial",
+        "aia mat",
+        "compensação curricular",
+        "aia",
+        "apoio ao estudo",
+        "oferta complementar",
+        "educação moral e religiosa",
+        "aec - atividade física",
+        "aec - expressão plástica",
+        "aec - atividade desportiva",
+        "aec - inglês",
+        "aec - música",
+        "aec - expressão dramática",
+        "apoio ao estudo de português",
+        "apoio educativo a matemática",
+        "apoio ao estudo de matemática",
+        "apoio educativo",
+        "aecc",
+        "aec - expressão artística",
+        "aec- atividade desportiva",
+        "aec-ensino do inglês",
+        "aia bio",
+        "aia - fqa",
+        "assembleia de turma com dt",
+        "apoio tutorial esp",
+        "aec-ensino da música",
+        "aec-artes plásticas",
+        "aec-educação física",
+        "oficina tic",
+        "português língua não materna b",
+        "classe conjunto",
+        "instrumento - piano",
+        "aia ing",
+        "esp acs",
+        "instrumento - trompete",
+        "apoioplnm",        
+    }
+    
+    def calculate_media(ciclo, classificacoes, total_alunos, row_dict=None):
+        """
+        Calcula a média conforme o ciclo:
+        - 1º ciclo: I=1, S=2, B=3, MB=4
+        - 2º/3º ciclo: níveis 1 a 5
+        - Secundário: prioriza coluna 'Média' do Excel, senão aproxima pelas faixas
+        """
+        # Secundário: prioridade para coluna 'Média' do Excel
+        if ciclo == 'secundario':
+            media_excel = row_dict.get('Média') if row_dict else None
+            if pd.notna(media_excel):
+                return float(media_excel)
+
+            # Aproximação pelas faixas (ponto médio de cada intervalo)
+            sum_val = (4 * classificacoes.get('1_7', 0) + 
+                      8.5 * classificacoes.get('8_9', 0) + 
+                      11.5 * classificacoes.get('10_13', 0) + 
+                      15.5 * classificacoes.get('14_17', 0) + 
+                      19 * classificacoes.get('18_20', 0))
+            total = total_alunos or 1
+            return sum_val / total if total > 0 else 0
+
+        # 1º ciclo
+        if ciclo == '1_ciclo':
+            sum_val = (1 * classificacoes.get('I', 0) + 
+                      2 * classificacoes.get('S', 0) + 
+                      3 * classificacoes.get('B', 0) + 
+                      4 * classificacoes.get('MB', 0))
+            total = total_alunos or 1
+            return sum_val / total if total > 0 else 0
+        
+        # 2º e 3º ciclo
+        elif ciclo in ['2_ciclo', '3_ciclo']:
+            sum_val = 0
+            for i in range(1, 6):
+                sum_val += i * classificacoes.get(str(i), 0)
+            total = total_alunos or 1
+            return sum_val / total if total > 0 else 0
+        
+        return 0
+
+    try:
+        excel_data = pd.read_excel(file.file, sheet_name=None, engine='openpyxl')
+        
+        db = SessionLocal()
+        registos_guardados = 0
+
+        for sheet_name, df in excel_data.items():
+            df = df.dropna(how='all').reset_index(drop=True)
+            
+            if df.empty:
+                continue
+            
+            # Determinar o ciclo pela sheet
+            if "Basico 1" in sheet_name:
+                ciclo = "1_ciclo"
+            elif "Basico 2" in sheet_name:
+                ciclo = "2_ciclo"
+            elif "Basico 3" in sheet_name:
+                ciclo = "3_ciclo"
+            elif "Secundario" in sheet_name:
+                ciclo = "secundario"
+            else:
+                ciclo = "desconhecido"
+
+            # Processar cada linha do DataFrame
+            for _, row in df.iterrows():
+                row_dict = row.to_dict()
+
+                # Validar disciplina
+                disciplina_raw = row_dict.get('Disciplina', '')
+                if pd.isna(disciplina_raw):
+                    continue
+                disciplina_lower = str(disciplina_raw).strip().lower()
+
+                # Ignorar disciplinas não curriculares
+                if disciplina_lower in disciplinas_ignoradas:
+                    continue
+
+                # Ignorar linhas vazias
+                if disciplina_lower == '' or str(row_dict.get('Turma', '')).strip() == '':
+                    continue
+
+                # Extrair classificações conforme o ciclo
+                classificacoes = {}
+                
+                if ciclo == "1_ciclo":
+                    classificacoes = {
+                        "I": int(row_dict.get('I') or 0) if pd.notna(row_dict.get('I')) else None,
+                        "S": int(row_dict.get('S') or 0) if pd.notna(row_dict.get('S')) else None,
+                        "B": int(row_dict.get('B') or 0) if pd.notna(row_dict.get('B')) else None,
+                        "MB": int(row_dict.get('MB') or 0) if pd.notna(row_dict.get('MB')) else None,
+                    }
+                elif ciclo in ["2_ciclo", "3_ciclo"]:
+                    # Tentar várias variações de nomes de colunas
+                    for i in range(1, 6):
+                        val = None
+                        # Tentar como string
+                        if str(i) in row_dict:
+                            val = row_dict.get(str(i))
+                        # Tentar como int
+                        elif i in row_dict:
+                            val = row_dict.get(i)
+                        # Tentar com espaços
+                        elif f" {i}" in row_dict:
+                            val = row_dict.get(f" {i}")
+                        elif f"{i} " in row_dict:
+                            val = row_dict.get(f"{i} ")
+                        
+                        if val is not None and pd.notna(val):
+                            classificacoes[str(i)] = int(val)
+                    
+                    # Debug: Log para verificar se está a ler corretamente
+                    if not classificacoes:
+                        # Mostrar todas as colunas numéricas para debug
+                        colunas_numericas = [k for k in row_dict.keys() if isinstance(k, (int, float)) or (isinstance(k, str) and k.strip().isdigit())]
+                        logger.warning(f"Ciclo {ciclo} - Disciplina {disciplina_raw}: Nenhuma classificação encontrada. Colunas numéricas disponíveis: {colunas_numericas}")
+                    
+                elif ciclo == "secundario":
+                    for col, key in [('1 - 7', '1_7'), ('8 - 9', '8_9'), ('10 - 13', '10_13'),
+                                     ('14 - 17', '14_17'), ('18 - 20', '18_20')]:
+                        val = row_dict.get(col)
+                        if pd.notna(val):
+                            classificacoes[key] = int(val)
+
+                # Remover valores None
+                classificacoes = {k: v for k, v in classificacoes.items() if v is not None}
+
+                # Extrair totais
+                total_alunos = int(row_dict.get('T. Alunos') or row_dict.get('Nº Alunos') or 0)
+                total_positivos = int(row_dict.get('T. Posit.') or row_dict.get('T. Positivas') or 0)
+                percent_positivos = float(row_dict.get('% Posit.') or row_dict.get('% Positivas') or 0.0)
+
+                # Ignorar registos sem avaliações positivas
+                if percent_positivos == 0:
+                    continue
+
+                # Calcular negativos
+                total_negativos = total_alunos - total_positivos if total_alunos > 0 else 0
+                percent_negativos = 100 - percent_positivos if percent_positivos > 0 else 0
+
+                # Calcular média
+                media = calculate_media(ciclo, classificacoes, total_alunos, row_dict)
+                
+                # Debug: Log da média calculada
+                if ciclo in ['2_ciclo', '3_ciclo'] and media == 0 and classificacoes:
+                    logger.warning(f"Ciclo {ciclo} - Disciplina {disciplina_raw}: Média calculada = 0 com classificações {classificacoes} e total_alunos={total_alunos}")
+
+                # Criar registo na base de dados
+                avaliacao = AvaliacaoAluno(
+                    ano_letivo=ano_letivo,
+                    periodo=periodo,
+                    ano=str(row_dict.get('Ano', '')),
+                    turma=str(row_dict.get('Turma', '')),
+                    disciplina=str(disciplina_raw).strip(),
+                    total_alunos=total_alunos,
+                    total_positivos=total_positivos,
+                    percent_positivos=percent_positivos,
+                    total_negativos=total_negativos,
+                    percent_negativos=percent_negativos,
+                    ciclo=ciclo,
+                    classificacoes=classificacoes,
+                    sheet_name=sheet_name
+                )
+                
+                # Adicionar média se o campo existir no modelo
+                if hasattr(avaliacao, 'media'):
+                    avaliacao.media = media
+                db.add(avaliacao)
+                registos_guardados += 1
+
+        db.commit()
+        db.close()
+
+        return {
+            "status": "success",
+            "ano_letivo": ano_letivo,
+            "periodo": periodo,
+            "registos_guardados": registos_guardados,
+            "sheets_processadas": list(excel_data.keys())
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao processar Excel: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
+        
+@app.get("/api/avaliacoes")
+async def get_avaliacoes(
+    ano_letivo: Optional[str] = Query(None),
+    periodo: Optional[str] = Query(None),
+    ciclo: Optional[str] = Query(None),
+    ano: Optional[str] = Query(None),
+):
+    db = SessionLocal()
+    try:
+        query = db.query(AvaliacaoAluno)
+        
+        if ano_letivo:
+            query = query.filter(AvaliacaoAluno.ano_letivo == ano_letivo)
+        if periodo:
+            query = query.filter(AvaliacaoAluno.periodo == periodo)
+        if ciclo:
+            query = query.filter(AvaliacaoAluno.ciclo == ciclo)
+        if ano:
+            query = query.filter(AvaliacaoAluno.ano == ano)
+        
+        resultados = query.all()
+        
+        data = [
+            {
+                "id": av.id,
+                "ano_letivo": av.ano_letivo,
+                "periodo": av.periodo,
+                "ano": av.ano,
+                "turma": av.turma,
+                "disciplina": av.disciplina,
+                "total_alunos": av.total_alunos,
+                "total_positivos": av.total_positivos,
+                "percent_positivos": av.percent_positivos,
+                "total_negativos": av.total_negativos,
+                "percent_negativos": av.percent_negativos,
+                "ciclo": av.ciclo,
+                "classificacoes": av.classificacoes,
+                "sheet_name": av.sheet_name,
+                "created_at": av.created_at.isoformat() if av.created_at else None,
+            }
+            for av in resultados
+        ]
+        
+        return data
+        
+    finally:
+        db.close()
+
+# === FIM NOVO ===
 
 # ============================================
 # ENDPOINTS DE UTILIDADE

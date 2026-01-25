@@ -14,6 +14,10 @@ import AplicacoesGestao from './pages/AplicacoesGestao'; // Ver respostas
 import AplicacaoEdit from './pages/AplicacaoEdit'; // Ver respostas
 import AplicacaoCreate from './pages/AplicacaoCreate';
 import Obrigado from './pages/Obrigado';
+import QuizEditorPage from './pages/QuizEditorPage';
+import QuizManagementPage from './pages/QuizManagementPage';
+import SchoolAnalyticsDashboard from './pages/SchoolAnalyticsDashboard';
+import QuizResultsPage from './pages/QuizResultsPage';
 
 // Import Empresa Components
 import EmpresasList from './pages/Empresas/EmpresasList';
@@ -23,7 +27,9 @@ import QualidadeEqavet from './pages/QualidadeEqavet';
 
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentAplicações from './pages/student/StudentAplicações';
+import StudentQuizList from './pages/student/StudentQuizList';
 import StudentQuestionarioResponder from './pages/student/StudentQuestionarioResponder';
+import StudentQuizResponder from './pages/student/StudentQuizResponder';
 
 function App() {
   const { user, loading, logout } = useAuth();
@@ -82,12 +88,19 @@ function App() {
               <Route path="empresas/edit/:id" element={<EmpresaForm />} />
               <Route path="empresas/:id" element={<EmpresaDetail />} />
               <Route path="eqavet" element={<QualidadeEqavet />} />
+              <Route path="quizzes/criar" element={<QuizEditorPage />} />
+              <Route path="quizzes/editar/:quizId" element={<QuizEditorPage />} />
+              <Route path="quizzes/resultados/:quizId" element={<QuizResultsPage />} />
+              <Route path="quizzes" element={<QuizManagementPage />} />
+              <Route path="analise-escolar" element={<SchoolAnalyticsDashboard />} />
             </>
           ) : user?.tipo_utilizador === 'ALUNO' ? (
             <>
               <Route index element={<StudentDashboard />} />
               <Route path="aplicacoes" element={<StudentAplicações />} />
               <Route path="student/responder/:aplicacaoId" element={<StudentQuestionarioResponder />} />
+              <Route path="quizzes" element={<StudentQuizList />} />
+              <Route path="student/quiz/responder/:quizApplicationId" element={<StudentQuizResponder />} />
             </>
           ) : (
             // Fallback for other roles or unauthenticated users if they somehow reach here

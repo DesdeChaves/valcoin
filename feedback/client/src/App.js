@@ -8,6 +8,7 @@ import CriterionPage from './components/Professor/CriterionPage';
 import InstrumentPage from './components/Professor/InstrumentPage';
 import InstrumentDetailsPage from './components/Professor/InstrumentDetailsPage';
 import CounterPage from './components/Professor/CounterPage';
+import QuizEvaluationPage from './components/Professor/QuizEvaluationPage';
 import StudentDashboard from './components/Student/StudentDashboard';
 import DisciplineDossiersPage from './components/Student/DisciplineDossiersPage';
 import StudentDisciplinesPage from './components/Student/StudentDisciplinesPage';
@@ -25,6 +26,7 @@ import AllCriteriaPage from './components/Professor/AllCriteriaPage';
 import AllInstrumentsPage from './components/Professor/AllInstrumentsPage';
 import DossierCountersPage from './components/Professor/DossierCountersPage';
 import CounterResultsPage from './components/Professor/CounterResultsPage';
+import QuizApplicationResultsPage from './components/Professor/QuizApplicationResultsPage';
 import CounterTypeResultsPage from './components/Professor/CounterTypeResultsPage';
 import DossierGradesPage from './components/Professor/DossierGradesPage';
 import MomentoAvaliacaoManagementPage from './components/Professor/MomentoAvaliacaoManagementPage';
@@ -84,6 +86,8 @@ function App() {
               <Route path="instruments" element={<InstrumentPage />} />
               <Route path="details" element={<InstrumentDetailsPage />} />
               <Route path="counters" element={<CounterPage />} />
+              <Route path="quizzes" element={<QuizEvaluationPage />} />
+              <Route path="quizzes/avaliacao/:applicationId" element={<QuizApplicationResultsPage />} />
               <Route path="competencies" element={<CompetenciesPage />} />
               <Route path="medidas" element={<MedidasEducativas />} />
               <Route path="dossiers/all" element={<AllDossiersPage />} />

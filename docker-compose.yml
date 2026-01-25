@@ -161,30 +161,30 @@ services:
       timeout: 10s
       retries: 3
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: valcoin_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@valcoin.pt
-      PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
-    ports:
-      - "5050:80"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - valcoin-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+ # pgadmin:
+ #   image: dpage/pgadmin4:latest
+ #   container_name: valcoin_pgadmin
+ #   environment:
+ #     PGADMIN_DEFAULT_EMAIL: admin@valcoin.pt
+ #     PGADMIN_DEFAULT_PASSWORD: admin123
+ #     PGADMIN_CONFIG_SERVER_MODE: "False"
+ #     PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+ #   ports:
+ #     - "5050:80"
+ #   volumes:
+ #     - pgadmin_data:/var/lib/pgadmin
+ #   networks:
+ #     - valcoin-network
+ #   depends_on:
+ #     postgres:
+ #       condition: service_healthy
+ #   restart: unless-stopped
+ #   healthcheck:
+ #     test: ["CMD", "curl", "-f", "http://localhost/"]
+ #     interval: 10s
+ #     timeout: 5s
+ #     retries: 5
+ #     start_period: 15s
 
   feedback-client:
     image: desdechaves/feedback-client:latest
@@ -271,6 +271,7 @@ services:
     environment:
       - COQUI_TOS_AGREED=1
       - TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
+      - DATABASE_URL=postgresql://user:password@postgres:5432/valcoin
     ports:
       - "8001:8001"
     networks:

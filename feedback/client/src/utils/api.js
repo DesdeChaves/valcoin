@@ -148,6 +148,12 @@ export const createUser = (data) => handleRequest(() => apiClient.post('/users',
 export const updateUser = (id, data) => handleRequest(() => apiClient.put(`/users/${id}`, data), 'updateUser');
 export const deleteUser = (id) => handleRequest(() => apiClient.delete(`/users/${id}`), 'deleteUser');
 
+// ============================================================================
+// QUALIDADE SYSTEM
+// ============================================================================
+export const getAppliedQuizzes = () => handleRequest(() => apiClient.get('/qualidade/quiz-applications/professor'), 'getAppliedQuizzes');
+export const getQuizApplicationResults = (applicationId) => handleRequest(() => apiClient.get(`/qualidade/quiz-applications/${applicationId}/results`), 'getQuizApplicationResults');
+
 export const getTransactions = (timeFilter = 'all', startDate, endDate) => {
   const params = new URLSearchParams();
   if (timeFilter !== 'all') params.append('timeFilter', timeFilter);

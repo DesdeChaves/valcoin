@@ -5,7 +5,7 @@ export const MAX_EXTERNAL_DISCIPLINES = 5; // Export this for frontend checks
 
 // Base URL for the memoria API, assuming it's part of valcoin-admin
 const apiClient = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/api/memoria', // Adjust if memoria has a different base URL
+  baseURL: process.env.REACT_APP_API_URL || '/api/memoria', // Adjust if memoria has a different base URL
   headers: {
     'Content-Type': 'application/json',
   },
@@ -105,6 +105,13 @@ export const uploadImage = (formData) =>
       'Content-Type': 'multipart/form-data',
     },
   }), 'uploadImage');
+
+export const importFlashcardsCSV = (formData) =>
+  handleRequest(() => apiClient.post('/flashcards/import-csv', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }), 'importFlashcardsCSV');
 
 // ============================================================================
 // AUDIO FLASHCARD SPECIFIC

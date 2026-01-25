@@ -102,20 +102,42 @@ const deleteClass = async (req, res) => {
     }
 };
 
+const getStudentsByClassId = async (classId, disciplineId) => {
+    try {
+        let query = `
+            SELECT u.id, u.nome, u.email, u.tipo_utilizador
+            FROM users u
+            JOIN aluno_turma at ON u.id = at.aluno_id
+        `;
+        const params = [classId];
+
+        if (disciplineId) {
+            query += ` JOIN aluno_disciplina ad ON u.id = ad.aluno_id`;
+        }
+        
+        query += ` WHERE at.turma_id = $1 AND u.ativo = true AND at.ativo = true AND u.tipo_utilizador = 'ALUNO'`;
+
+        if (disciplineId) {
+            query += ` AND ad.disciplina_turma_id IN (SELECT id FROM disciplina_turma WHERE disciplina_id = $2 AND turma_id = $1)`;
+            params.push(disciplineId);
+        }
+        
+        query += ` GROUP BY u.id ORDER BY u.nome`;
+
+        const { rows } = await db.query(query, params);
+        return rows;
+    } catch (err) {
+        console.error('Error fetching students for class:', err);
+        throw err;
+    }
+};
+
 const getStudentsByClass = async (req, res) => {
     const { id } = req.params;
     try {
-        const { rows } = await db.query(
-            `SELECT u.id, u.nome, u.tipo_utilizador
-             FROM users u
-             JOIN aluno_turma at ON u.id = at.aluno_id
-             WHERE at.turma_id = $1 AND u.ativo = true AND at.ativo = true AND u.tipo_utilizador = 'ALUNO'
-             ORDER BY u.nome`,
-            [id]
-        );
-        res.json(rows);
+        const students = await getStudentsByClassId(id);
+        res.json(students);
     } catch (err) {
-        console.error('Error fetching students for class:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -126,4 +148,5 @@ module.exports = {
     updateClass,
     deleteClass,
     getStudentsByClass,
+    getStudentsByClassId,
 };

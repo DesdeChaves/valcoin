@@ -22,6 +22,9 @@ const Settings = () => {
             tipo3: 0,
           };
         }
+        if (!data.quiz_question_time_seconds) {
+          data.quiz_question_time_seconds = 5;
+        }
         setSettings(data);
       } catch (error) {
         console.error('Failed to fetch settings:', error);
@@ -199,6 +202,16 @@ const Settings = () => {
                     type="number"
                     name="limiteAcumulacao"
                     value={settings.limiteAcumulacao}
+                    onChange={handleChange}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tempo por Pergunta do Quiz (segundos)</label>
+                  <input
+                    type="number"
+                    name="quiz_question_time_seconds"
+                    value={settings.quiz_question_time_seconds || 5}
                     onChange={handleChange}
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
@@ -384,6 +397,33 @@ const Settings = () => {
                     className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-medium mb-4">Email (Brevo)</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Brevo API Key</label>
+                  <input
+                    type="password"
+                    name="BREVO_API_KEY"
+                    value={settings.BREVO_API_KEY || ''}
+                    onChange={handleChange}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                {/* <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Enviar Emails Reais</label>
+                  <select
+                    name="ENVIAR_EMAILS_REAIS"
+                    value={settings.ENVIAR_EMAILS_REAIS ? 'true' : 'false'}
+                    onChange={handleChange}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="true">Sim</option>
+                    <option value="false">Não</option>
+                  </select>
+                </div> */}
               </div>
             </div>
           </div>

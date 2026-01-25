@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, DollarSign, Store, BookOpen, Settings, User, LogOut } from 'lucide-react';
+import { Menu, DollarSign, Store, BookOpen, User, LogOut, Settings as SettingsIcon } from 'lucide-react'; // Added SettingsIcon
 
 const AppSwitcher = ({ currentApp, user, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,7 +9,7 @@ const AppSwitcher = ({ currentApp, user, onLogout }) => {
     { id: 'admin', name: 'Aurora Admin', icon: DollarSign, color: 'text-blue-500', path: '/admin' },
     { id: 'store', name: 'Aurora Store', icon: Store, color: 'text-green-500', path: '/store' },
     { id: 'feedback', name: 'Aurora Feedback', icon: BookOpen, color: 'text-purple-500', path: '/feedback' },
-    { id: 'qualidade', name: 'Gestão da Qualidade', icon: Settings, color: 'text-orange-500', path: '/qualidade' }, // Added Qualidade
+    { id: 'qualidade', name: 'Gestão da Qualidade', icon: SettingsIcon, color: 'text-orange-500', path: '/qualidade' }, // Added Qualidade
     { id: 'memoria', name: 'Memoria', icon: BookOpen, color: 'text-cyan-500', path: '/memoria' } // Added Memoria
   ];
 

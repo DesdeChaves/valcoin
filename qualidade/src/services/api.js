@@ -153,6 +153,21 @@ export const getStudentAplications = async () => {
   return res.data;
 }
 
+export const getStudentQuizApplications = async () => {
+  const res = await apiClient.get('/qualidade/student/quiz-applications');
+  return res.data.data;
+}
+
+export const getQuizQuestions = async (quizApplicationId) => {
+  const res = await apiClient.get(`/qualidade/student/quiz-applications/${quizApplicationId}/questions`);
+  return res.data.data;
+}
+
+export const submitQuizAttempt = async (quizApplicationId, answers) => {
+  const res = await apiClient.post(`/qualidade/student/quiz-applications/${quizApplicationId}/submit`, { answers });
+  return res.data;
+}
+
 export const getQuestionarioByAplicacaoId = async (aplicacaoId) => {
   const res = await apiClient.get(`/qualidade/student/aplicacoes/${aplicacaoId}/questionario`);
   return res.data;
@@ -187,7 +202,29 @@ export const submeterRespostaAutenticada = async (aplicacaoId, payload) => {
   return res.data;
 };
 
+// ============================================================
+// FUNÇÕES PARA GESTÃO DE APLICAÇÕES DE QUIZ (2025)
+// ============================================================
 
+export const getQuizApplicationsByQuizId = async (quizId) => {
+  const res = await apiClient.get(`/qualidade/quiz-applications/quiz/${quizId}`);
+  return res.data;
+};
+
+export const updateQuizApplication = async (applicationId, data) => {
+  const res = await apiClient.put(`/qualidade/quiz-applications/${applicationId}`, data);
+  return res.data;
+};
+
+export const deleteQuizApplication = async (applicationId) => {
+  await apiClient.delete(`/qualidade/quiz-applications/${applicationId}`);
+};
+
+// Função para duplicar quiz
+export const duplicateQuiz = async (quizId, data) => {
+  const res = await apiClient.post(`/qualidade/quizzes/${quizId}/duplicate`, data);
+  return res.data;
+};
 
 // ============================================================
 // FUNÇÕES EQAVET – 2025 (adicionar ao teu api.js)
@@ -282,6 +319,11 @@ export const getEqavetResumoAnual = async (responsavelId = null) => {
   }
   const response = await apiClient.get('/qualidade/equavet/resumo-anual', { params });
   return response.data;
+};
+
+export const getQuizQuestionTime = async () => {
+  const res = await publicApiClient.get('/public/settings/quiz-question-time');
+  return res.data;
 };
 
 export const getProfessors = async () => {

@@ -1,24 +1,37 @@
 const multer = require('multer');
-const path = require('path');
 
-// Define o local de armazenamento para os uploads
 const storage = multer.memoryStorage();
 
-// Filtro para aceitar apenas ficheiros de imagem
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Apenas ficheiros de imagem são permitidos!'), false);
-  }
+const imageFileFilter = (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+    } else {
+        cb(new Error('Apenas ficheiros de imagem são permitidos!'), false);
+    }
 };
 
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: 1024 * 500 // Limite de 500KB por ficheiro
-  }
+const csvFileFilter = (req, file, cb) => {
+    if (file.mimetype === 'text/csv') {
+        cb(null, true);
+    } else {
+        cb(new Error('Apenas ficheiros CSV são permitidos!'), false);
+    }
+};
+
+const imageUpload = multer({
+    storage: storage,
+    fileFilter: imageFileFilter,
+    limits: {
+        fileSize: 1024 * 1024 * 5 // 5MB limit for images
+    }
 });
 
-module.exports = upload;
+const csvUpload = multer({
+    storage: storage,
+    fileFilter: csvFileFilter,
+});
+
+module.exports = {
+    imageUpload,
+    csvUpload
+};

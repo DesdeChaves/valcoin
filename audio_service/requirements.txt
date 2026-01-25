@@ -29,3 +29,8 @@ python-dotenv
 # PyTorch, numpy, scipy, numba e scikit-learn
 # são instalados no Dockerfile em ordem específica
 # para evitar conflitos de dependências
+# Adições para processamento de Excel e integração com PostgreSQL
+pandas
+openpyxl
+sqlalchemy
+psycopg2-binary

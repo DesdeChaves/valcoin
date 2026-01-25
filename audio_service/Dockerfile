@@ -30,6 +30,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir fastapi "uvicorn[standard]" python-multipart pydantic httpx && \
     pip install --no-cache-dir gTTS faster-whisper && \
     pip install --no-cache-dir phonemizer jellyfish && \
+    pip install --no-cache-dir pandas openpyxl sqlalchemy psycopg2-binary && \
     pip install --no-cache-dir python-dotenv
 
 # Copiar aplicação e criar diretórios

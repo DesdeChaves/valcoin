@@ -3,6 +3,7 @@
 const db = require('../db');
 const { MemoriaScheduler } = require('./memoria.scheduler');
 const { findOrCreateAssunto, getAssuntosByDisciplina } = require('./assuntos');
+const { parseCSV, processCSVData } = require('./memoria.csv');
 const axios = require('axios');
 const sharp = require('sharp');
 const path = require('path');
@@ -12,125 +13,149 @@ const path = require('path');
  */
 const scheduler = new MemoriaScheduler();
 
+const _criarFlashcard = async (flashcardData, creator_id) => {
+    const {
+        discipline_id,
+        type = 'basic',
+        front,
+        back,
+        cloze_text,
+        image_url,
+        back_image_url,
+        occlusion_data,
+        hints = [],
+        scheduled_date,
+        assunto_name,
+    } = flashcardData;
+
+    if (!discipline_id || !scheduled_date) {
+        throw new Error('discipline_id e scheduled_date são obrigatórios');
+    }
+
+    if (!['basic', 'cloze', 'image_occlusion', 'image_text'].includes(type)) {
+        throw new Error('type deve ser "basic", "cloze", "image_occlusion" ou "image_text"');
+    }
+
+    if (type === 'basic' && (!front || !back)) {
+        throw new Error('front e back são obrigatórios para tipo basic');
+    } else if (type === 'cloze') {
+        const clozeRegex = /{{\s*c(\d+)::(.*?)\s*}}/g;
+        if (!cloze_text || !clozeRegex.test(cloze_text)) {
+            throw new Error('cloze_text deve conter pelo menos uma lacuna no formato {{c1::resposta}}');
+        }
+    } else if (type === 'image_occlusion') {
+        if (!image_url || !occlusion_data || !Array.isArray(occlusion_data) || occlusion_data.length === 0) {
+            throw new Error('image_url e occlusion_data (array não vazio) são obrigatórios para image_occlusion');
+        }
+        for (const mask of occlusion_data) {
+            if (!mask.mask_id || !mask.label || !mask.shape || !Array.isArray(mask.coords)) {
+                throw new Error('Cada mask deve ter mask_id, label, shape e coords');
+            }
+        }
+    } else if (type === 'image_text' && (!front || !back)) {
+        throw new Error('front e back são obrigatórios para tipo image_text');
+    }
+
+    let assunto_id = null;
+    if (assunto_name) {
+        const assunto = await findOrCreateAssunto(assunto_name, discipline_id);
+        assunto_id = assunto.id;
+    }
+
+    const result = await db.query(
+        `INSERT INTO flashcards
+       (discipline_id, creator_id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, assunto_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, created_at, assunto_id`,
+        [
+            discipline_id,
+            creator_id,
+            type,
+            (type === 'basic' || type === 'image_text') ? front : null,
+            (type === 'basic' || type === 'image_text') ? back : null,
+            type === 'cloze' ? cloze_text : null,
+            (type === 'image_occlusion' || type === 'image_text') ? image_url : null,
+            type === 'image_text' ? back_image_url : null,
+            type === 'image_occlusion' ? JSON.stringify(occlusion_data) : null,
+            hints,
+            scheduled_date,
+            assunto_id,
+        ]
+    );
+
+    return result.rows[0];
+};
+
+
 /**
  * Criar um novo flashcard
  */
 const criarFlashcard = async (req, res) => {
   try {
-    const {
-      discipline_id,
-      type = 'basic',
-      front,
-      back,
-      cloze_text,
-      image_url,
-      back_image_url, // New field
-      occlusion_data,
-      hints = [],
-      scheduled_date,
-      assunto_name,
-    } = req.body;
-
-    const creator_id = req.user.id;
-
-    if (!discipline_id || !scheduled_date) {
-      return res.status(400).json({
-        success: false,
-        message: 'discipline_id e scheduled_date são obrigatórios'
-      });
-    }
-
-    if (!['basic', 'cloze', 'image_occlusion', 'image_text'].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'type deve ser "basic", "cloze", "image_occlusion" ou "image_text"'
-      });
-    }
-
-    if (type === 'basic') {
-      if (!front || !back) {
-        return res.status(400).json({
-          success: false,
-          message: 'front e back são obrigatórios para tipo basic'
-        });
-      }
-    } else if (type === 'cloze') {
-      const clozeRegex = /{{\s*c(\d+)::(.*?)\s*}}/g // Corrected regex escaping
-      if (!cloze_text || !clozeRegex.test(cloze_text)) {
-        return res.status(400).json({
-          success: false,
-          message: 'cloze_text deve conter pelo menos uma lacuna no formato {{c1::resposta}}'
-        });
-      }
-      const matches = cloze_text.match(new RegExp(clozeRegex, 'g'));
-      if (!matches) {
-        return res.status(400).json({
-          success: false,
-          message: 'Formato de cloze inválido.'
-        });
-      }
-    } else if (type === 'image_occlusion') {
-      if (!image_url || !occlusion_data || !Array.isArray(occlusion_data) || occlusion_data.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'image_url e occlusion_data (array não vazio) são obrigatórios para image_occlusion'
-        });
-      }
-      for (const mask of occlusion_data) {
-        if (!mask.mask_id || !mask.label || !mask.shape || !Array.isArray(mask.coords)) {
-          return res.status(400).json({
-            success: false,
-            message: 'Cada mask deve ter mask_id, label, shape e coords'
-          });
-        }
-      }
-    } else if (type === 'image_text') {
-        if (!front || !back) {
-            return res.status(400).json({
-                success: false,
-                message: 'front e back são obrigatórios para tipo image_text'
-            });
-        }
-    }
-
-    let assunto_id = null;
-    if (assunto_name) {
-      const assunto = await findOrCreateAssunto(assunto_name, discipline_id);
-      assunto_id = assunto.id;
-    }
-
-    const result = await db.query(
-      `INSERT INTO flashcards
-       (discipline_id, creator_id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, assunto_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, created_at, assunto_id`,
-      [
-        discipline_id,
-        creator_id,
-        type,
-        (type === 'basic' || type === 'image_text') ? front : null,
-        (type === 'basic' || type === 'image_text') ? back : null,
-        type === 'cloze' ? cloze_text : null,
-        (type === 'image_occlusion' || type === 'image_text') ? image_url : null,
-        type === 'image_text' ? back_image_url : null,
-        type === 'image_occlusion' ? JSON.stringify(occlusion_data) : null,
-        hints,
-        scheduled_date,
-        assunto_id,
-      ]
-    );
-
+    const flashcard = await _criarFlashcard(req.body, req.user.id);
     res.status(201).json({
       success: true,
-      data: result.rows[0]
+      data: flashcard
     });
   } catch (error) {
     console.error('Erro ao criar flashcard:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno ao criar flashcard'
+      message: error.message || 'Erro interno ao criar flashcard'
     });
   }
+};
+
+const importarFlashcardsCSV = async (req, res) => {
+    console.log('Request body for CSV import:', req.body); // Debug log
+    try {
+        const { discipline_id, assunto_name } = req.body;
+        const creator_id = req.user.id;
+
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'Nenhum ficheiro CSV enviado'
+            });
+        }
+
+        if (!discipline_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'discipline_id é obrigatório'
+            });
+        }
+
+        const csvData = await parseCSV(req.file.buffer);
+        const flashcardsData = processCSVData(csvData);
+
+        let createdCount = 0;
+
+        console.log(`[CSV_IMPORT] Found ${flashcardsData.length} flashcards to import for discipline ${discipline_id}`);
+
+        for (const data of flashcardsData) {
+            const flashcard = {
+                ...data,
+                discipline_id,
+                assunto_name: data.assunto_name || assunto_name, // Prioritize CSV assunto, fallback to body
+                type: 'basic',
+            };
+            await _criarFlashcard(flashcard, creator_id);
+            createdCount++;
+        }
+
+        res.status(201).json({
+            success: true,
+            message: `${createdCount} flashcards importados com sucesso`
+        });
+
+    } catch (error) {
+        console.error('Erro ao importar flashcards de CSV:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro interno ao importar flashcards'
+        });
+    }
 };
 
 /**
@@ -301,6 +326,9 @@ const getAssuntos = async (req, res) => {
 /**
  * Obter fila diária - VERSÃO CORRIGIDA E ATUALIZADA PARA EXTERNOS
  */
+/**
+ * Obter fila diária - VERSÃO CORRIGIDA
+ */
 const obterFilaDiaria = async (req, res) => {
   console.log(`[MEMORIA_LOG] Entering obterFilaDiaria for student_id: ${req.user.id}, user_type: ${req.user.tipo_utilizador}`);
   try {
@@ -312,7 +340,7 @@ const obterFilaDiaria = async (req, res) => {
     let disciplineQuery = '';
     if (user_type === 'ALUNO') {
       disciplineQuery = `
-        SELECT dt.disciplina_id
+        SELECT dt.disciplina_id as discipline_id
         FROM aluno_disciplina ad
         JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id
         WHERE ad.aluno_id = $1 AND ad.ativo = TRUE
@@ -329,6 +357,11 @@ const obterFilaDiaria = async (req, res) => {
 
     const query = `
       WITH user_disciplines AS (${disciplineQuery}),
+      disciplinas_ativas AS (
+        SELECT DISTINCT discipline_id 
+        FROM user_disciplines
+        WHERE discipline_id IS NOT NULL
+      ),
       base_flashcards AS (
         SELECT
           f.id AS flashcard_id,
@@ -343,9 +376,9 @@ const obterFilaDiaria = async (req, res) => {
           f.scheduled_date
         FROM flashcards f
         JOIN subjects s ON f.discipline_id = s.id
+        INNER JOIN disciplinas_ativas da ON f.discipline_id = da.discipline_id
         WHERE f.active = true
           AND f.scheduled_date <= CURRENT_DATE
-          AND f.discipline_id IN (SELECT discipline_id FROM user_disciplines)
       ),
       expanded_flashcards AS (
         -- Basic e Image+Text cards (sem sub_id)
@@ -759,6 +792,7 @@ const getProfessorAnalytics = async (req, res) => {
           u.nome AS student_name,
           u.numero_mecanografico AS student_numero,
           COUNT(frl.id) AS total_reviews,
+          MAX(frl.review_date) as last_review_date,
           COALESCE(AVG(frl.rating), 0) AS avg_rating,
           COALESCE(AVG(fms.difficulty), 0) AS avg_difficulty,
           COALESCE(AVG(fms.stability), 0) AS avg_stability,
@@ -780,7 +814,8 @@ const getProfessorAnalytics = async (req, res) => {
         WHERE u.tipo_utilizador = 'ALUNO'
           AND EXISTS (SELECT 1 FROM aluno_disciplina ad JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id WHERE ad.aluno_id = u.id AND dt.disciplina_id = $2)
         GROUP BY u.id, u.nome, u.numero_mecanografico
-        HAVING COUNT(frl.id) > 0`,
+        HAVING COUNT(frl.id) > 0
+        ORDER BY total_reviews DESC`,
       [professor_id, discipline_id]
     );
 
@@ -789,6 +824,7 @@ const getProfessorAnalytics = async (req, res) => {
       name: row.student_name,
       numero: row.student_numero,
       totalReviews: parseInt(row.total_reviews, 10),
+      last_review_date: row.last_review_date,
       avgRating: parseFloat(row.avg_rating).toFixed(2),
       avgDifficulty: parseFloat(row.avg_difficulty).toFixed(2),
       avgStability: parseFloat(row.avg_stability).toFixed(0),
@@ -849,6 +885,7 @@ const getProfessorAnalytics = async (req, res) => {
 
 module.exports = {
   criarFlashcard,
+  importarFlashcardsCSV,
   listarFlashcardsProfessor,
   obterFilaDiaria,
   registarRevisao,

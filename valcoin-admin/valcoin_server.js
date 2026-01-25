@@ -114,7 +114,7 @@ const {
 } = require('./libs/aluno_turma');
 const { getAllDominios, createDominio, updateDominio, deleteDominio } = require('./libs/qualidade/dominios');
 
-const { getSettings, updateSettings, getAllowExternalRegistrationSettingPublic } = require('./libs/settings');
+const { getSettings, updateSettings, getAllowExternalRegistrationSettingPublic, getQuizQuestionTimePublic } = require('./libs/settings');
 const { registerExternalUser, getPendingRegistrations, approvePendingRegistration, rejectPendingRegistration } = require('./libs/pendingRegistrations');
 const { getSchoolRevenues, createSchoolRevenue, updateSchoolRevenue, deleteSchoolRevenue } = require('./libs/schoolRevenues');
 const { getDashboardMetrics } = require('./libs/dashboard');
@@ -169,6 +169,9 @@ const publicHousesRouter = require('./libs/qualidade/houses_public')();
 const publicCriteriosSucessoRouter = require('./libs/qualidade/criterios_sucesso_public')();
 const publicCompetenciasRouter = require('./libs/qualidade/competencias_public')();
 const publicMemoriaRouter = require('./libs/memoria/memoria_public');
+const quizRouter = require('./libs/qualidade/quiz/quiz.routes'); // Import quiz router
+const quizApplicationRouter = require('./libs/qualidade/quiz/quiz_application.routes.js');
+const studentQuizApplicationRouter = require('./libs/qualidade/quiz/student_quiz_application.routes.js');
 
 
 
@@ -243,6 +246,7 @@ app.post('/api/external-register', registerExternalUser);
 
 // Public route for fetching specific public settings
 app.get('/api/public/settings/external-registration', getAllowExternalRegistrationSettingPublic);
+app.get('/api/public/settings/quiz-question-time', getQuizQuestionTimePublic);
 
 // ============================================================================
 // AUTHENTICATION MIDDLEWARE
@@ -361,6 +365,17 @@ const authorizeStudentOrProfessor = (req, res, next) => {
   next();
 };
 
+const authorizeStudent = (req, res, next) => {
+  if (!req.user) {
+    return res.sendStatus(401);
+  }
+  const userType = req.user.tipo_utilizador ? req.user.tipo_utilizador.toUpperCase() : '';
+  if (userType !== 'ALUNO' && userType !== 'EXTERNO') {
+    return res.sendStatus(403);
+  }
+  next();
+};
+
 // Professor only
 const authorizeProfessor = (req, res, next) => {
   if (!req.user) {
@@ -368,17 +383,6 @@ const authorizeProfessor = (req, res, next) => {
   }
   const userType = req.user.tipo_utilizador ? req.user.tipo_utilizador.toUpperCase() : '';
   if (userType !== 'PROFESSOR') {
-    return res.sendStatus(403);
-  }
-  next();
-};
-
-// Student only
-const authorizeStudent = (req, res, next) => {
-  if (!req.user) {
-    return res.sendStatus(401);
-  }
-  if (req.user.tipo_utilizador !== 'ALUNO' && req.user.tipo_utilizador !== 'EXTERNO') { // ADDED EXTERNO
     return res.sendStatus(403);
   }
   next();
@@ -543,6 +547,9 @@ app.use('/api/legados', legadosRouter);
 
 // Protected qualidade routes (require professor authentication)
 app.use('/api/qualidade/professor', authenticateJWT, authorizeProfessor, qualidadeProtectedRouter);
+app.use('/api/qualidade/quizzes', authenticateJWT, authorizeProfessor, quizRouter); // Mount quiz routes
+app.use('/api/qualidade/student/quiz-applications', authenticateJWT, authorizeStudent, studentQuizApplicationRouter); // Student routes
+app.use('/api/qualidade/quiz-applications', authenticateJWT, authorizeProfessor, quizApplicationRouter); // Professor/Admin routes
 app.use('/api/qualidade/student', authenticateJWT, authorizeStudent, qualidadeStudentRouter);
 app.get('/api/professor/aurora-dashboard', authenticateProfessorJWT, getProfessorDashboard);
 app.post('/api/professor/transactions', authenticateProfessorJWT, createProfessorTransaction);

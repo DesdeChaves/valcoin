@@ -1,13 +1,16 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, FileCog, Building, Gauge, X } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, FileCog, Building, Gauge, X, BookOpen, BarChart3 } from 'lucide-react';
 
 const QualidadeSidebar = ({ activeTab, setActiveTab, userType, currentUser, isSidebarOpen, setSidebarOpen }) => {
   const professorTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { id: 'aplicacoes', label: 'Aplicações', icon: ClipboardList, path: '/aplicacoes' },
     { id: 'questionarios', label: 'Questionários', icon: FileCog, path: '/questionarios' },
-    { id: 'empresas', label: 'Empresas', icon: Building, path: '/empresas' }, // New tab
+    { id: 'quizzes', label: 'Quizzes', icon: BookOpen, path: '/quizzes/criar' },
+    { id: 'manage-quizzes', label: 'Gerir Quizzes', icon: BookOpen, path: '/quizzes' },
+    { id: 'empresas', label: 'Empresas', icon: Building, path: '/empresas' },
+    { id: 'analytics', label: 'Análise Escolar', icon: BarChart3, path: '/analise-escolar' },
   ];
 
   if (currentUser && currentUser.roles && (currentUser.roles.includes('coordenador_cursos_profissionais') || currentUser.roles.includes('responsavel_ciclo'))) {
@@ -17,7 +20,7 @@ const QualidadeSidebar = ({ activeTab, setActiveTab, userType, currentUser, isSi
   const studentTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { id: 'aplicacoes', label: 'Aplicações', icon: ClipboardList, path: '/aplicacoes' },
-    // Add more student-specific tabs here
+    { id: 'quizzes', label: 'Quizzes', icon: BookOpen, path: '/quizzes' }, // New line for quizzes
   ];
 
   const tabsToRender = (userType === 'PROFESSOR' || userType === 'ADMIN') ? professorTabs : studentTabs;

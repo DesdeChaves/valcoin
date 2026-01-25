@@ -10,7 +10,7 @@ const getAvailableDisciplinesForExternalUser = async (req, res) => {
             SELECT DISTINCT s.id, s.nome, s.codigo
             FROM subjects s
             JOIN flashcards f ON s.id = f.discipline_id
-            WHERE s.ativo = TRUE AND f.active = TRUE
+            WHERE s.is_active = TRUE AND f.active = TRUE
             ORDER BY s.nome
         `);
         res.json({ success: true, data: rows });
@@ -32,7 +32,7 @@ const subscribeExternalUserToDiscipline = async (req, res) => {
 
     try {
         // Check if discipline exists
-        const disciplineExists = await db.query('SELECT id FROM subjects WHERE id = $1 AND ativo = TRUE', [discipline_id]);
+        const disciplineExists = await db.query('SELECT id FROM subjects WHERE id = $1 AND is_active = TRUE', [discipline_id]);
         if (disciplineExists.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Disciplina não encontrada ou inativa.' });
         }
@@ -101,7 +101,7 @@ const getMySubscribedDisciplines = async (req, res) => {
                 FROM aluno_disciplina ad
                 JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id
                 JOIN subjects s ON dt.disciplina_id = s.id
-                WHERE ad.aluno_id = $1 AND ad.ativo = TRUE AND dt.ativo = TRUE AND s.ativo = TRUE
+                WHERE ad.aluno_id = $1 AND ad.ativo = TRUE AND dt.ativo = TRUE AND s.is_active = TRUE
                 ORDER BY s.nome
             `, [student_id]);
         } else {

@@ -5,6 +5,7 @@ const router = express.Router();
 
 const {
   criarFlashcard,
+  importarFlashcardsCSV,
   listarFlashcardsProfessor,
   obterFilaDiaria,
   registarRevisao,
@@ -13,7 +14,7 @@ const {
   getAssuntos,
   editarFlashcard,
   apagarFlashcard,
-  getProfessorAnalytics
+  getProfessorAnalytics,
 } = require('./memoria.controller');
 
 const { calculateGlobalFlashcardStatistics } = require('./memoria.analytics'); // <-- New import
@@ -43,7 +44,7 @@ const {
     getMySubscribedDisciplines
 } = require('./memoria.external');
 
-const imageUpload = require('./memoria.uploads');
+const { imageUpload, csvUpload } = require('./memoria.uploads');
 
 const db = require('../db');
 
@@ -129,6 +130,7 @@ router.get('/disciplines/my', getMySubscribedDisciplines);
 router.get('/analytics/disciplina/:discipline_id', validarProfessorDisciplina, getProfessorAnalytics);
 
 router.post('/flashcards', validarProfessorDisciplina, criarFlashcard);
+router.post('/flashcards/import-csv', csvUpload.single('file'), validarProfessorDisciplina, importarFlashcardsCSV);
 
 router.get('/flashcards', listarFlashcardsProfessor);
 
@@ -137,6 +139,8 @@ router.put('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashc
 router.delete('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, apagarFlashcard);
 
 router.get('/assuntos/disciplina/:discipline_id', validarProfessorDisciplina, getAssuntos);
+
+
 
 router.post('/upload-image', imageUpload.single('image'), uploadImage);
 

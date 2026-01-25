@@ -638,7 +638,7 @@ module.exports = {
   updateUserPassword,
   changeUserPassword,
   getProfessors,
-  updateUserRoles
+  updateUserRoles,
 };
 
 // Default export for use with app.use()

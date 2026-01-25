@@ -267,6 +267,14 @@ const ProfessorAnalyticsDashboard = () => {
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Aluno</th>
                     <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
                       <div className="flex items-center justify-center gap-1">
+                        Última Revisão
+                        <Tooltip text="A data da última revisão efetuada pelo aluno." position="bottom">
+                          <Info className="w-4 h-4 text-gray-500" />
+                        </Tooltip>
+                      </div>
+                    </th>
+                    <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                      <div className="flex items-center justify-center gap-1">
                         Revisões
                         <Tooltip text="Número total de vezes que o aluno reviu flashcards nesta disciplina" position="bottom">
                           <Info className="w-4 h-4 text-gray-500" />
@@ -334,6 +342,9 @@ const ProfessorAnalyticsDashboard = () => {
                           <p className="font-semibold text-gray-900">{student.name}</p>
                           <p className="text-sm text-gray-500">{student.numero}</p>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="text-gray-700">{student.last_review_date ? new Date(student.last_review_date).toLocaleDateString() : 'N/A'}</span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="font-bold text-indigo-600">{student.totalReviews || 0}</span>

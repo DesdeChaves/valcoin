@@ -2303,6 +2303,21 @@ ALTER SEQUENCE public.eqavet_turma_ciclo_id_seq OWNED BY public.eqavet_turma_cic
 
 
 --
+-- Name: external_user_disciplines; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.external_user_disciplines (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    discipline_id uuid NOT NULL,
+    data_associacao timestamp with time zone DEFAULT now(),
+    ativo boolean DEFAULT true
+);
+
+
+ALTER TABLE public.external_user_disciplines OWNER TO "user";
+
+--
 -- Name: flashcard_memory_state; Type: TABLE; Schema: public; Owner: user
 --
 
@@ -2573,7 +2588,7 @@ CREATE TABLE public.users (
     data_consentimento_rgpd timestamp with time zone,
     saldo numeric(10,2) DEFAULT 0,
     last_activity_date timestamp with time zone DEFAULT now(),
-    CONSTRAINT users_tipo_utilizador_check CHECK (((tipo_utilizador)::text = ANY (ARRAY[('ADMIN'::character varying)::text, ('PROFESSOR'::character varying)::text, ('ALUNO'::character varying)::text])))
+    CONSTRAINT users_tipo_utilizador_check CHECK (((tipo_utilizador)::text = ANY (ARRAY[('ADMIN'::character varying)::text, ('PROFESSOR'::character varying)::text, ('ALUNO'::character varying)::text, ('EXTERNO'::character varying)::text])))
 );
 
 
@@ -2740,6 +2755,24 @@ CREATE TABLE public.opcoes_resposta (
 ALTER TABLE public.opcoes_resposta OWNER TO "user";
 
 --
+-- Name: pending_registrations; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.pending_registrations (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    nome character varying(255) NOT NULL,
+    email character varying(255) NOT NULL,
+    password_hash character varying(255) NOT NULL,
+    status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
+    data_pedido timestamp with time zone DEFAULT now(),
+    data_atualizacao timestamp with time zone DEFAULT now(),
+    CONSTRAINT pending_registrations_status_check CHECK (((status)::text = ANY (ARRAY[('PENDING'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text])))
+);
+
+
+ALTER TABLE public.pending_registrations OWNER TO "user";
+
+--
 -- Name: perguntas; Type: TABLE; Schema: public; Owner: user
 --
 
@@ -2876,6 +2909,59 @@ CREATE TABLE public.questions (
 ALTER TABLE public.questions OWNER TO "user";
 
 --
+-- Name: quiz_applications; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.quiz_applications (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    quiz_id uuid NOT NULL,
+    turma_id uuid NOT NULL,
+    start_time timestamp with time zone NOT NULL,
+    end_time timestamp with time zone,
+    application_date date DEFAULT CURRENT_DATE NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.quiz_applications OWNER TO "user";
+
+--
+-- Name: quiz_questions; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.quiz_questions (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    quiz_id uuid NOT NULL,
+    flashcard_id uuid,
+    question_text text NOT NULL,
+    question_type character varying(50) DEFAULT 'multiple_choice'::character varying,
+    options jsonb NOT NULL,
+    correct_answer_id character varying(10) NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.quiz_questions OWNER TO "user";
+
+--
+-- Name: quizzes; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.quizzes (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    discipline_id uuid NOT NULL,
+    professor_id uuid NOT NULL,
+    title character varying(255) NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.quizzes OWNER TO "user";
+
+--
 -- Name: respostas_questionario; Type: TABLE; Schema: public; Owner: user
 --
 
@@ -2987,6 +3073,43 @@ CREATE TABLE public.settings (
 
 
 ALTER TABLE public.settings OWNER TO "user";
+
+--
+-- Name: student_quiz_answers; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.student_quiz_answers (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    attempt_id uuid NOT NULL,
+    question_id uuid NOT NULL,
+    chosen_option_id character varying(10),
+    is_correct boolean NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.student_quiz_answers OWNER TO "user";
+
+--
+-- Name: student_quiz_attempts; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.student_quiz_attempts (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    application_id uuid NOT NULL,
+    student_id uuid NOT NULL,
+    attempt_number integer DEFAULT 1 NOT NULL,
+    start_time timestamp with time zone NOT NULL,
+    submit_time timestamp with time zone,
+    score numeric(5,2),
+    passed boolean,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.student_quiz_attempts OWNER TO "user";
 
 --
 -- Name: subjects; Type: TABLE; Schema: public; Owner: user
@@ -4623,6 +4746,22 @@ ALTER TABLE ONLY public.eqavet_turma_ciclo
 
 
 --
+-- Name: external_user_disciplines external_user_disciplines_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.external_user_disciplines
+    ADD CONSTRAINT external_user_disciplines_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: external_user_disciplines external_user_disciplines_user_id_discipline_id_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.external_user_disciplines
+    ADD CONSTRAINT external_user_disciplines_user_id_discipline_id_key UNIQUE (user_id, discipline_id);
+
+
+--
 -- Name: flashcard_memory_state flashcard_memory_state_pkey; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -4783,6 +4922,22 @@ ALTER TABLE ONLY public.opcoes_resposta
 
 
 --
+-- Name: pending_registrations pending_registrations_email_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.pending_registrations
+    ADD CONSTRAINT pending_registrations_email_key UNIQUE (email);
+
+
+--
+-- Name: pending_registrations pending_registrations_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.pending_registrations
+    ADD CONSTRAINT pending_registrations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: perguntas perguntas_pkey; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -4871,6 +5026,30 @@ ALTER TABLE ONLY public.questions
 
 
 --
+-- Name: quiz_applications quiz_applications_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quiz_applications
+    ADD CONSTRAINT quiz_applications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: quiz_questions quiz_questions_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quiz_questions
+    ADD CONSTRAINT quiz_questions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: quizzes quizzes_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quizzes
+    ADD CONSTRAINT quizzes_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: respostas_questionario respostas_questionario_pkey; Type: CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -4924,6 +5103,38 @@ ALTER TABLE ONLY public.settings
 
 ALTER TABLE ONLY public.student_loans
     ADD CONSTRAINT student_loans_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: student_quiz_answers student_quiz_answers_attempt_id_question_id_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.student_quiz_answers
+    ADD CONSTRAINT student_quiz_answers_attempt_id_question_id_key UNIQUE (attempt_id, question_id);
+
+
+--
+-- Name: student_quiz_answers student_quiz_answers_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.student_quiz_answers
+    ADD CONSTRAINT student_quiz_answers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: student_quiz_attempts student_quiz_attempts_application_id_student_id_attempt_num_key; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.student_quiz_attempts
+    ADD CONSTRAINT student_quiz_attempts_application_id_student_id_attempt_num_key UNIQUE (application_id, student_id, attempt_number);
+
+
+--
+-- Name: student_quiz_attempts student_quiz_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.student_quiz_attempts
+    ADD CONSTRAINT student_quiz_attempts_pkey PRIMARY KEY (id);
 
 
 --
@@ -5505,6 +5716,20 @@ CREATE INDEX idx_encarregados_educacao_email ON public.encarregados_educacao USI
 
 
 --
+-- Name: idx_external_user_disciplines_discipline_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_external_user_disciplines_discipline_id ON public.external_user_disciplines USING btree (discipline_id);
+
+
+--
+-- Name: idx_external_user_disciplines_user_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_external_user_disciplines_user_id ON public.external_user_disciplines USING btree (user_id);
+
+
+--
 -- Name: idx_flashcards_assunto; Type: INDEX; Schema: public; Owner: user
 --
 
@@ -5659,6 +5884,13 @@ CREATE INDEX idx_nota_final_momento_momento ON public.nota_final_momento USING b
 
 
 --
+-- Name: idx_pending_registrations_email; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_pending_registrations_email ON public.pending_registrations USING btree (email);
+
+
+--
 -- Name: idx_products_active; Type: INDEX; Schema: public; Owner: user
 --
 
@@ -5750,6 +5982,20 @@ CREATE INDEX idx_questionarios_visibilidade ON public.questionarios USING btree 
 
 
 --
+-- Name: idx_quiz_applications_quiz_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_quiz_applications_quiz_id ON public.quiz_applications USING btree (quiz_id);
+
+
+--
+-- Name: idx_quiz_applications_turma_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_quiz_applications_turma_id ON public.quiz_applications USING btree (turma_id);
+
+
+--
 -- Name: idx_review_log_student_date; Type: INDEX; Schema: public; Owner: user
 --
 
@@ -5761,6 +6007,34 @@ CREATE INDEX idx_review_log_student_date ON public.flashcard_review_log USING bt
 --
 
 CREATE INDEX idx_roles_name ON public.roles USING btree (name);
+
+
+--
+-- Name: idx_student_quiz_answers_attempt_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_student_quiz_answers_attempt_id ON public.student_quiz_answers USING btree (attempt_id);
+
+
+--
+-- Name: idx_student_quiz_answers_question_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_student_quiz_answers_question_id ON public.student_quiz_answers USING btree (question_id);
+
+
+--
+-- Name: idx_student_quiz_attempts_application_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_student_quiz_attempts_application_id ON public.student_quiz_attempts USING btree (application_id);
+
+
+--
+-- Name: idx_student_quiz_attempts_student_id; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_student_quiz_attempts_student_id ON public.student_quiz_attempts USING btree (student_id);
 
 
 --
@@ -6748,6 +7022,22 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: external_user_disciplines fk_external_user_disciplines_discipline; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.external_user_disciplines
+    ADD CONSTRAINT fk_external_user_disciplines_discipline FOREIGN KEY (discipline_id) REFERENCES public.subjects(id) ON DELETE CASCADE;
+
+
+--
+-- Name: external_user_disciplines fk_external_user_disciplines_user; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.external_user_disciplines
+    ADD CONSTRAINT fk_external_user_disciplines_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- Name: flashcard_memory_state flashcard_memory_state_flashcard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -7036,6 +7326,54 @@ ALTER TABLE ONLY public.questions
 
 
 --
+-- Name: quiz_applications quiz_applications_quiz_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quiz_applications
+    ADD CONSTRAINT quiz_applications_quiz_id_fkey FOREIGN KEY (quiz_id) REFERENCES public.quizzes(id) ON DELETE CASCADE;
+
+
+--
+-- Name: quiz_applications quiz_applications_turma_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quiz_applications
+    ADD CONSTRAINT quiz_applications_turma_id_fkey FOREIGN KEY (turma_id) REFERENCES public.classes(id);
+
+
+--
+-- Name: quiz_questions quiz_questions_flashcard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quiz_questions
+    ADD CONSTRAINT quiz_questions_flashcard_id_fkey FOREIGN KEY (flashcard_id) REFERENCES public.flashcards(id);
+
+
+--
+-- Name: quiz_questions quiz_questions_quiz_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quiz_questions
+    ADD CONSTRAINT quiz_questions_quiz_id_fkey FOREIGN KEY (quiz_id) REFERENCES public.quizzes(id) ON DELETE CASCADE;
+
+
+--
+-- Name: quizzes quizzes_discipline_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quizzes
+    ADD CONSTRAINT quizzes_discipline_id_fkey FOREIGN KEY (discipline_id) REFERENCES public.subjects(id);
+
+
+--
+-- Name: quizzes quizzes_professor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.quizzes
+    ADD CONSTRAINT quizzes_professor_id_fkey FOREIGN KEY (professor_id) REFERENCES public.users(id);
+
+
+--
 -- Name: respostas_questionario respostas_questionario_aplicacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -7089,6 +7427,38 @@ ALTER TABLE ONLY public.student_loans
 
 ALTER TABLE ONLY public.student_loans
     ADD CONSTRAINT student_loans_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id);
+
+
+--
+-- Name: student_quiz_answers student_quiz_answers_attempt_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.student_quiz_answers
+    ADD CONSTRAINT student_quiz_answers_attempt_id_fkey FOREIGN KEY (attempt_id) REFERENCES public.student_quiz_attempts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: student_quiz_answers student_quiz_answers_question_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.student_quiz_answers
+    ADD CONSTRAINT student_quiz_answers_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.quiz_questions(id);
+
+
+--
+-- Name: student_quiz_attempts student_quiz_attempts_application_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.student_quiz_attempts
+    ADD CONSTRAINT student_quiz_attempts_application_id_fkey FOREIGN KEY (application_id) REFERENCES public.quiz_applications(id) ON DELETE CASCADE;
+
+
+--
+-- Name: student_quiz_attempts student_quiz_attempts_student_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.student_quiz_attempts
+    ADD CONSTRAINT student_quiz_attempts_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id);
 
 
 --
