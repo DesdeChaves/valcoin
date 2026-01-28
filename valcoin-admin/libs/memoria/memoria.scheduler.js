@@ -5,7 +5,7 @@ const { FSRS, Rating, State, createEmptyCard, generatorParameters } = require('t
  * Parâmetros FSRS recomendados (2025)
  */
 const DEFAULT_PARAMS = {
-  request_retention: 0.9, // 90% de retenção desejada
+  request_retention: 0.85, // 85% de retenção desejada
   maximum_interval: 36500,
   w: [
     0.4197, 1.1869, 4.1905, 10.1484, 5.0371,

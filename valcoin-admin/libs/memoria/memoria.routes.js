@@ -15,9 +15,17 @@ const {
   editarFlashcard,
   apagarFlashcard,
   getProfessorAnalytics,
+  shareFlashcard,
+  getSharedDisciplines,
+  getProfessorDisciplines,
+  getStudentEnrolledDisciplines, // New import
+  requestFlashcardReview,
+  getFlashcardReviewRequests,
+  updateFlashcardReviewRequest,
 } = require('./memoria.controller');
 
 const { calculateGlobalFlashcardStatistics } = require('./memoria.analytics'); // <-- New import
+
 
 const {
   validarProfessorDisciplina,
@@ -64,9 +72,9 @@ router.get('/disciplina_turma/professor/me', async (req, res) => {
                 'ano_letivo', dt.ano_letivo
             )
         ) AS turmas
-      FROM disciplina_turma dt
-      JOIN subjects d ON dt.disciplina_id = d.id
-      JOIN classes t ON dt.turma_id = t.id
+      FROM public.disciplina_turma dt
+      JOIN public.subjects d ON dt.disciplina_id = d.id
+      JOIN public.classes t ON dt.turma_id = t.id
       WHERE dt.professor_id = $1 AND dt.ativo = true
       GROUP BY d.id, d.nome
       ORDER BY d.nome;
@@ -115,7 +123,11 @@ router.get('/fila-diaria', obterFilaDiaria);
 
 router.post('/revisao', registarRevisao);
 
+router.post('/flashcards/request-review', requestFlashcardReview);
+
 router.get('/flashcards/:id/review-times-percentiles', getFlashcardReviewTimePercentiles);
+
+router.get('/student/disciplines', getStudentEnrolledDisciplines); // New route for students to get their enrolled disciplines
 
 // New routes for external users to manage discipline subscriptions
 router.get('/disciplines/available', getAvailableDisciplinesForExternalUser);
@@ -127,6 +139,11 @@ router.get('/disciplines/my', getMySubscribedDisciplines);
 // ROTAS PARA PROFESSORES
 // ============================================================================
 
+router.get('/flashcards/review-requests', getFlashcardReviewRequests);
+router.put('/flashcards/review-requests/:id', updateFlashcardReviewRequest);
+
+router.get('/professor/disciplines', getProfessorDisciplines);
+
 router.get('/analytics/disciplina/:discipline_id', validarProfessorDisciplina, getProfessorAnalytics);
 
 router.post('/flashcards', validarProfessorDisciplina, criarFlashcard);
@@ -135,6 +152,10 @@ router.post('/flashcards/import-csv', csvUpload.single('file'), validarProfessor
 router.get('/flashcards', listarFlashcardsProfessor);
 
 router.put('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, editarFlashcard);
+
+router.post('/flashcards/:id/share', validarProfessorDisciplina, validarOwnershipFlashcard, shareFlashcard);
+router.get('/flashcards/:id/shared-disciplines', validarProfessorDisciplina, validarOwnershipFlashcard, getSharedDisciplines);
+
 
 router.delete('/flashcards/:id', validarProfessorDisciplina, validarOwnershipFlashcard, apagarFlashcard);
 

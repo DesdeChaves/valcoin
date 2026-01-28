@@ -12,6 +12,7 @@ import useAuth from './hooks/useAuth';
 import CreateFlashcardPage from './components/Professor/CreateFlashcardPage';
 import ManageFlashcardsPage from './components/Professor/ManageFlashcardsPage';
 import ProfessorAnalyticsDashboard from './components/Professor/ProfessorAnalyticsDashboard'; // New Import
+import ReviewRequestsPage from './components/Professor/ReviewRequestsPage';
 
 function App() {
   const { user, loading, logout } = useAuth();
@@ -75,6 +76,7 @@ function App() {
                 <Route path="analytics" element={<ProfessorAnalyticsDashboard />} /> {/* New Route */}
                 <Route path="create" element={<CreateFlashcardPage />} />
                 <Route path="manage" element={<ManageFlashcardsPage />} />
+                <Route path="reviews" element={<ReviewRequestsPage />} />
             </>
           )}
 

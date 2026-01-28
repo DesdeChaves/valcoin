@@ -8,9 +8,9 @@ const getAvailableDisciplinesForExternalUser = async (req, res) => {
         // Only list disciplines that have at least one active flashcard
         const { rows } = await db.query(`
             SELECT DISTINCT s.id, s.nome, s.codigo
-            FROM subjects s
-            JOIN flashcards f ON s.id = f.discipline_id
-            WHERE s.is_active = TRUE AND f.active = TRUE
+            FROM public.subjects s
+            JOIN public.flashcards f ON s.id = f.discipline_id
+            WHERE s.ativo = TRUE AND f.active = TRUE
             ORDER BY s.nome
         `);
         res.json({ success: true, data: rows });
@@ -32,14 +32,14 @@ const subscribeExternalUserToDiscipline = async (req, res) => {
 
     try {
         // Check if discipline exists
-        const disciplineExists = await db.query('SELECT id FROM subjects WHERE id = $1 AND is_active = TRUE', [discipline_id]);
+        const disciplineExists = await db.query('SELECT id FROM public.subjects WHERE id = $1 AND ativo = TRUE', [discipline_id]);
         if (disciplineExists.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Disciplina não encontrada ou inativa.' });
         }
 
         // Check if user is already subscribed
         const alreadySubscribed = await db.query(
-            'SELECT id FROM external_user_disciplines WHERE user_id = $1 AND discipline_id = $2',
+            'SELECT id FROM public.external_user_disciplines WHERE user_id = $1 AND discipline_id = $2',
             [student_id, discipline_id]
         );
         if (alreadySubscribed.rows.length > 0) {
@@ -49,7 +49,7 @@ const subscribeExternalUserToDiscipline = async (req, res) => {
         if (user_type === 'EXTERNO') {
             // Check current subscription count for external users
             const { rows: currentSubscriptions } = await db.query(
-                'SELECT COUNT(*) FROM external_user_disciplines WHERE user_id = $1 AND ativo = TRUE',
+                'SELECT COUNT(*) FROM public.external_user_disciplines WHERE user_id = $1 AND ativo = TRUE',
                 [student_id]
             );
 
@@ -68,7 +68,7 @@ const subscribeExternalUserToDiscipline = async (req, res) => {
 
         // Subscribe the user
         const newSubscription = await db.query(
-            'INSERT INTO external_user_disciplines (user_id, discipline_id) VALUES ($1, $2) RETURNING id',
+            'INSERT INTO public.external_user_disciplines (user_id, discipline_id) VALUES ($1, $2) RETURNING id',
             [student_id, discipline_id]
         );
 
@@ -85,29 +85,31 @@ const getMySubscribedDisciplines = async (req, res) => {
     const student_id = req.user.id;
     const user_type = req.user.tipo_utilizador;
 
+    console.log(`[MEMORIA_EXTERNAL] getMySubscribedDisciplines called for student_id: ${student_id}, user_type: ${user_type}`); // Log
     try {
         let queryResult;
         if (user_type === 'EXTERNO') {
             queryResult = await db.query(`
                 SELECT s.id, s.nome, s.codigo
-                FROM external_user_disciplines eud
-                JOIN subjects s ON eud.discipline_id = s.id
+                FROM public.external_user_disciplines eud
+                JOIN public.subjects s ON eud.discipline_id = s.id
                 WHERE eud.user_id = $1 AND eud.ativo = TRUE
                 ORDER BY s.nome
             `, [student_id]);
         } else if (user_type === 'ALUNO') {
             queryResult = await db.query(`
                 SELECT DISTINCT s.id, s.nome, s.codigo
-                FROM aluno_disciplina ad
-                JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id
-                JOIN subjects s ON dt.disciplina_id = s.id
-                WHERE ad.aluno_id = $1 AND ad.ativo = TRUE AND dt.ativo = TRUE AND s.is_active = TRUE
+                FROM public.aluno_disciplina ad
+                JOIN public.disciplina_turma dt ON ad.disciplina_turma_id = dt.id
+                JOIN public.subjects s ON dt.disciplina_id = s.id
+                WHERE ad.aluno_id = $1 AND ad.ativo = TRUE AND dt.ativo = TRUE AND s.ativo = TRUE
                 ORDER BY s.nome
             `, [student_id]);
         } else {
             return res.status(403).json({ success: false, message: 'O seu tipo de utilizador não tem disciplinas associadas desta forma.' });
         }
         
+        console.log(`[MEMORIA_EXTERNAL] getMySubscribedDisciplines returning ${queryResult.rows.length} disciplines for student_id: ${student_id}`); // Log
         res.json({ success: true, data: queryResult.rows });
 
     } catch (error) {

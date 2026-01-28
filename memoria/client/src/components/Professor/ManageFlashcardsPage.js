@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import * as api from '../../services/memoria.api';
 import EditFlashcardModal from './EditFlashcardModal';
+import ShareFlashcardModal from './ShareFlashcardModal';
 import ImportCSVModal from './ImportCSVModal';
-import { Search, Filter, X, Calendar, Tag, ChevronDown, ChevronUp, FileText, Download, Loader2, FileUp, Upload } from 'lucide-react'; // Add FileText, Download, Loader2
+import { Search, Filter, X, Calendar, Tag, ChevronDown, ChevronUp, FileText, Download, Loader2, FileUp, Upload, Share2 } from 'lucide-react';
+
 
 // Função auxiliar para formatar data
 const formatDate = (dateString) => {
@@ -30,7 +33,9 @@ const ManageFlashcardsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingFlashcard, setEditingFlashcard] = useState(null);
+  const [sharingFlashcard, setSharingFlashcard] = useState(null); // New state for sharing
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false); // New state for sharing modal
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState('');
@@ -44,18 +49,25 @@ const ManageFlashcardsPage = () => {
   const [selectedType, setSelectedType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedCard, setExpandedCard] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
     const fetchDisciplines = async () => {
       try {
         const response = await api.getProfessorDisciplines();
-        const myDisciplines = response.data.map(dt => ({
-          id: dt.disciplina_id,
-          name: dt.disciplina_nome || `Disciplina ${dt.disciplina_id}`
-        }));
-        setDisciplines(myDisciplines);
-        if (myDisciplines.length > 0) {
-          setSelectedDiscipline(myDisciplines[0].id);
+        setDisciplines(response.data); // This is correct now, {id, nome}
+        if (response.data.length > 0) {
+            const queryParams = new URLSearchParams(location.search);
+            const flashcardIdFromQuery = queryParams.get('flashcardId');
+
+            // Se não houver flashcardId na query, seleciona a primeira disciplina
+            if (!flashcardIdFromQuery) {
+                setSelectedDiscipline(response.data[0].id);
+            } else {
+                // Se houver, a busca pelo flashcard vai despoletar a seleção da disciplina correta
+                setSearchTerm(flashcardIdFromQuery);
+                setExpandedCard(flashcardIdFromQuery);
+            }
         } else {
           setLoading(false);
         }
@@ -67,7 +79,7 @@ const ManageFlashcardsPage = () => {
     };
 
     fetchDisciplines();
-  }, []);
+  }, [location.search]);
 
   useEffect(() => {
     if (selectedDiscipline) {
@@ -81,6 +93,19 @@ const ManageFlashcardsPage = () => {
       setLoading(true);
       const response = await api.getProfessorFlashcards(selectedDiscipline);
       setFlashcards(response.data);
+      
+      const queryParams = new URLSearchParams(location.search);
+      const flashcardIdFromQuery = queryParams.get('flashcardId');
+
+      if (flashcardIdFromQuery && response.data.some(fc => fc.id === flashcardIdFromQuery)) {
+        if (!selectedDiscipline) {
+            const card = response.data.find(fc => fc.id === flashcardIdFromQuery);
+            if (card) {
+                setSelectedDiscipline(card.discipline_id);
+            }
+        }
+      }
+
     } catch (err) {
       setError('Erro ao carregar flashcards');
     } finally {
@@ -116,6 +141,17 @@ const ManageFlashcardsPage = () => {
   const handleCloseEditModal = () => {
     setEditingFlashcard(null);
     setIsEditModalOpen(false);
+  };
+  
+  const handleOpenShareModal = (card) => { // New handler
+    setSharingFlashcard(card);
+    setIsShareModalOpen(true);
+  };
+
+  const handleCloseShareModal = () => { // New handler
+    setSharingFlashcard(null);
+    setIsShareModalOpen(false);
+    fetchFlashcards(); // Refresh list after sharing to show updated state
   };
 
   const handleSaveFlashcard = async (updatedCard) => {
@@ -233,7 +269,7 @@ const ManageFlashcardsPage = () => {
       const user = JSON.parse(localStorage.getItem('user'));
       const professorName = user?.nome || 'Professor';
       const discipline = disciplines.find(d => d.id === selectedDiscipline);
-      const disciplineName = discipline?.name || 'Disciplina';
+      const disciplineName = discipline?.nome || 'Disciplina'; // Corrected to d.nome
 
       const htmlContent = generateWorksheetHtml(questionsToGenerate, disciplineName, professorName, worksheetIncludeSolutions);
 
@@ -495,7 +531,7 @@ const ManageFlashcardsPage = () => {
                 className="flex-1 max-w-md px-4 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-300 rounded-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 {disciplines.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
+                  <option key={d.id} value={d.id}>{d.nome}</option>
                 ))}
               </select>
             </div>
@@ -708,6 +744,16 @@ const ManageFlashcardsPage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleOpenShareModal(card);
+                          }}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                          title="Partilhar"
+                        >
+                          <Share2 className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             handleOpenEditModal(card);
                           }}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -766,6 +812,13 @@ const ManageFlashcardsPage = () => {
           flashcard={editingFlashcard}
           onClose={handleCloseEditModal}
           onSave={handleSaveFlashcard}
+        />
+      )}
+      
+      {isShareModalOpen && (
+        <ShareFlashcardModal
+            flashcard={sharingFlashcard}
+            onClose={handleCloseShareModal}
         />
       )}
 

@@ -63,7 +63,7 @@ const _criarFlashcard = async (flashcardData, creator_id) => {
     }
 
     const result = await db.query(
-        `INSERT INTO flashcards
+        `INSERT INTO public.flashcards
        (discipline_id, creator_id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, assunto_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, created_at, assunto_id`,
@@ -162,30 +162,57 @@ const importarFlashcardsCSV = async (req, res) => {
  * Listar flashcards criados pelo professor
  */
 const listarFlashcardsProfessor = async (req, res) => {
+  console.log('[MEMORIA_CONTROLLER] listarFlashcardsProfessor called'); // Log
   try {
     const professor_id = req.user.id;
-    const { discipline_id } = req.query;
+    const { discipline_id } = req.query; // discipline_id of the currently selected discipline
 
     let query = `
-      SELECT
-        f.id, f.type, f.front, f.back, f.cloze_text, f.image_url,
+      SELECT DISTINCT f.id, f.type, f.front, f.back, f.cloze_text, f.image_url, f.back_image_url,
         f.occlusion_data, f.hints, f.scheduled_date, f.active, f.created_at,
         f.discipline_id,
         s.nome as discipline_name,
         COALESCE(a.name, 'Sem assunto') as assunto_name
-      FROM flashcards f
-      JOIN subjects s ON s.id = f.discipline_id
-      LEFT JOIN assuntos a ON a.id = f.assunto_id
+      FROM public.flashcards f
+      JOIN public.subjects s ON s.id = f.discipline_id
+      LEFT JOIN public.assuntos a ON a.id = f.assunto_id
       WHERE f.creator_id = $1 AND f.active = true
     `;
     const params = [professor_id];
 
     if (discipline_id) {
-      query += ` AND f.discipline_id = $2`;
+      // If a specific discipline is selected, retrieve flashcards either originally created for it
+      // OR explicitly shared with it by the current professor.
+      query = `
+        SELECT
+          f.id, f.type, f.front, f.back, f.cloze_text, f.image_url, f.back_image_url,
+          f.occlusion_data, f.hints, f.scheduled_date, f.active, f.created_at,
+          f.discipline_id,
+          s.nome as discipline_name,
+          COALESCE(a.name, 'Sem assunto') as assunto_name
+        FROM public.flashcards f
+        JOIN public.subjects s ON s.id = f.discipline_id
+        LEFT JOIN public.assuntos a ON a.id = f.assunto_id
+        WHERE f.creator_id = $1 AND f.active = true AND f.discipline_id = $2
+        
+        UNION
+        
+        SELECT
+          f.id, f.type, f.front, f.back, f.cloze_text, f.image_url, f.back_image_url,
+          f.occlusion_data, f.hints, f.scheduled_date, f.active, f.created_at,
+          f.discipline_id,
+          s.nome as discipline_name,
+          COALESCE(a.name, 'Sem assunto') as assunto_name
+        FROM public.flashcards f
+        JOIN public.subjects s ON s.id = f.discipline_id
+        JOIN public.flashcard_disciplinas fd ON f.id = fd.flashcard_id
+        LEFT JOIN public.assuntos a ON a.id = f.assunto_id
+        WHERE f.creator_id = $1 AND f.active = true AND fd.disciplina_id = $2
+      `;
       params.push(discipline_id);
-    }
+    } 
 
-    query += ` ORDER BY f.scheduled_date DESC, f.created_at DESC`;
+    query += ` ORDER BY scheduled_date DESC, created_at DESC`;
 
     const result = await db.query(query, params);
 
@@ -229,7 +256,7 @@ const editarFlashcard = async (req, res) => {
     }
 
     const result = await db.query(
-      `UPDATE flashcards SET
+      `UPDATE public.flashcards SET
           type = $1,
           front = $2,
           back = $3,
@@ -285,7 +312,7 @@ const apagarFlashcard = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await db.query('DELETE FROM flashcards WHERE id = $1', [id]);
+    await db.query('DELETE FROM public.flashcards WHERE id = $1', [id]);
 
     res.json({
       success: true,
@@ -323,14 +350,10 @@ const getAssuntos = async (req, res) => {
 /**
  * Obter fila diária
  */
-/**
- * Obter fila diária - VERSÃO CORRIGIDA E ATUALIZADA PARA EXTERNOS
- */
-/**
- * Obter fila diária - VERSÃO CORRIGIDA
- */
 const obterFilaDiaria = async (req, res) => {
   console.log(`[MEMORIA_LOG] Entering obterFilaDiaria for student_id: ${req.user.id}, user_type: ${req.user.tipo_utilizador}`);
+  const { discipline_id: filter_discipline_id } = req.query;
+  
   try {
     const student_id = req.user.id;
     const user_type = req.user.tipo_utilizador;
@@ -341,18 +364,26 @@ const obterFilaDiaria = async (req, res) => {
     if (user_type === 'ALUNO') {
       disciplineQuery = `
         SELECT dt.disciplina_id as discipline_id
-        FROM aluno_disciplina ad
-        JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id
+        FROM public.aluno_disciplina ad
+        JOIN public.disciplina_turma dt ON ad.disciplina_turma_id = dt.id
         WHERE ad.aluno_id = $1 AND ad.ativo = TRUE
       `;
     } else if (user_type === 'EXTERNO') {
       disciplineQuery = `
         SELECT eud.discipline_id
-        FROM external_user_disciplines eud
+        FROM public.external_user_disciplines eud
         WHERE eud.user_id = $1 AND eud.ativo = TRUE
       `;
     } else {
       return res.status(403).json({ success: false, message: 'O seu tipo de utilizador não tem acesso à fila diária de flashcards.' });
+    }
+
+    const queryParams = [student_id, today];
+
+    let filterCondition = '';
+    if (filter_discipline_id) {
+      filterCondition = ` AND ef.effective_discipline_id = $3`;
+      queryParams.push(filter_discipline_id);
     }
 
     const query = `
@@ -362,78 +393,98 @@ const obterFilaDiaria = async (req, res) => {
         FROM user_disciplines
         WHERE discipline_id IS NOT NULL
       ),
-      base_flashcards AS (
+      all_relevant_flashcards AS (
+        -- Flashcards whose main discipline is one of the user's
         SELECT
-          f.id AS flashcard_id,
-          f.type,
-          f.front,
-          f.back,
-          f.cloze_text,
-          f.image_url,
-          f.hints,
-          s.nome as discipline_name,
-          f.occlusion_data,
-          f.scheduled_date
-        FROM flashcards f
-        JOIN subjects s ON f.discipline_id = s.id
-        INNER JOIN disciplinas_ativas da ON f.discipline_id = da.discipline_id
+          f.id AS flashcard_id, f.type, f.front, f.back, f.cloze_text, f.image_url,
+          f.hints, s.nome as original_discipline_name, f.occlusion_data, f.scheduled_date, 
+          f.discipline_id as original_discipline_id,
+          f.discipline_id as effective_discipline_id
+        FROM public.flashcards f
+        JOIN public.subjects s ON f.discipline_id = s.id
         WHERE f.active = true
           AND f.scheduled_date <= CURRENT_DATE
+          AND f.discipline_id IN (SELECT discipline_id FROM disciplinas_ativas)
+        
+        UNION ALL
+        
+        -- Flashcards shared with one of the user's disciplines
+        SELECT
+          f.id AS flashcard_id, f.type, f.front, f.back, f.cloze_text, f.image_url,
+          f.hints, os.nome as original_discipline_name, f.occlusion_data, f.scheduled_date, 
+          f.discipline_id as original_discipline_id,
+          fd.disciplina_id as effective_discipline_id
+        FROM public.flashcards f
+        JOIN public.subjects os ON f.discipline_id = os.id
+        JOIN public.flashcard_disciplinas fd ON f.id = fd.flashcard_id
+        WHERE f.active = true
+          AND f.scheduled_date <= CURRENT_DATE
+          AND fd.disciplina_id IN (SELECT discipline_id FROM disciplinas_ativas)
+      ),
+      flashcards_with_effective_names AS (
+        SELECT
+          arf.*,
+          es.nome as effective_discipline_name
+        FROM all_relevant_flashcards arf
+        JOIN public.subjects es ON arf.effective_discipline_id = es.id
       ),
       expanded_flashcards AS (
         -- Basic e Image+Text cards (sem sub_id)
         SELECT
-          bf.flashcard_id,
-          bf.type,
-          bf.front,
-          bf.back,
-          bf.cloze_text,
-          bf.image_url,
-          bf.hints,
-          bf.discipline_name,
+          fwen.flashcard_id,
+          fwen.type,
+          fwen.front,
+          fwen.back,
+          fwen.cloze_text,
+          fwen.image_url,
+          fwen.hints,
+          fwen.effective_discipline_name as discipline_name,
           NULL::text AS sub_id,
           NULL::text AS sub_label,
-          NULL::jsonb AS sub_data
-        FROM base_flashcards bf
-        WHERE bf.type IN ('basic', 'image_text')
-
+          NULL::jsonb AS sub_data,
+          fwen.effective_discipline_id
+        FROM flashcards_with_effective_names fwen
+        WHERE fwen.type IN ('basic', 'image_text')
+        
         UNION ALL
 
         -- Image occlusion cards (com sub_id = mask_id)
         SELECT
-          bf.flashcard_id,
-          bf.type,
-          bf.front,
-          bf.back,
-          bf.cloze_text,
-          bf.image_url,
-          bf.hints,
-          bf.discipline_name,
+          fwen.flashcard_id,
+          fwen.type,
+          fwen.front,
+          fwen.back,
+          fwen.cloze_text,
+          fwen.image_url,
+          fwen.hints,
+          fwen.effective_discipline_name as discipline_name,
           (elem->>'mask_id')::text AS sub_id,
           elem->>'label' AS sub_label,
-          elem AS sub_data
-        FROM base_flashcards bf
-        CROSS JOIN LATERAL jsonb_array_elements(bf.occlusion_data) AS elem
-        WHERE bf.type = 'image_occlusion'
+          elem AS sub_data,
+          fwen.effective_discipline_id
+        FROM flashcards_with_effective_names fwen
+        CROSS JOIN LATERAL jsonb_array_elements(fwen.occlusion_data) AS elem
+        WHERE fwen.type = 'image_occlusion'
 
         UNION ALL
 
         -- Cloze cards (com sub_id = número da lacuna)
         SELECT
-          bf.flashcard_id,
-          bf.type,
-          bf.front,
-          bf.back,
-          bf.cloze_text,
-          bf.image_url,
-          bf.hints,
-          bf.discipline_name,
+          fwen.flashcard_id,
+          fwen.type,
+          fwen.front,
+          fwen.back,
+          fwen.cloze_text,
+          fwen.image_url,
+          fwen.hints,
+          fwen.effective_discipline_name as discipline_name,
           match[1]::text AS sub_id,
           match[2]::text AS sub_label,
-          NULL::jsonb AS sub_data
-        FROM base_flashcards bf
-        CROSS JOIN LATERAL regexp_matches(bf.cloze_text, '\\{\\{c(\\d+)::([^}]+)\\}\\}', 'g') AS match
-        WHERE bf.type = 'cloze'
+          NULL::jsonb AS sub_data,
+          fwen.effective_discipline_id
+        FROM flashcards_with_effective_names fwen
+        CROSS JOIN LATERAL regexp_matches(fwen.cloze_text, '\{\{c(\d+)::([^}]+)\}\}', 'g') AS match
+        WHERE fwen.type = 'cloze'
       )
       SELECT
         ef.flashcard_id,
@@ -447,12 +498,13 @@ const obterFilaDiaria = async (req, res) => {
         ef.sub_id,
         ef.sub_label,
         ef.sub_data,
+        ef.effective_discipline_id,
         COALESCE(ms.stability, 0) AS stability,
         ms.last_review,
         ms.reps,
         ms.lapses
       FROM expanded_flashcards ef
-      LEFT JOIN flashcard_memory_state ms
+      LEFT JOIN public.flashcard_memory_state ms
         ON ms.flashcard_id = ef.flashcard_id
         AND ms.student_id = $1
         AND (
@@ -460,20 +512,27 @@ const obterFilaDiaria = async (req, res) => {
           OR (ef.type IN ('cloze', 'image_occlusion') AND ms.sub_id = ef.sub_id)
         )
       WHERE
-        ms.stability IS NULL 
-        OR ms.stability = 0 
-        OR ms.last_review IS NULL
-        OR (
-          ms.last_review IS NOT NULL
-          AND ms.stability > 0
-          AND $2::date >= (ms.last_review::date + CEIL(ms.stability)::integer)
+        (
+          -- Card nunca foi revisto
+          ms.stability IS NULL 
+          OR ms.stability = 0 
+          OR ms.last_review IS NULL
+          OR (
+            -- Card foi revisto, mas a próxima revisão é hoje ou anterior
+            ms.last_review IS NOT NULL
+            AND ms.stability > 0
+            AND $2::date >= (ms.last_review::date + CEIL(ms.stability)::integer)
+          )
         )
+        -- NOVA CONDIÇÃO: Excluir cards já revistos HOJE
+        AND (ms.last_review IS NULL OR ms.last_review::date < $2::date)
+        ${filterCondition}
       ORDER BY RANDOM()
       LIMIT 50;
     `;
 
-    console.log(`[MEMORIA_LOG] Executing obterFilaDiaria query for student_id: ${student_id}`);
-    const result = await db.query(query, [student_id, today]);
+    console.log(`[MEMORIA_LOG] Executing obterFilaDiaria query for student_id: ${student_id} with filter_discipline_id: ${filter_discipline_id}`);
+    const result = await db.query(query, queryParams);
     console.log(`[MEMORIA_LOG] Query completed for student_id: ${student_id}. Found ${result.rowCount} rows.`);
 
     const cards = result.rows.map(row => ({
@@ -487,7 +546,8 @@ const obterFilaDiaria = async (req, res) => {
       discipline_name: row.discipline_name,
       sub_id: row.sub_id,
       sub_label: row.sub_label,
-      sub_data: row.sub_data
+      sub_data: row.sub_data,
+      effective_discipline_id: row.effective_discipline_id
     }));
 
     res.json({
@@ -526,7 +586,7 @@ const registarRevisao = async (req, res) => {
 
     const stateRes = await client.query(
       `SELECT difficulty, stability, last_review, reps, lapses
-       FROM flashcard_memory_state
+       FROM public.flashcard_memory_state
        WHERE student_id = $1 AND flashcard_id = $2 AND (sub_id = $3 OR (sub_id IS NULL AND $3 IS NULL))`,
       [student_id, flashcard_id, sub_id || null]
     );
@@ -537,7 +597,7 @@ const registarRevisao = async (req, res) => {
 
     if (currentState) {
       await client.query(
-        `UPDATE flashcard_memory_state
+        `UPDATE public.flashcard_memory_state
          SET difficulty = $1, stability = $2, last_review = $3, reps = $4, lapses = $5, updated_at = NOW()
          WHERE student_id = $6 AND flashcard_id = $7 AND (sub_id = $8 OR (sub_id IS NULL AND $8 IS NULL))`,
         [
@@ -553,7 +613,7 @@ const registarRevisao = async (req, res) => {
       );
     } else {
       await client.query(
-        `INSERT INTO flashcard_memory_state
+        `INSERT INTO public.flashcard_memory_state
          (student_id, flashcard_id, sub_id, difficulty, stability, last_review, reps, lapses)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
@@ -570,7 +630,7 @@ const registarRevisao = async (req, res) => {
     }
 
     await client.query(
-      `INSERT INTO flashcard_review_log
+      `INSERT INTO public.flashcard_review_log
        (student_id, flashcard_id, sub_id, rating, review_date, elapsed_days, time_spent)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
@@ -617,7 +677,7 @@ const getFlashcardReviewTimePercentiles = async (req, res) => {
     const DEFAULT_MAX_TIME = 60;
 
     const result = await db.query(
-      `SELECT time_spent FROM flashcard_review_log WHERE flashcard_id = $1 AND time_spent IS NOT NULL`,
+      `SELECT time_spent FROM public.flashcard_review_log WHERE flashcard_id = $1 AND time_spent IS NOT NULL`,
       [id]
     );
 
@@ -636,7 +696,7 @@ const getFlashcardReviewTimePercentiles = async (req, res) => {
     const getPercentile = (arr, p) => {
       const index = (p / 100) * (arr.length - 1);
       if (index === Math.floor(index)) return arr[index];
-      const lower = arr[Math.floor(index)];
+      const lower = arr[Math.ceil(index)];
       const upper = arr[Math.ceil(index)];
       return lower + (upper - lower) * (index - Math.floor(index));
     };
@@ -720,15 +780,15 @@ const getProfessorAnalytics = async (req, res) => {
 
     // Total Flashcards
     const totalFlashcardsRes = await db.query(
-      `SELECT COUNT(id) FROM flashcards WHERE creator_id = $1 AND discipline_id = $2`,
+      `SELECT COUNT(id) FROM public.flashcards WHERE creator_id = $1 AND discipline_id = $2`,
       [professor_id, discipline_id]
     );
     const totalFlashcards = parseInt(totalFlashcardsRes.rows[0].count, 10);
 
     // Total Reviews
     const totalReviewsRes = await db.query(
-      `SELECT COUNT(frl.id) FROM flashcard_review_log frl
-       JOIN flashcards f ON frl.flashcard_id = f.id
+      `SELECT COUNT(frl.id) FROM public.flashcard_review_log frl
+       JOIN public.flashcards f ON frl.flashcard_id = f.id
        WHERE f.creator_id = $1 AND f.discipline_id = $2`,
       [professor_id, discipline_id]
     );
@@ -736,8 +796,8 @@ const getProfessorAnalytics = async (req, res) => {
 
     // Average Rating
     const averageRatingRes = await db.query(
-      `SELECT AVG(frl.rating) FROM flashcard_review_log frl
-       JOIN flashcards f ON frl.flashcard_id = f.id
+      `SELECT AVG(frl.rating) FROM public.flashcard_review_log frl
+       JOIN public.flashcards f ON frl.flashcard_id = f.id
        WHERE f.creator_id = $1 AND f.discipline_id = $2`,
       [professor_id, discipline_id]
     );
@@ -745,8 +805,8 @@ const getProfessorAnalytics = async (req, res) => {
 
     // Rating Distribution
     const ratingDistributionRes = await db.query(
-      `SELECT rating, COUNT(frl.id) as count FROM flashcard_review_log frl
-       JOIN flashcards f ON frl.flashcard_id = f.id
+      `SELECT rating, COUNT(frl.id) as count FROM public.flashcard_review_log frl
+       JOIN public.flashcards f ON frl.flashcard_id = f.id
        WHERE f.creator_id = $1 AND f.discipline_id = $2
        GROUP BY rating ORDER BY rating`,
       [professor_id, discipline_id]
@@ -760,8 +820,8 @@ const getProfessorAnalytics = async (req, res) => {
     // Flashcards e Reviews por Assunto
     const flashcardsBySubjectRes = await db.query(
       `SELECT a.name as assunto_name, COUNT(f.id) as count
-       FROM flashcards f
-       JOIN assuntos a ON f.assunto_id = a.id
+       FROM public.assuntos a
+       JOIN public.flashcards f ON a.id = f.assunto_id
        WHERE f.creator_id = $1 AND f.discipline_id = $2
        GROUP BY a.name ORDER BY count DESC`,
       [professor_id, discipline_id]
@@ -773,9 +833,9 @@ const getProfessorAnalytics = async (req, res) => {
 
     const reviewsBySubjectRes = await db.query(
       `SELECT a.name as assunto_name, COUNT(frl.id) as count
-       FROM flashcard_review_log frl
-       JOIN flashcards f ON frl.flashcard_id = f.id
-       JOIN assuntos a ON f.assunto_id = a.id
+       FROM public.flashcard_review_log frl
+       JOIN public.flashcards f ON frl.flashcard_id = f.id
+       JOIN public.assuntos a ON f.assunto_id = a.id
        WHERE f.creator_id = $1 AND f.discipline_id = $2
        GROUP BY a.name ORDER BY count DESC`,
       [professor_id, discipline_id]
@@ -798,21 +858,21 @@ const getProfessorAnalytics = async (req, res) => {
           COALESCE(AVG(fms.stability), 0) AS avg_stability,
           COUNT(CASE WHEN frl.rating = 1 THEN 1 ELSE NULL END) AS total_lapses,
           COALESCE(AVG(frl.time_spent), 0) AS avg_time_spent
-        FROM users u
+        FROM public.users u
         LEFT JOIN (
             SELECT frl.*
-            FROM flashcard_review_log frl
-            JOIN flashcards f ON frl.flashcard_id = f.id
+            FROM public.flashcard_review_log frl
+            JOIN public.flashcards f ON frl.flashcard_id = f.id
             WHERE f.creator_id = $1 AND f.discipline_id = $2
         ) frl ON u.id = frl.student_id
         LEFT JOIN (
             SELECT fms.*
-            FROM flashcard_memory_state fms
-            JOIN flashcards f ON fms.flashcard_id = f.id
+            FROM public.flashcard_memory_state fms
+            JOIN public.flashcards f ON fms.flashcard_id = f.id
             WHERE f.creator_id = $1 AND f.discipline_id = $2
         ) fms ON u.id = fms.student_id AND frl.flashcard_id = fms.flashcard_id AND (frl.sub_id = fms.sub_id OR (frl.sub_id IS NULL AND fms.sub_id IS NULL))
         WHERE u.tipo_utilizador = 'ALUNO'
-          AND EXISTS (SELECT 1 FROM aluno_disciplina ad JOIN disciplina_turma dt ON ad.disciplina_turma_id = dt.id WHERE ad.aluno_id = u.id AND dt.disciplina_id = $2)
+          AND EXISTS (SELECT 1 FROM public.aluno_disciplina ad JOIN public.disciplina_turma dt ON ad.disciplina_turma_id = dt.id WHERE ad.aluno_id = u.id AND dt.disciplina_id = $2)
         GROUP BY u.id, u.nome, u.numero_mecanografico
         HAVING COUNT(frl.id) > 0
         ORDER BY total_reviews DESC`,
@@ -842,10 +902,10 @@ const getProfessorAnalytics = async (req, res) => {
           COALESCE(AVG(frl.rating), 0) AS avg_rating,
           COALESCE(AVG(fms.difficulty), 0) AS avg_difficulty,
           COUNT(DISTINCT CASE WHEN frl.rating = 1 THEN frl.student_id ELSE NULL END) AS struggling_students_count
-        FROM assuntos a
-        JOIN flashcards f ON a.id = f.assunto_id
-        LEFT JOIN flashcard_review_log frl ON f.id = frl.flashcard_id
-        LEFT JOIN flashcard_memory_state fms ON f.id = fms.flashcard_id AND (frl.student_id = fms.student_id OR frl.student_id IS NULL) AND (frl.sub_id = fms.sub_id OR (frl.sub_id IS NULL AND fms.sub_id IS NULL))
+        FROM public.assuntos a
+        JOIN public.flashcards f ON a.id = f.assunto_id
+        LEFT JOIN public.flashcard_review_log frl ON f.id = frl.flashcard_id
+        LEFT JOIN public.flashcard_memory_state fms ON f.id = fms.flashcard_id AND (frl.student_id = fms.student_id OR frl.student_id IS NULL) AND (frl.sub_id = fms.sub_id OR (frl.sub_id IS NULL AND fms.sub_id IS NULL))
         WHERE f.creator_id = $1 AND f.discipline_id = $2
         GROUP BY a.id, a.name
         HAVING COUNT(frl.id) > 0`,
@@ -883,6 +943,252 @@ const getProfessorAnalytics = async (req, res) => {
   }
 };
 
+const getProfessorDisciplines = async (req, res) => {
+    console.log('[MEMORIA_CONTROLLER] getProfessorDisciplines called'); // Log
+    try {
+        const professor_id = req.user.id;
+        const result = await db.query(`
+      SELECT DISTINCT d.id, d.nome
+      FROM public.disciplina_turma dt
+      JOIN public.subjects d ON dt.disciplina_id = d.id
+      WHERE dt.professor_id = $1 AND dt.ativo = true
+      ORDER BY d.nome;
+    `, [professor_id]);
+
+        res.json({
+            success: true,
+            data: result.rows,
+        });
+    } catch (error) {
+        console.error('Erro ao obter disciplinas do professor:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao carregar as suas disciplinas',
+        });
+    }
+};
+
+const getStudentEnrolledDisciplines = async (req, res) => {
+  console.log('[MEMORIA_CONTROLLER] getStudentEnrolledDisciplines called'); // Existing log
+  const student_id = req.user.id;
+  console.log(`[MEMORIA_CONTROLLER] getStudentEnrolledDisciplines - student_id from req.user: ${student_id}`); // New log
+
+  try {
+    const query = `
+      SELECT DISTINCT s.id, s.nome, s.codigo
+      FROM public.aluno_disciplina ad
+      JOIN public.disciplina_turma dt ON ad.disciplina_turma_id = dt.id
+      JOIN public.subjects s ON dt.disciplina_id = s.id
+      WHERE ad.aluno_id = $1 AND ad.ativo = TRUE AND dt.ativo = TRUE AND s.ativo = TRUE
+      ORDER BY s.nome;
+    `;
+    console.log(`[MEMORIA_CONTROLLER] getStudentEnrolledDisciplines - Executing query: ${query} with param: ${student_id}`); // New log with query and param
+
+    const result = await db.query(query, [student_id]);
+    console.log(`[MEMORIA_CONTROLLER] getStudentEnrolledDisciplines returning ${result.rows.length} disciplines for student_id: ${student_id}`); // Existing log
+    res.json({
+      success: true,
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error('Erro ao obter disciplinas inscritas do aluno:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao carregar disciplinas inscritas.'
+    });
+  }
+};
+
+const requestFlashcardReview = async (req, res) => {
+  try {
+    const { flashcard_id, motivo } = req.body;
+    const aluno_id = req.user.id;
+
+    if (!flashcard_id || !motivo) {
+      return res.status(400).json({
+        success: false,
+        message: 'flashcard_id e motivo são obrigatórios',
+      });
+    }
+
+    await db.query(
+      `INSERT INTO public.pedidos_revisao_flashcard (flashcard_id, aluno_id, motivo)
+       VALUES ($1, $2, $3)`,
+      [flashcard_id, aluno_id, motivo]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Pedido de revisão de flashcard registado com sucesso',
+    });
+  } catch (error) {
+    console.error('Erro ao registar pedido de revisão de flashcard:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao registar pedido de revisão de flashcard',
+    });
+  }
+};
+
+
+const getSharedDisciplines = async (req, res) => {
+    console.log('[MEMORIA_CONTROLLER] getSharedDisciplines called'); // Log
+    try {
+        const { id } = req.params;
+        const result = await db.query(
+            'SELECT disciplina_id FROM public.flashcard_disciplinas WHERE flashcard_id = $1',
+            [id]
+        );
+        res.json({
+            success: true,
+            data: result.rows.map(row => row.disciplina_id),
+        });
+    } catch (error) {
+        console.error('Erro ao obter disciplinas partilhadas:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erro ao obter disciplinas partilhadas',
+        });
+    }
+};
+
+
+const shareFlashcard = async (req, res) => {
+    console.log('[MEMORIA_CONTROLLER] shareFlashcard called'); // Log
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+        const { id: flashcard_id } = req.params;
+        const { disciplina_ids } = req.body;
+        const professor_id = req.user.id;
+
+        if (!Array.isArray(disciplina_ids)) {
+            return res.status(400).json({
+                success: false,
+                message: 'disciplina_ids deve ser um array.',
+            });
+        }
+
+        // Verify professor teaches the target disciplines
+        if (disciplina_ids.length > 0) {
+            const taughtDisciplinesCheck = await client.query(
+                `SELECT COUNT(DISTINCT dt.disciplina_id) as count
+         FROM public.disciplina_turma dt
+         WHERE dt.professor_id = $1 AND dt.disciplina_id = ANY($2::uuid[])`, // Corrected to uuid[]
+                [professor_id, disciplina_ids]
+            );
+
+            if (parseInt(taughtDisciplinesCheck.rows[0].count, 10) !== disciplina_ids.length) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Não pode partilhar com uma disciplina que não leciona.',
+                });
+            }
+        }
+
+
+        // Clear existing shares
+        await client.query('DELETE FROM public.flashcard_disciplinas WHERE flashcard_id = $1', [flashcard_id]);
+
+        // Insert new shares
+        if (disciplina_ids.length > 0) {
+            const insertQuery = 'INSERT INTO public.flashcard_disciplinas (flashcard_id, disciplina_id) VALUES ' + 
+                disciplina_ids.map((_, i) => `($1, $${i + 2})`).join(',');
+
+            await client.query(insertQuery, [flashcard_id, ...disciplina_ids]);
+        }
+
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            message: 'Flashcard partilhado com sucesso!',
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Erro ao partilhar flashcard:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Ocorreu um erro ao partilhar o flashcard.',
+        });
+    } finally {
+        client.release();
+    }
+};
+
+const getFlashcardReviewRequests = async (req, res) => {
+    try {
+      const result = await db.query(
+        `SELECT
+           pr.id,
+           pr.motivo,
+           pr.data_pedido,
+           u.nome as aluno_nome,
+           f.front as flashcard_front,
+           f.id as flashcard_id
+         FROM public.pedidos_revisao_flashcard pr
+         JOIN public.users u ON pr.aluno_id = u.id
+         JOIN public.flashcards f ON pr.flashcard_id = f.id
+         WHERE pr.estado = 'pendente'
+         ORDER BY pr.data_pedido ASC`
+      );
+  
+      res.json({
+        success: true,
+        data: result.rows,
+      });
+    } catch (error) {
+      console.error('Erro ao obter pedidos de revisão:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao obter pedidos de revisão',
+      });
+    }
+  };
+
+  const updateFlashcardReviewRequest = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { estado } = req.body;
+      const professor_id = req.user.id;
+  
+      if (!['resolvido', 'inativado'].includes(estado)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Estado inválido. Use "resolvido" ou "inativado".',
+        });
+      }
+  
+      const result = await db.query(
+        `UPDATE public.pedidos_revisao_flashcard
+         SET estado = $1, professor_id = $2, data_atendimento = NOW()
+         WHERE id = $3
+         RETURNING *`,
+        [estado, professor_id, id]
+      );
+  
+      if (result.rowCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Pedido de revisão não encontrado',
+        });
+      }
+  
+      res.json({
+        success: true,
+        message: 'Pedido de revisão atualizado com sucesso',
+        data: result.rows[0],
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar pedido de revisão:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao atualizar pedido de revisão',
+      });
+    }
+  };
+
 module.exports = {
   criarFlashcard,
   importarFlashcardsCSV,
@@ -894,5 +1200,13 @@ module.exports = {
   getAssuntos,
   editarFlashcard,
   apagarFlashcard,
-  getProfessorAnalytics
+  getProfessorAnalytics,
+  shareFlashcard,
+  getSharedDisciplines,
+  getProfessorDisciplines,
+  getStudentEnrolledDisciplines, // Export new function
+  requestFlashcardReview,
+  getFlashcardReviewRequests,
+  updateFlashcardReviewRequest
 };
+

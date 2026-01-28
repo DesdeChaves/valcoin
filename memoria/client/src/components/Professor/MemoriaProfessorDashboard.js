@@ -15,6 +15,25 @@ const MemoriaProfessorDashboard = () => {
           <p className="text-xl text-gray-700">Cria e gere flashcards com repetição espaçada avançada</p>
         </header>
 
+        {/* Secção de Ações Rápidas */}
+        <div className="mb-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <button onClick={() => navigate('/create')} className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:bg-indigo-50 transition-all text-center">
+            <h3 className="text-xl font-semibold text-indigo-700">Criar Flashcards</h3>
+            <p className="text-gray-600 mt-2">Construir novos materiais de estudo.</p>
+          </button>
+          <button onClick={() => navigate('/manage')} className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:bg-purple-50 transition-all text-center">
+            <h3 className="text-xl font-semibold text-purple-700">Gerir Flashcards</h3>
+            <p className="text-gray-600 mt-2">Editar e organizar os teus materiais.</p>
+          </button>
+          <button onClick={() => navigate('/reviews')} className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:bg-green-50 transition-all text-center">
+            <h3 className="text-xl font-semibold text-green-700">Pedidos de Revisão</h3>
+            <p className="text-gray-600 mt-2">Ver o feedback dos teus alunos.</p>
+          </button>
+          <button onClick={() => navigate('/analytics')} className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl hover:bg-yellow-50 transition-all text-center">
+            <h3 className="text-xl font-semibold text-yellow-700">Analisar Desempenho</h3>
+            <p className="text-gray-600 mt-2">Verificar a eficácia dos teus flashcards.</p>
+          </button>
+        </div>
 
         {/* Secção: Guias de Boas Práticas em Recuperação */}
         <div className="mt-20">

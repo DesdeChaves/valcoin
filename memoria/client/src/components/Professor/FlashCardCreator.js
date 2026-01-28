@@ -6,6 +6,13 @@ import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { Mic, Volume2, Plus, Trash2, Info } from 'lucide-react';
 
+/**
+ * FlashCardCreator - VERSÃO FINAL COMPLETA
+ * 
+ * Inclui todas as correções de image occlusion (coordenadas naturais)
+ * + Todos os tipos de flashcards funcionais
+ */
+
 const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
   const [type, setType] = useState('basic');
   
@@ -24,7 +31,7 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
   // Campos para flashcards de áudio
   const [word, setWord] = useState(''); // Para phonetic e reading
   const [phonemes, setPhonemes] = useState([{ text: '', order: 1 }]); // Para phonetic
-  const [audioText, setAudioText] = useState(''); // Para dictation e audio_question
+  const [audioText, setAudioText] = useState(''); // Para dictation, audio_question, spelling
   const [expectedAnswer, setExpectedAnswer] = useState(''); // Para todos os tipos de áudio
   const [difficultyLevel, setDifficultyLevel] = useState(1);
   
@@ -35,8 +42,13 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
   const [previewAudioUrl, setPreviewAudioUrl] = useState('');
   const [generatingPreview, setGeneratingPreview] = useState(false);
 
+  // CORREÇÃO IMAGE OCCLUSION: Dimensões naturais e renderizadas
+  const [naturalDimensions, setNaturalDimensions] = useState({ width: 0, height: 0 });
+  const [clientDimensions, setClientDimensions] = useState({ width: 0, height: 0 });
+
   const canvasRef = useRef(null);
   const imageRef = useRef(null);
+  const containerRef = useRef(null);
   const audioPreviewRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentMask, setCurrentMask] = useState(null);
@@ -77,6 +89,85 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
 
     fetchAssuntos();
   }, [disciplineId]);
+
+  /**
+   * CORREÇÃO: Carregar imagem e capturar dimensões naturais
+   */
+  const loadImage = () => {
+    const img = imageRef.current;
+    const canvas = canvasRef.current;
+    if (img && canvas) {
+      const clientW = img.clientWidth;
+      const clientH = img.clientHeight;
+      const naturalW = img.naturalWidth;
+      const naturalH = img.naturalHeight;
+      
+      console.log('Dimensões da imagem:', {
+        renderizadas: { width: clientW, height: clientH },
+        naturais: { width: naturalW, height: naturalH }
+      });
+      
+      canvas.width = clientW;
+      canvas.height = clientH;
+      canvas.style.width = clientW + 'px';
+      canvas.style.height = clientH + 'px';
+      
+      setClientDimensions({ width: clientW, height: clientH });
+      setNaturalDimensions({ width: naturalW, height: naturalH });
+      
+      redrawCanvas();
+    }
+  };
+
+  /**
+   * Redesenhar canvas com máscaras
+   */
+  const redrawCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!ctx || naturalDimensions.width === 0) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const scaleX = clientDimensions.width / naturalDimensions.width;
+    const scaleY = clientDimensions.height / naturalDimensions.height;
+
+    masks.forEach(mask => {
+      const x = mask.x * scaleX;
+      const y = mask.y * scaleY;
+      const w = mask.width * scaleX;
+      const h = mask.height * scaleY;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(x, y, w, h);
+
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, w, h);
+
+      const barHeight = Math.min(30, h * 0.3);
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(x, y + h - barHeight, w, barHeight);
+      
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.fillText(mask.label, x + w / 2, y + h - barHeight / 2 + 5);
+    });
+
+    if (currentMask && currentMask.width > 0 && currentMask.height > 0) {
+      const cx = currentMask.x * scaleX;
+      const cy = currentMask.y * scaleY;
+      const cw = currentMask.width * scaleX;
+      const ch = currentMask.height * scaleY;
+      
+      ctx.strokeStyle = '#4f46e5';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(cx, cy, cw, ch);
+      ctx.setLineDash([]);
+    }
+  };
   
   const onDrop = useCallback(async (acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -90,12 +181,12 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
 
     try {
       const response = await api.post('/upload-image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       setImageUrl(response.data.path);
       setMasks([]);
+      setNaturalDimensions({ width: 0, height: 0 });
+      setClientDimensions({ width: 0, height: 0 });
     } catch (err) {
       setError('Erro ao fazer upload da imagem.');
     } finally {
@@ -121,9 +212,7 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
 
     try {
       const response = await api.post('/upload-image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
       setBackImageUrl(response.data.path);
     } catch (err) {
@@ -173,43 +262,17 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
       });
       setPreviewAudioUrl(response.data.audio_url);
     } catch (err) {
-      setError('Erro ao gerar preview de áudio. Certifica-te que o serviço de áudio está a funcionar.');
+      setError('Erro ao gerar preview de áudio.');
     } finally {
       setGeneratingPreview(false);
     }
   };
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!ctx || !imageUrl) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    masks.forEach(mask => {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(mask.x, mask.y, mask.width, mask.height);
-
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(mask.x, mask.y, mask.width, mask.height);
-
-      ctx.fillStyle = '#dc2626';
-      ctx.fillRect(mask.x, mask.y + mask.height - 30, mask.width, 30);
-      ctx.font = '14px sans-serif';
-      ctx.fillStyle = 'white';
-      ctx.textAlign = 'center';
-      ctx.fillText(mask.label, mask.x + mask.width / 2, mask.y + mask.height - 10);
-    });
-
-    if (currentMask) {
-      ctx.strokeStyle = '#4f46e5';
-      ctx.lineWidth = 4;
-      ctx.setLineDash([6, 4]);
-      ctx.strokeRect(currentMask.x, currentMask.y, currentMask.width, currentMask.height);
-      ctx.setLineDash([]);
+    if (imageUrl && naturalDimensions.width > 0) {
+      redrawCanvas();
     }
-  }, [masks, currentMask, imageUrl]);
+  }, [masks, currentMask, imageUrl, naturalDimensions, clientDimensions]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -228,7 +291,6 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
     };
 
     try {
-      // Validação e preparação baseada no tipo
       if (type === 'basic') {
         payload.front = front;
         payload.back = back;
@@ -242,13 +304,34 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
           setLoading(false);
           return;
         }
+        if (naturalDimensions.width === 0 || naturalDimensions.height === 0) {
+          setError('Dimensões da imagem não carregadas. Aguarda o carregamento completo.');
+          setLoading(false);
+          return;
+        }
+
         payload.image_url = imageUrl;
-        payload.occlusion_data = masks.map(m => ({
-          mask_id: m.id,
-          label: m.label,
-          shape: 'rect',
-          coords: [m.x, m.y, m.width, m.height]
-        }));
+        
+        // CORREÇÃO: Usar dimensões naturais para converter para fracionais
+        payload.occlusion_data = masks.map(m => {
+          const fracX = m.x / naturalDimensions.width;
+          const fracY = m.y / naturalDimensions.height;
+          const fracW = m.width / naturalDimensions.width;
+          const fracH = m.height / naturalDimensions.height;
+          
+          console.log('Máscara convertida:', {
+            original: { x: m.x, y: m.y, w: m.width, h: m.height },
+            fracionais: { x: fracX, y: fracY, w: fracW, h: fracH },
+            dimensoesNaturais: naturalDimensions
+          });
+          
+          return {
+            mask_id: m.id,
+            label: m.label,
+            shape: 'rect',
+            coords: [fracX, fracY, fracW, fracH]
+          };
+        });
       }
       else if (type === 'image_text') {
         payload.front = front;
@@ -340,10 +423,7 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
 
       await api.post(endpoint, payload);
       setSuccess('Flashcard criado com sucesso! 🧠');
-      
-      // Reset form
       resetForm();
-      
       if (onSuccess) onSuccess();
     } catch (err) {
       setError(err.response?.data?.message || 'Erro ao criar flashcard');
@@ -368,54 +448,111 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
     setExpectedAnswer('');
     setDifficultyLevel(1);
     setPreviewAudioUrl('');
+    setNaturalDimensions({ width: 0, height: 0 });
+    setClientDimensions({ width: 0, height: 0 });
   };
 
+  /**
+   * CORREÇÃO: Eventos de desenho com coordenadas naturais
+   */
   const startDrawing = (e) => {
-    if (type !== 'image_occlusion' || !imageUrl) return;
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setCurrentMask({ id: Date.now(), x, y, width: 0, height: 0, label: '' });
+    if (type !== 'image_occlusion' || !imageUrl || naturalDimensions.width === 0) {
+      console.log('Desenho bloqueado:', { type, imageUrl, naturalDimensions });
+      return;
+    }
+    
+    const canvasX = e.nativeEvent.offsetX;
+    const canvasY = e.nativeEvent.offsetY;
+    
+    console.log('Start drawing:', { canvasX, canvasY });
+    
+    const scaleX = naturalDimensions.width / clientDimensions.width;
+    const scaleY = naturalDimensions.height / clientDimensions.height;
+    
+    const naturalX = canvasX * scaleX;
+    const naturalY = canvasY * scaleY;
+    
+    console.log('Natural coords:', { naturalX, naturalY, scaleX, scaleY });
+    
+    setCurrentMask({ 
+      id: Date.now(), 
+      x: naturalX, 
+      y: naturalY, 
+      width: 0, 
+      height: 0, 
+      label: '' 
+    });
     setIsDrawing(true);
   };
 
   const draw = (e) => {
     if (!isDrawing || !currentMask) return;
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const width = e.clientX - rect.left - currentMask.x;
-    const height = e.clientY - rect.top - currentMask.y;
+    
+    e.preventDefault();
+    
+    const canvasX = e.nativeEvent.offsetX;
+    const canvasY = e.nativeEvent.offsetY;
+    
+    const scaleX = naturalDimensions.width / clientDimensions.width;
+    const scaleY = naturalDimensions.height / clientDimensions.height;
+    
+    const naturalX = canvasX * scaleX;
+    const naturalY = canvasY * scaleY;
+    
+    const width = naturalX - currentMask.x;
+    const height = naturalY - currentMask.y;
 
     setCurrentMask(prev => ({
       ...prev,
-      width: Math.max(width, 30),
-      height: Math.max(height, 30)
+      width,
+      height
     }));
   };
 
   const stopDrawing = () => {
-    if (isDrawing && currentMask && currentMask.width > 30 && currentMask.height > 30) {
+    if (!isDrawing) return;
+    
+    if (currentMask && Math.abs(currentMask.width) > 30 && Math.abs(currentMask.height) > 30) {
       const label = prompt('Nome da região (ex: "Coração", "Mitocôndria"):', 'Região');
       if (label && label.trim()) {
-        setMasks(prev => [...prev, { ...currentMask, label: label.trim() }]);
+        // Normalizar coordenadas
+        let x = currentMask.x;
+        let y = currentMask.y;
+        let w = currentMask.width;
+        let h = currentMask.height;
+        
+        if (w < 0) {
+          x = x + w;
+          w = Math.abs(w);
+        }
+        if (h < 0) {
+          y = y + h;
+          h = Math.abs(h);
+        }
+        
+        const newMask = {
+          id: currentMask.id,
+          x,
+          y,
+          width: w,
+          height: h,
+          label: label.trim()
+        };
+        
+        setMasks(prev => [...prev, newMask]);
+        console.log('Máscara adicionada:', newMask);
       }
+    } else if (currentMask) {
+      console.log('Máscara muito pequena:', currentMask);
+      alert('A região deve ter pelo menos 30x30 pixels. Tenta desenhar uma área maior.');
     }
+    
     setCurrentMask(null);
     setIsDrawing(false);
   };
 
   const removeMask = (id) => {
     setMasks(prev => prev.filter(m => m.id !== id));
-  };
-
-  const loadImage = () => {
-    const img = imageRef.current;
-    const canvas = canvasRef.current;
-    if (img && canvas) {
-      canvas.width = img.clientWidth;
-      canvas.height = img.clientHeight;
-    }
   };
 
   return (
@@ -532,17 +669,29 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
 
               {imageUrl && (
                 <>
-                  <div className="relative inline-block border-4 border-indigo-200 rounded-2xl overflow-hidden shadow-2xl">
+                  <div 
+                    ref={containerRef}
+                    className="relative mx-auto rounded-lg shadow-md border-2 border-gray-300 overflow-hidden"
+                    style={{ maxWidth: '100%', userSelect: 'none' }}
+                  >
                     <img
                       ref={imageRef}
                       src={imageUrl}
                       alt="Imagem base"
                       onLoad={loadImage}
-                      className="max-w-full h-auto block"
+                      className="w-full h-auto block"
+                      style={{ 
+                        maxHeight: '600px', 
+                        objectFit: 'contain',
+                        pointerEvents: 'none'
+                      }}
+                      draggable={false}
                     />
+                    
                     <canvas
                       ref={canvasRef}
-                      className="absolute inset-0 cursor-crosshair"
+                      className="absolute top-0 left-0 cursor-crosshair"
+                      style={{ touchAction: 'none' }}
                       onMouseDown={startDrawing}
                       onMouseMove={draw}
                       onMouseUp={stopDrawing}
@@ -550,9 +699,23 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
                     />
                   </div>
 
-                  <p className="text-center text-gray-600 mt-4">
-                    <strong>Clique e arraste</strong> para criar regiões ocultas
-                  </p>
+                  {naturalDimensions.width > 0 && (
+                    <div className="text-center text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                      📐 Dimensões da imagem: {naturalDimensions.width} × {naturalDimensions.height}px
+                      {clientDimensions.width > 0 && (
+                        <span className="ml-2">
+                          | Renderizada: {clientDimensions.width} × {clientDimensions.height}px
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-lg">
+                    <p className="text-sm text-yellow-800">
+                      <strong>Como usar:</strong> Clica e arrasta sobre a imagem para criar uma região oculta. 
+                      Arrasta pelo menos 30 pixels em cada direção.
+                    </p>
+                  </div>
 
                   {masks.length > 0 && (
                     <div className="mt-6 p-5 bg-gray-50 rounded-xl">

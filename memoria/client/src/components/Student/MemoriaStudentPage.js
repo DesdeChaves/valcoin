@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import api from '../../api';
-import { Brain, CheckCircle, XCircle, AlertCircle, Lightbulb, Clock, Target } from 'lucide-react';
+import * as memoriaApi from '../../services/memoria.api';
+import { Brain, CheckCircle, XCircle, AlertCircle, Lightbulb, Clock, Target, HelpCircle } from 'lucide-react';
 import AudioStudentPage from './AudioStudentPage';
 
 const MemoriaStudentPage = () => {
@@ -16,98 +16,67 @@ const MemoriaStudentPage = () => {
   const [totalTime, setTotalTime] = useState(0);
   const [view, setView] = useState('classic');
   const [disciplineFilter, setDisciplineFilter] = useState('all');
-  const [filteredDeck, setFilteredDeck] = useState([]);
-  const [disciplines, setDisciplines] = useState([]);
-
-  const canvasRef = useRef(null);
+  const [studentEnrolledDisciplines, setStudentEnrolledDisciplines] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [reviewedCardsIds, setReviewedCardsIds] = useState(new Set());
+  const [againQueue, setAgainQueue] = useState([]);
+  const [isImageError, setIsImageError] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewReason, setReviewReason] = useState("");
   const cardStartTimeRef = useRef(null);
+  const imageContainerRef = useRef(null);
 
-  // ====== FUNÇÕES ======
-
-  const drawImageOcclusion = useCallback((cardToDraw) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !cardToDraw?.image_url) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-
-      if (!isFlipped && cardToDraw.sub_data?.coords) {
-        const [x, y, width, height] = cardToDraw.sub_data.coords;
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-        ctx.fillRect(x, y, width, height);
-
-        ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 5;
-        ctx.strokeRect(x, y, width, height);
-
-        ctx.fillStyle = '#dc2626';
-        ctx.fillRect(x, y + height - 50, width, 50);
-        ctx.font = 'bold 30px sans-serif';
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('?', x + width / 2, y + height - 25);
-      }
-    };
-
-    img.onerror = () => {
-      ctx.fillStyle = '#fee2e2';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#991b1b';
-      ctx.font = '30px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Imagem não carregada', canvas.width / 2, canvas.height / 2);
-    };
-
-    img.src = cardToDraw.image_url;
-  }, [isFlipped]);
-
-  const handleRating = useCallback(async (rating) => {
-    if (!currentCard || !cardStartTimeRef.current) return;
-
-    const time_spent = Math.round((Date.now() - cardStartTimeRef.current) / 1000);
-
-    try {
-      await api.post('/revisao', {
-        flashcard_id: currentCard.flashcard_id,
-        sub_id: currentCard.sub_id,
-        rating,
-        time_spent
-      });
-
-      setStats(prev => ({ ...prev, reviewed: prev.reviewed + 1 }));
-      nextCard();
-    } catch (err) {
-      console.error('Erro ao registar revisão:', err);
-      alert('Erro ao guardar avaliação. Tenta novamente.');
-    }
-  }, [currentCard]);
+  const getCardUniqueId = (card) => {
+    return `${card.flashcard_id}_${card.sub_id || 0}`;
+  };
 
   const nextCard = () => {
     setIsFlipped(false);
     setShowHint(false);
     setCurrentHintIndex(0);
     setTotalTime(0);
-
     const remaining = deck.slice(1);
     setDeck(remaining);
-    const next = remaining[0] || null;
-    setCurrentCard(next);
 
+    let next = null;
+
+    if (remaining.length > 0) {
+      next = remaining[0];
+    } else if (againQueue.length > 0) {
+      next = againQueue[0];
+      setAgainQueue(prev => prev.slice(1));
+    }
+
+    setCurrentCard(next);
     if (next) {
       cardStartTimeRef.current = Date.now();
     }
   };
+
+  const handleRating = useCallback(async (rating) => {
+    if (!currentCard || !cardStartTimeRef.current) return;
+    const time_spent = Math.round((Date.now() - cardStartTimeRef.current) / 1000);
+    try {
+      await memoriaApi.registerReview({
+        flashcard_id: currentCard.flashcard_id,
+        sub_id: currentCard.sub_id,
+        rating,
+        time_spent
+      });
+      if (rating === 1) {
+        setAgainQueue(prev => [...prev, currentCard]);
+        nextCard();
+      } else {
+        const cardId = getCardUniqueId(currentCard);
+        setReviewedCardsIds(prev => new Set([...prev, cardId]));
+        setStats(prev => ({ ...prev, reviewed: prev.reviewed + 1 }));
+        nextCard();
+      }
+    } catch (err) {
+      console.error('Erro ao registar revisão:', err);
+      alert('Erro ao guardar avaliação. Tenta novamente.');
+    }
+  }, [currentCard]);
 
   const handleFlip = () => {
     const elapsed = Math.round((Date.now() - cardStartTimeRef.current) / 1000);
@@ -139,20 +108,49 @@ const MemoriaStudentPage = () => {
     });
   };
 
-  // ====== useEffects ======
+  const handleOpenReviewModal = () => {
+    setIsReviewModalOpen(true);
+  };
+
+  const handleCloseReviewModal = () => {
+    setIsReviewModalOpen(false);
+    setReviewReason("");
+  };
+
+  const handleSendReviewRequest = async () => {
+    if (!currentCard || !reviewReason.trim()) {
+      alert("Por favor, descreve o motivo do teu pedido.");
+      return;
+    }
+    try {
+      await memoriaApi.requestFlashcardReview({
+        flashcard_id: currentCard.flashcard_id,
+        motivo: reviewReason,
+      });
+      alert("O teu pedido de revisão foi enviado com sucesso!");
+      handleCloseReviewModal();
+    } catch (error) {
+      console.error("Erro ao enviar pedido de revisão:", error);
+      alert("Não foi possível enviar o teu pedido. Tenta novamente.");
+    }
+  };
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+      setCurrentUser(user);
+    }
+  }, []);
 
   useEffect(() => {
     const loadDailyDeck = async () => {
       try {
-        const response = await api.get('/fila-diaria');
-        const cards = response.data.data.cards || [];
+        const response = await memoriaApi.getDailyQueue();
+        const cards = response.data.cards || [];
         setFullDeck(cards);
-        setDeck(cards);
-        const uniqueDisciplines = [...new Set(cards.map(card => card.discipline_name))];
-        setDisciplines(uniqueDisciplines);
         setStats({ total: cards.length, reviewed: 0 });
         if (cards.length > 0) {
-          console.log(cards[0]);
+          console.log("First card in deck:", cards[0]);
           setCurrentCard(cards[0]);
           cardStartTimeRef.current = Date.now();
         }
@@ -162,31 +160,61 @@ const MemoriaStudentPage = () => {
         setLoading(false);
       }
     };
-
     if (view === 'classic') {
       loadDailyDeck();
     }
   }, [view]);
 
   useEffect(() => {
+    const fetchDisciplines = async () => {
+      if (!currentUser) return;
+      try {
+        let response;
+        if (currentUser.tipo_utilizador === 'ALUNO') {
+          response = await memoriaApi.getStudentEnrolledDisciplines();
+        } else if (currentUser.tipo_utilizador === 'EXTERNO') {
+          response = await memoriaApi.getMySubscribedDisciplines();
+        } else {
+          return;
+        }
+        setStudentEnrolledDisciplines(response.data || []);
+      } catch (err) {
+        console.error('Erro ao carregar disciplinas:', err);
+      }
+    };
+    fetchDisciplines();
+  }, [currentUser]);
+
+  useEffect(() => {
     const filtered = disciplineFilter === 'all'
       ? fullDeck
-      : fullDeck.filter(card => card.discipline_name === disciplineFilter);
-    
-    setDeck(filtered);
-    setCurrentCard(filtered[0] || null);
-    setStats(prev => ({ ...prev, total: filtered.length, reviewed: 0 }));
+      : fullDeck.filter(card => card.effective_discipline_id === disciplineFilter);
+    const notReviewedYet = filtered.filter(card => {
+      const cardId = getCardUniqueId(card);
+      return !reviewedCardsIds.has(cardId);
+    });
+    setDeck(notReviewedYet);
+    setAgainQueue([]);
+    setCurrentCard(notReviewedYet[0] || null);
+
+    const reviewedInThisDiscipline = filtered.filter(card => {
+      const cardId = getCardUniqueId(card);
+      return reviewedCardsIds.has(cardId);
+    }).length;
+
+    setStats(prev => ({
+      total: filtered.length,
+      reviewed: reviewedInThisDiscipline
+    }));
+
     setIsFlipped(false);
     setShowHint(false);
     setCurrentHintIndex(0);
-  }, [disciplineFilter, fullDeck]);
-
+  }, [disciplineFilter, fullDeck, reviewedCardsIds]);
 
   useEffect(() => {
-    if (currentCard?.type === 'image_occlusion' && currentCard.image_url) {
-      drawImageOcclusion(currentCard);
-    }
-  }, [currentCard, isFlipped, drawImageOcclusion]);
+    setIsImageError(false);
+  }, [currentCard]);
 
   useEffect(() => {
     let interval;
@@ -200,24 +228,33 @@ const MemoriaStudentPage = () => {
     return () => clearInterval(interval);
   }, [currentCard, isFlipped]);
 
-  // ====== Render do Card ======
-
   const renderCardContent = () => {
     if (!currentCard) {
       return (
         <div className="text-center py-16">
           <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Parabéns! 🎉</h2>
-          <p className="text-xl text-gray-600">Terminaste todas as revisões de hoje!</p>
+          <p className="text-xl text-gray-600">
+            {disciplineFilter === 'all' ? 'Terminaste todas as revisões de hoje!' : 'Terminaste todas as revisões desta disciplina!'}
+          </p>
+          <p className="text-base text-gray-500 mt-4">Volta amanhã para mais revisões 📚</p>
         </div>
       );
     }
 
+    const cardHeader = (
+      <div className="flex justify-between items-center">
+        <div className="text-sm font-semibold text-gray-500">{currentCard.discipline_name}</div>
+        <button onClick={handleOpenReviewModal} className="text-gray-400 hover:text-indigo-600 transition-colors">
+          <HelpCircle className="w-6 h-6" />
+        </button>
+      </div>
+    );
+
     if (currentCard.type === 'basic') {
       return (
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-sm font-semibold text-gray-500 mb-2">{currentCard.discipline_name}</div>
-          {/* Pergunta - sempre visível */}
+          {cardHeader}
           <div className="mb-6 pb-6 border-b border-gray-200">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-5 h-5 text-indigo-600" />
@@ -225,13 +262,8 @@ const MemoriaStudentPage = () => {
             </div>
             <div className="text-xl text-gray-800" dangerouslySetInnerHTML={{ __html: currentCard.front }} />
           </div>
-
-          {/* Resposta - revelada quando flipped */}
           {!isFlipped ? (
-            <button
-              onClick={handleFlip}
-              className="w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-medium transition-colors"
-            >
+            <button onClick={handleFlip} className="w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-medium transition-colors">
               Clica para revelar a resposta
             </button>
           ) : (
@@ -250,20 +282,14 @@ const MemoriaStudentPage = () => {
     if (currentCard.type === 'cloze') {
       return (
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-sm font-semibold text-gray-500 mb-2">{currentCard.discipline_name}</div>
+          {cardHeader}
           <div className="flex items-center gap-2 mb-4">
             <Brain className="w-5 h-5 text-purple-600" />
             <span className="text-sm font-semibold text-purple-600 uppercase">Completa a frase</span>
           </div>
-          
-          <div className="text-xl leading-relaxed mb-6"
-               dangerouslySetInnerHTML={{ __html: renderClozeText(currentCard.cloze_text, currentCard.sub_id, isFlipped) }} />
-          
+          <div className="text-xl leading-relaxed mb-6" dangerouslySetInnerHTML={{ __html: renderClozeText(currentCard.cloze_text, currentCard.sub_id, isFlipped) }} />
           {!isFlipped && (
-            <button
-              onClick={handleFlip}
-              className="w-full py-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-medium transition-colors"
-            >
+            <button onClick={handleFlip} className="w-full py-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-medium transition-colors">
               Revelar resposta
             </button>
           )}
@@ -272,24 +298,106 @@ const MemoriaStudentPage = () => {
     }
 
     if (currentCard.type === 'image_occlusion') {
+      if (isImageError) {
+        return (
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            {cardHeader}
+            <p className="text-lg font-semibold text-indigo-800 mb-4">{!isFlipped ? 'Identifica a região oculta' : currentCard.sub_label}</p>
+            <div className="max-w-full max-h-96 rounded-lg shadow-md mx-auto border border-gray-300 flex items-center justify-center bg-red-50 text-red-700 p-4">
+              <AlertCircle className="w-6 h-6 mr-2" />
+              Erro ao carregar a imagem.
+            </div>
+            {!isFlipped && (
+              <button onClick={handleFlip} className="mt-4 w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-medium transition-colors">
+                Clica para revelar a resposta
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      let fracX = 0, fracY = 0, fracW = 0, fracH = 0;
+      if (currentCard.sub_data?.coords && Array.isArray(currentCard.sub_data.coords) && currentCard.sub_data.coords.length === 4) {
+        [fracX, fracY, fracW, fracH] = currentCard.sub_data.coords;
+      }
+
       return (
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-sm font-semibold text-gray-500 mb-2">{currentCard.discipline_name}</div>
+          {cardHeader}
           <p className="text-lg font-semibold text-indigo-800 mb-4">
             {!isFlipped ? 'Identifica a região oculta' : currentCard.sub_label}
           </p>
-          {!isFlipped ? (
-            <canvas
-              ref={canvasRef}
-              className="max-w-full max-h-96 rounded-lg shadow-md cursor-pointer mx-auto"
-              onClick={handleFlip}
-            />
-          ) : (
+          
+          {/* Container com posicionamento relativo */}
+          <div 
+            ref={imageContainerRef}
+            className="relative mx-auto rounded-lg shadow-md border-2 border-gray-300 overflow-hidden"
+            style={{ maxWidth: '800px', width: '100%' }}
+          >
+            {/* Imagem base */}
             <img
+              key={getCardUniqueId(currentCard)}
               src={currentCard.image_url}
-              alt="Resposta"
-              className="max-w-full max-h-96 rounded-lg shadow-md mx-auto"
+              alt="Imagem de estudo"
+              className="w-full h-auto block"
+              style={{ 
+                maxHeight: '600px',
+                objectFit: 'contain',
+                display: 'block'
+              }}
+              onError={() => setIsImageError(true)}
             />
+            
+            {/* Overlays apenas quando não está flipped */}
+            {!isFlipped && fracW > 0 && fracH > 0 && (
+              <>
+                {/* Máscara preta totalmente opaca */}
+                <div
+                  className="absolute bg-black pointer-events-none"
+                  style={{ 
+                    left: `${fracX * 100}%`, 
+                    top: `${fracY * 100}%`, 
+                    width: `${fracW * 100}%`, 
+                    height: `${fracH * 100}%`
+                  }}
+                />
+                
+                {/* Borda vermelha */}
+                <div
+                  className="absolute border-4 border-red-500 pointer-events-none"
+                  style={{ 
+                    left: `${fracX * 100}%`, 
+                    top: `${fracY * 100}%`, 
+                    width: `${fracW * 100}%`, 
+                    height: `${fracH * 100}%`
+                  }}
+                />
+                
+                {/* Barra inferior com interrogação */}
+                <div
+                  className="absolute bg-red-600 flex items-center justify-center text-white font-bold pointer-events-none"
+                  style={{
+                    left: `${fracX * 100}%`,
+                    top: `${(fracY + fracH) * 100}%`,
+                    width: `${fracW * 100}%`,
+                    height: '50px',
+                    transform: 'translateY(-50px)',
+                    fontSize: 'clamp(1.5rem, 3vw, 2rem)'
+                  }}
+                >
+                  ?
+                </div>
+              </>
+            )}
+          </div>
+
+          {!isFlipped && (
+            <button 
+              onClick={handleFlip} 
+              className="mt-6 w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-medium transition-colors"
+            >
+              Clica para revelar a resposta
+            </button>
           )}
         </div>
       );
@@ -298,23 +406,24 @@ const MemoriaStudentPage = () => {
     if (currentCard.type === 'image_text') {
       return (
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="text-sm font-semibold text-gray-500 mb-2">{currentCard.discipline_name}</div>
-          {/* Pergunta - sempre visível */}
+          {cardHeader}
           <div className="mb-6 pb-6 border-b border-gray-200">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-5 h-5 text-indigo-600" />
               <span className="text-sm font-semibold text-indigo-600 uppercase">Pergunta</span>
             </div>
             <div className="text-xl text-gray-800" dangerouslySetInnerHTML={{ __html: currentCard.front }} />
-            {currentCard.image_url && <img src={currentCard.image_url} alt="Frente" className="mt-2 max-w-full h-48 object-cover rounded shadow-md mx-auto" />}
+            {currentCard.image_url && (
+              <img 
+                src={currentCard.image_url} 
+                alt="Frente" 
+                className="mt-4 max-w-full rounded shadow-md mx-auto" 
+                style={{ maxHeight: '300px', objectFit: 'contain' }}
+              />
+            )}
           </div>
-
-          {/* Resposta - revelada quando flipped */}
           {!isFlipped ? (
-            <button
-              onClick={handleFlip}
-              className="w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-medium transition-colors"
-            >
+            <button onClick={handleFlip} className="w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-medium transition-colors">
               Clica para revelar a resposta
             </button>
           ) : (
@@ -324,7 +433,14 @@ const MemoriaStudentPage = () => {
                 <span className="text-sm font-semibold text-green-600 uppercase">Resposta</span>
               </div>
               <div className="text-xl text-gray-800" dangerouslySetInnerHTML={{ __html: currentCard.back }} />
-              {currentCard.back_image_url && <img src={currentCard.back_image_url} alt="Verso" className="mt-2 max-w-full h-48 object-cover rounded shadow-md mx-auto" />}
+              {currentCard.back_image_url && (
+                <img 
+                  src={currentCard.back_image_url} 
+                  alt="Verso" 
+                  className="mt-4 max-w-full rounded shadow-md mx-auto" 
+                  style={{ maxHeight: '300px', objectFit: 'contain' }}
+                />
+              )}
             </div>
           )}
         </div>
@@ -333,8 +449,6 @@ const MemoriaStudentPage = () => {
 
     return null;
   };
-
-  // ====== JSX ======
 
   if (loading && view === 'classic') {
     return (
@@ -351,64 +465,76 @@ const MemoriaStudentPage = () => {
     return <AudioStudentPage />;
   }
 
+  
+  const renderReviewModal = () => {
+    if (!isReviewModalOpen) return null;
+  
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Pedir Revisão da Flashcard</h2>
+          <p className="text-gray-600 mb-4">
+            Encontraste algum problema ou tens alguma dúvida sobre esta flashcard? Descreve abaixo o que podemos melhorar.
+          </p>
+          <textarea
+            value={reviewReason}
+            onChange={(e) => setReviewReason(e.target.value)}
+            className="w-full h-32 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            placeholder="Ex: A resposta parece estar incorreta, a pergunta não é clara, etc."
+          />
+          <div className="flex justify-end gap-4 mt-6">
+            <button
+              onClick={handleCloseReviewModal}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSendReviewRequest}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+            >
+              Enviar Pedido
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-
-        {/* Header compacto */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-gray-800">
-              🧠 Revisão Diária
-            </h1>
-            
+            <h1 className="text-2xl font-bold text-gray-800">🧠 Revisão Diária</h1>
             <div className="flex gap-2">
-              <button
-                onClick={() => setView('classic')}
-                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                  view === 'classic' 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
+              <button onClick={() => setView('classic')} className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${view === 'classic' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 Clássica
               </button>
-              <button
-                onClick={() => setView('audio')}
-                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                  view === 'audio' 
-                    ? 'bg-indigo-600 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
+              <button onClick={() => setView('audio')} className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${view === 'audio' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 Áudio
               </button>
             </div>
           </div>
-
           <div className="mt-4">
-            <label htmlFor="discipline-filter" className="block text-sm font-medium text-gray-700 mb-1">
-              Filtrar por Disciplina
-            </label>
-            <select
-              id="discipline-filter"
-              value={disciplineFilter}
-              onChange={(e) => setDisciplineFilter(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-            >
+            <label htmlFor="discipline-filter" className="block text-sm font-medium text-gray-700 mb-1">Filtrar por Disciplina</label>
+            <select id="discipline-filter" value={disciplineFilter} onChange={(e) => setDisciplineFilter(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
               <option value="all">Todas as Disciplinas</option>
-              {disciplines.map(d => <option key={d} value={d}>{d}</option>)}
+              {studentEnrolledDisciplines.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
             </select>
           </div>
-
-          <div className="grid grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-4 gap-4 mt-4">
             <div className="bg-indigo-50 rounded-lg p-3 text-center">
               <p className="text-2xl font-bold text-indigo-600">{stats.reviewed}</p>
               <p className="text-sm text-gray-600">Concluídas</p>
             </div>
             <div className="bg-purple-50 rounded-lg p-3 text-center">
-              <p className="text-2xl font-bold text-purple-600">{stats.total - stats.reviewed}</p>
-              <p className="text-sm text-gray-600">Restantes</p>
+              <p className="text-2xl font-bold text-purple-600">{deck.length}</p>
+              <p className="text-sm text-gray-600">Pendentes</p>
+            </div>
+            <div className="bg-red-50 rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold text-red-600">{againQueue.length}</p>
+              <p className="text-sm text-gray-600">Again</p>
             </div>
             <div className="bg-orange-50 rounded-lg p-3 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
@@ -419,23 +545,13 @@ const MemoriaStudentPage = () => {
             </div>
           </div>
         </div>
-
-        {/* Card */}
-        <div className="mb-6">
-          {renderCardContent()}
-        </div>
-
-        {/* Dicas */}
+        <div className="mb-6">{renderCardContent()}</div>
         {currentCard?.hints?.length > 0 && !isFlipped && (
           <div className="mb-6">
-            <button
-              onClick={handleShowHint}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors font-medium"
-            >
+            <button onClick={handleShowHint} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors font-medium">
               <Lightbulb className="w-5 h-5" />
               Ver Dica ({currentHintIndex + 1}/{currentCard.hints.length})
             </button>
-
             {showHint && (
               <div className="mt-3 p-4 bg-white rounded-lg shadow-md">
                 <p className="text-base text-gray-700">{currentCard.hints[currentHintIndex]}</p>
@@ -443,44 +559,26 @@ const MemoriaStudentPage = () => {
             )}
           </div>
         )}
-
-        {/* Botões de Avaliação - compactos e organizados */}
         {isFlipped && currentCard && (
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-center gap-2 mb-4 text-sm text-gray-600">
               <Clock className="w-4 h-4" />
               <span>Tempo total: <strong className="text-indigo-600">{totalTime}s</strong></span>
             </div>
-
             <div className="grid grid-cols-4 gap-3">
-              <button 
-                onClick={() => handleRating(1)} 
-                className="flex flex-col items-center gap-2 p-4 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg"
-              >
+              <button onClick={() => handleRating(1)} className="flex flex-col items-center gap-2 p-4 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg">
                 <XCircle className="w-6 h-6" />
                 <span className="text-sm font-semibold">Again</span>
               </button>
-              
-              <button 
-                onClick={() => handleRating(2)} 
-                className="flex flex-col items-center gap-2 p-4 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg"
-              >
+              <button onClick={() => handleRating(2)} className="flex flex-col items-center gap-2 p-4 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg">
                 <AlertCircle className="w-6 h-6" />
                 <span className="text-sm font-semibold">Hard</span>
               </button>
-              
-              <button 
-                onClick={() => handleRating(3)} 
-                className="flex flex-col items-center gap-2 p-4 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg"
-              >
+              <button onClick={() => handleRating(3)} className="flex flex-col items-center gap-2 p-4 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg">
                 <CheckCircle className="w-6 h-6" />
                 <span className="text-sm font-semibold">Good</span>
               </button>
-              
-              <button 
-                onClick={() => handleRating(4)} 
-                className="flex flex-col items-center gap-2 p-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg"
-              >
+              <button onClick={() => handleRating(4)} className="flex flex-col items-center gap-2 p-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all shadow-md hover:shadow-lg">
                 <Brain className="w-6 h-6" />
                 <span className="text-sm font-semibold">Easy</span>
               </button>
@@ -488,8 +586,11 @@ const MemoriaStudentPage = () => {
           </div>
         )}
       </div>
+      {renderReviewModal()}
     </div>
   );
 };
 
 export default MemoriaStudentPage;
+
+
