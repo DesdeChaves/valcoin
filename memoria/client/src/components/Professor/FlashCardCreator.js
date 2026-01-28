@@ -5,6 +5,7 @@ import { api, audioApi } from '../../api';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { Mic, Volume2, Plus, Trash2, Info } from 'lucide-react';
+import ConversionWheel from './ConversionWheel'; // Import the ConversionWheel component
 
 /**
  * FlashCardCreator - VERSÃO FINAL COMPLETA
@@ -27,6 +28,11 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
   const [scheduledDate, setScheduledDate] = useState('');
   const [assuntoName, setAssuntoName] = useState('');
   const [assuntosList, setAssuntosList] = useState([]);
+
+  // Campos para flashcards de roda
+  const [rodaPergunta, setRodaPergunta] = useState('');
+  const [rodaResposta, setRodaResposta] = useState('');
+  const [rodaRespostaOpcional, setRodaRespostaOpcional] = useState('');
   
   // Campos para flashcards de áudio
   const [word, setWord] = useState(''); // Para phonetic e reading
@@ -55,6 +61,9 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
 
   const navigate = useNavigate();
 
+  // ADICIONAR NO ESTADO (no topo do componente):
+  const [activeTemplateTab, setActiveTemplateTab] = useState('single');
+
   // Tipos de flashcards disponíveis
   const flashcardTypes = [
     { value: 'basic', title: '📋 Básico', desc: 'Pergunta e resposta clássica', category: 'Tradicionais' },
@@ -65,7 +74,8 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
     { value: 'dictation', title: '✍️ Ditado', desc: 'Ouvir e escrever', category: 'Com Áudio' },
     { value: 'audio_question', title: '🎧 Pergunta Áudio', desc: 'Pergunta em áudio (ex: tabuada)', category: 'Com Áudio' },
     { value: 'reading', title: '📖 Leitura', desc: 'Ler texto em voz alta', category: 'Com Áudio' },
-    { value: 'spelling', title: '🔤 Soletrar', desc: 'Ouvir e soletrar a palavra', category: 'Com Áudio' }
+    { value: 'spelling', title: '🔤 Soletrar', desc: 'Ouvir e soletrar a palavra', category: 'Com Áudio' },
+    { value: 'roda', title: '⚙️ Roda', desc: 'Fatores de conversão e cálculos', category: 'Cálculo' }
   ];
 
   // Agrupar tipos por categoria
@@ -420,6 +430,23 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
           assunto_name: assuntoName
         };
       }
+      else if (type === 'roda') {
+        if (!front.trim() || !rodaPergunta.trim() || !rodaResposta.trim()) {
+          setError('Pergunta, configuração da roda de pergunta e configuração da roda de resposta são obrigatórios para o tipo Roda.');
+          setLoading(false);
+          return;
+        }
+        endpoint = '/flashcards/roda'; // Assuming a new endpoint for roda type
+        payload = {
+          discipline_id: disciplineId,
+          front: front,
+          roda_pergunta: rodaPergunta,
+          roda_resposta: rodaResposta,
+          roda_resposta_opcional: rodaRespostaOpcional, // Optional
+          scheduled_date: scheduledDate,
+          assunto_name: assuntoName
+        };
+      }
 
       await api.post(endpoint, payload);
       setSuccess('Flashcard criado com sucesso! 🧠');
@@ -450,6 +477,7 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
     setPreviewAudioUrl('');
     setNaturalDimensions({ width: 0, height: 0 });
     setClientDimensions({ width: 0, height: 0 });
+    setActiveTemplateTab('single');
   };
 
   /**
@@ -1073,6 +1101,310 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
                 {previewAudioUrl && (
                   <audio ref={audioPreviewRef} src={previewAudioUrl} controls className="mt-3 w-full" />
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* RODA DE CONVERSÃO - VERSÃO MÚLTIPLAS RODAS */}
+          {type === 'roda' && (
+            <div className="space-y-6">
+              <div className="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Info className="w-5 h-5 text-indigo-700 mt-0.5" />
+                  <div className="text-sm text-indigo-800">
+                    <p className="font-semibold mb-2">⚙️ Roda de Conversão</p>
+                    <p className="mb-2">Perfeito para ensinar fatores de conversão: massa molar, densidade, volume molar, etc.</p>
+                    
+                    <div className="mt-3 space-y-1">
+                      <p><strong>Uma roda:</strong> <code className="bg-white px-1">cor|topo|unid|esq|unid|dir|unid</code></p>
+                      <p><strong>Múltiplas rodas:</strong> <code className="bg-white px-1">roda1;roda2;roda3</code> (separar com <strong>;</strong>)</p>
+                    </div>
+                    
+                    <p className="mt-2 text-xs">Cores: pink, blue, green, orange, purple, red, yellow, cyan</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pergunta (texto livre) */}
+              <div>
+                <label className="block font-semibold text-gray-700 mb-3">Pergunta / Contexto</label>
+                <textarea
+                  value={front}
+                  onChange={e => setFront(e.target.value)}
+                  required
+                  rows="3"
+                  className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-indigo-500"
+                  placeholder="Ex: Calcula a massa de água sabendo que ρ=1,04 g/dm³ e V=100 dm³"
+                />
+              </div>
+
+              {/* Roda da Pergunta */}
+              <div>
+                <label className="block font-semibold text-gray-700 mb-3">
+                  Configuração das Rodas (Pergunta) *
+                </label>
+                <textarea
+                  value={rodaPergunta}
+                  onChange={e => setRodaPergunta(e.target.value)}
+                  required
+                  rows="4"
+                  className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-indigo-500 font-mono text-sm"
+                  placeholder="Uma roda: pink|m|g|ρ|g/dm³|V|dm³|massa|volume&#10;Múltiplas: pink|m|g|ρ|g/dm³|100|dm³;blue|m|g|M|g/mol|n|mol"
+                />
+                
+                {/* Contador de rodas */}
+                {rodaPergunta && (
+                  <div className="mt-2 flex items-center gap-2 text-sm">
+                    <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded font-semibold">
+                      {rodaPergunta.split(';').filter(r => r.trim()).length} roda{rodaPergunta.split(';').filter(r => r.trim()).length > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-gray-600">
+                      {rodaPergunta.split(';').filter(r => r.trim()).length > 1 ? 'Conversão em série ou comparação' : 'Roda única'}
+                    </span>
+                  </div>
+                )}
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 bg-gray-50 p-3 rounded">
+                  <div><strong>Posição 1:</strong> Cor</div>
+                  <div><strong>Posição 2:</strong> Topo (numerador)</div>
+                  <div><strong>Posição 3:</strong> Unidade topo</div>
+                  <div><strong>Posição 4:</strong> Esquerda (denominador 1)</div>
+                  <div><strong>Posição 5:</strong> Unidade esquerda</div>
+                  <div><strong>Posição 6:</strong> Direita (denominador 2)</div>
+                  <div><strong>Posição 7:</strong> Unidade direita</div>
+                  <div><strong>Posição 8:</strong> Label topo (opcional)</div>
+                  <div><strong>Posição 9:</strong> Label direita (opcional)</div>
+                </div>
+              </div>
+
+              {/* Preview da Roda Pergunta */}
+              {rodaPergunta && (
+                <div className="bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
+                  <h4 className="font-semibold text-gray-700 mb-4 text-center flex items-center justify-center gap-2">
+                    <span>👁️</span>
+                    Preview da Pergunta
+                  </h4>
+                  <ConversionWheel config={rodaPergunta} revealed={false} />
+                </div>
+              )}
+
+              {/* Roda da Resposta */}
+              <div>
+                <label className="block font-semibold text-gray-700 mb-3">
+                  Configuração das Rodas (Resposta) *
+                </label>
+                <textarea
+                  value={rodaResposta}
+                  onChange={e => setRodaResposta(e.target.value)}
+                  required
+                  rows="4"
+                  className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-indigo-500 font-mono text-sm"
+                  placeholder="Mesmo formato, mas com valores calculados&#10;Ex: pink|104|g|1.04|g/dm³|100|dm³;blue|104|g|18|g/mol|5.78|mol"
+                />
+                <p className="text-sm text-gray-600 mt-2">
+                  💡 Deve ter o <strong>mesmo número de rodas</strong> que a pergunta, mas com os valores resolvidos
+                </p>
+
+                {/* Botão de cópia rápida */}
+                <button
+                  type="button"
+                  onClick={() => setRodaResposta(rodaPergunta)}
+                  className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                >
+                  📋 Copiar da pergunta (depois edita os valores)
+                </button>
+              </div>
+
+              {/* Preview da Roda Resposta */}
+              {rodaResposta && (
+                <div className="bg-green-50 p-6 rounded-xl border-2 border-green-200">
+                  <h4 className="font-semibold text-gray-700 mb-4 rext-center flex items-center justify-center gap-2">
+                    <span>✅</span>
+                    Preview da Resposta
+                  </h4>
+                  <ConversionWheel config={rodaResposta} revealed={true} />
+                </div>
+              )}
+
+              {/* Resposta Opcional (texto explicativo) */}
+              <div>
+                <label className="block font-semibold text-gray-700 mb-3">
+                  Explicação Adicional (opcional)
+                </label>
+                <textarea
+                  value={rodaRespostaOpcional}
+                  onChange={e => setRodaRespostaOpcional(e.target.value)}
+                  rows="3"
+                  className="w-full p-4 border-2 border-gray-300 rounded-xl focus:border-indigo-500"
+                  placeholder="Ex: A densidade relaciona massa e volume: ρ = m/V = 104g/100dm³ = 1,04 g/dm³"
+                />
+              </div>
+
+              {/* Templates Rápidos - EXPANDIDO */}
+              <div className="bg-white border-2 border-indigo-200 p-5 rounded-xl">
+                <h4 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                  <span>⚡</span>
+                  Templates Rápidos
+                </h4>
+
+                {/* Tabs para organizar templates */}
+                <div className="mb-4 flex gap-2 border-b">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTemplateTab('single')}
+                    className={`px-4 py-2 font-medium ${activeTemplateTab === 'single' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
+                  >
+                    Roda Única
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTemplateTab('series')}
+                    className={`px-4 py-2 font-medium ${activeTemplateTab === 'series' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
+                  >
+                    Conversão em Série
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTemplateTab('comparison')}
+                    className={`px-4 py-2 font-medium ${activeTemplateTab === 'comparison' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-600'}`}
+                  >
+                    Comparação
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {/* RODA ÚNICA */}
+                  {activeTemplateTab === 'single' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('pink|m|g|ρ|g/cm³|V|cm³|massa|volume');
+                          setRodaResposta('pink|m|g|ρ|g/cm³|V|cm³|massa|volume');
+                          setFront('Calcula usando a roda da densidade');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-pink-50 hover:bg-pink-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-pink-900">Densidade (ρ = m/V)</div>
+                        <div className="text-xs text-pink-700 mt-1">pink|m|g|ρ|g/cm³|V|cm³</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('blue|m|g|M|g/mol|n|mol|massa|moles');
+                          setRodaResposta('blue|m|g|M|g/mol|n|mol|massa|moles');
+                          setFront('Calcula usando a roda da massa molar');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-blue-900">Massa Molar (M = m/n)</div>
+                        <div className="text-xs text-blue-700 mt-1">blue|m|g|M|g/mol|n|mol</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('green|V|dm³|Vm|dm³/mol|n|mol|volume|moles');
+                          setRodaResposta('green|V|dm³|Vm|dm³/mol|n|mol|volume|moles');
+                          setFront('Calcula usando a roda do volume molar');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-green-900">Volume Molar (Vm = V/n)</div>
+                        <div className="text-xs text-green-700 mt-1">green|V|dm³|Vm|dm³/mol|n|mol</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('orange|n|mol|C|mol/dm³|V|dm³|moles|volume');
+                          setRodaResposta('orange|n|mol|C|mol/dm³|V|dm³|moles|volume');
+                          setFront('Calcula usando a roda da concentração');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-orange-900">Concentração (C = n/V)</div>
+                        <div className="text-xs text-orange-700 mt-1">orange|n|mol|C|mol/dm³|V|dm³</div>
+                      </button>
+                    </>
+                  )}
+
+                  {/* CONVERSÃO EM SÉRIE */}
+                  {activeTemplateTab === 'series' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('blue|m|g|M|g/mol|n|mol|massa|moles;green|V|dm³|Vm|dm³/mol|n|mol|volume|moles');
+                          setRodaResposta('blue|m|g|M|g/mol|n|mol|massa|moles;green|V|dm³|Vm|dm³/mol|n|mol|volume|moles');
+                          setFront('Conversão massa → moles → volume');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-gradient-to-r from-blue-50 to-green-50 hover:from-blue-100 hover:to-green-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-gray-900">Massa → Moles → Volume</div>
+                        <div className="text-xs text-gray-700 mt-1">2 rodas: Massa Molar + Volume Molar</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('pink|m|g|ρ|g/cm³|V|cm³|massa|volume;blue|m|g|M|g/mol|n|mol|massa|moles');
+                          setRodaResposta('pink|m|g|ρ|g/cm³|V|cm³|massa|volume;blue|m|g|M|g/mol|n|mol|massa|moles');
+                          setFront('Conversão densidade → massa → moles');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-gradient-to-r from-pink-50 to-blue-50 hover:from-pink-100 hover:to-blue-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-gray-900">Densidade → Massa → Moles</div>
+                        <div className="text-xs text-gray-700 mt-1">2 rodas: Densidade + Massa Molar</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('green|V|dm³|Vm|dm³/mol|n|mol|volume|moles;orange|n|mol|C|mol/dm³|Vsol|dm³|moles|solução');
+                          setRodaResposta('green|V|dm³|Vm|dm³/mol|n|mol|volume|moles;orange|n|mol|C|mol/dm³|Vsol|dm³|moles|solução');
+                          setFront('Conversão volume gás → moles → concentração');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-gradient-to-r from-green-50 to-orange-50 hover:from-green-100 hover:to-orange-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-gray-900">Volume → Moles → Concentração</div>
+                        <div className="text-xs text-gray-700 mt-1">2 rodas: Volume Molar + Concentração</div>
+                      </button>
+                    </>
+                  )}
+
+                  {/* COMPARAÇÃO */}
+                  {activeTemplateTab === 'comparison' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('blue|m1|g|ρ1|g/cm³|V|cm³|substância 1|volume;pink|m2|g|ρ2|g/cm³|V|cm³|substância 2|volume');
+                          setRodaResposta('blue|m1|g|ρ1|g/cm³|V|cm³|substância 1|volume;pink|m2|g|ρ2|g/cm³|V|cm³|substância 2|volume');
+                          setFront('Compara as densidades de duas substâncias');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-gradient-to-r from-blue-50 to-pink-50 hover:from-blue-100 hover:to-pink-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-gray-900">Comparação de Densidades</div>
+                        <div className="text-xs text-gray-700 mt-1">2 rodas lado a lado (mesma densidade, massas diferentes)</div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRodaPergunta('orange|n1|mol|C1|mol/dm³|V|dm³|solução A|volume;purple|n2|mol|C2|mol/dm³|V|dm³|solução B|volume');
+                          setRodaResposta('orange|n1|mol|C1|mol/dm³|V|dm³|solução A|volume;purple|n2|mol|C2|mol/dm³|V|dm³|solução B|volume');
+                          setFront('Compara as concentrações de duas soluções');
+                        }}
+                        className="w-full text-left px-4 py-3 bg-gradient-to-r from-orange-50 to-purple-50 hover:from-orange-100 hover:to-purple-100 rounded-lg transition"
+                      >
+                        <div className="font-semibold text-gray-900">Comparação de Concentrações</div>
+                        <div className="text-xs text-gray-700 mt-1">2 rodas lado a lado (mesmo volume, concentrações diferentes)</div>
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}
