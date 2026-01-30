@@ -1252,6 +1252,57 @@ CREATE TABLE public.avaliacao_criterio_sucesso (
 ALTER TABLE public.avaliacao_criterio_sucesso OWNER TO "user";
 
 --
+-- Name: avaliacoes_alunos; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.avaliacoes_alunos (
+    id integer NOT NULL,
+    ano_letivo text NOT NULL,
+    periodo text NOT NULL,
+    ano text NOT NULL,
+    turma text NOT NULL,
+    disciplina text NOT NULL,
+    total_alunos integer,
+    total_positivos integer,
+    percent_positivos numeric(5,2),
+    total_negativos integer,
+    percent_negativos numeric(5,2),
+    ciclo text NOT NULL,
+    classificacoes jsonb NOT NULL,
+    sheet_name text,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    media numeric(4,2),
+    CONSTRAINT avaliacoes_alunos_ciclo_check CHECK ((ciclo = ANY (ARRAY['1_ciclo'::text, '2_ciclo'::text, '3_ciclo'::text, 'secundario'::text]))),
+    CONSTRAINT avaliacoes_alunos_periodo_check CHECK ((periodo = ANY (ARRAY['1'::text, '2'::text, '3'::text])))
+);
+
+
+ALTER TABLE public.avaliacoes_alunos OWNER TO "user";
+
+--
+-- Name: avaliacoes_alunos_id_seq; Type: SEQUENCE; Schema: public; Owner: user
+--
+
+CREATE SEQUENCE public.avaliacoes_alunos_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.avaliacoes_alunos_id_seq OWNER TO "user";
+
+--
+-- Name: avaliacoes_alunos_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: user
+--
+
+ALTER SEQUENCE public.avaliacoes_alunos_id_seq OWNED BY public.avaliacoes_alunos.id;
+
+
+--
 -- Name: categories_id_seq; Type: SEQUENCE; Schema: public; Owner: user
 --
 
@@ -2318,6 +2369,25 @@ CREATE TABLE public.external_user_disciplines (
 ALTER TABLE public.external_user_disciplines OWNER TO "user";
 
 --
+-- Name: flashcard_disciplinas; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.flashcard_disciplinas (
+    flashcard_id uuid NOT NULL,
+    disciplina_id uuid NOT NULL
+);
+
+
+ALTER TABLE public.flashcard_disciplinas OWNER TO "user";
+
+--
+-- Name: TABLE flashcard_disciplinas; Type: COMMENT; Schema: public; Owner: user
+--
+
+COMMENT ON TABLE public.flashcard_disciplinas IS 'Tabela de associação para partilhar um flashcard com múltiplas disciplinas.';
+
+
+--
 -- Name: flashcard_memory_state; Type: TABLE; Schema: public; Owner: user
 --
 
@@ -2755,6 +2825,25 @@ CREATE TABLE public.opcoes_resposta (
 ALTER TABLE public.opcoes_resposta OWNER TO "user";
 
 --
+-- Name: pedidos_revisao_flashcard; Type: TABLE; Schema: public; Owner: user
+--
+
+CREATE TABLE public.pedidos_revisao_flashcard (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    flashcard_id uuid NOT NULL,
+    aluno_id uuid NOT NULL,
+    professor_id uuid,
+    motivo text NOT NULL,
+    data_pedido timestamp with time zone DEFAULT now(),
+    data_atendimento timestamp with time zone,
+    estado character varying(20) DEFAULT 'pendente'::character varying NOT NULL,
+    observacoes_professor text
+);
+
+
+ALTER TABLE public.pedidos_revisao_flashcard OWNER TO "user";
+
+--
 -- Name: pending_registrations; Type: TABLE; Schema: public; Owner: user
 --
 
@@ -2934,7 +3023,7 @@ CREATE TABLE public.quiz_questions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     quiz_id uuid NOT NULL,
     flashcard_id uuid,
-    question_text text NOT NULL,
+    question_text jsonb NOT NULL,
     question_type character varying(50) DEFAULT 'multiple_choice'::character varying,
     options jsonb NOT NULL,
     correct_answer_id character varying(10) NOT NULL,
@@ -3082,7 +3171,7 @@ CREATE TABLE public.student_quiz_answers (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     attempt_id uuid NOT NULL,
     question_id uuid NOT NULL,
-    chosen_option_id character varying(10),
+    chosen_option_id jsonb,
     is_correct boolean NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now()
@@ -4063,6 +4152,13 @@ CREATE VIEW public.vw_eqavet_resumo_anual AS
 ALTER TABLE public.vw_eqavet_resumo_anual OWNER TO "user";
 
 --
+-- Name: avaliacoes_alunos id; Type: DEFAULT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.avaliacoes_alunos ALTER COLUMN id SET DEFAULT nextval('public.avaliacoes_alunos_id_seq'::regclass);
+
+
+--
 -- Name: categories id; Type: DEFAULT; Schema: public; Owner: user
 --
 
@@ -4255,6 +4351,14 @@ ALTER TABLE ONLY public.avaliacao_competencia
 
 ALTER TABLE ONLY public.avaliacao_criterio_sucesso
     ADD CONSTRAINT avaliacao_criterio_sucesso_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: avaliacoes_alunos avaliacoes_alunos_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.avaliacoes_alunos
+    ADD CONSTRAINT avaliacoes_alunos_pkey PRIMARY KEY (id);
 
 
 --
@@ -4759,6 +4863,14 @@ ALTER TABLE ONLY public.external_user_disciplines
 
 ALTER TABLE ONLY public.external_user_disciplines
     ADD CONSTRAINT external_user_disciplines_user_id_discipline_id_key UNIQUE (user_id, discipline_id);
+
+
+--
+-- Name: flashcard_disciplinas flashcard_disciplinas_pkey; Type: CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_disciplinas
+    ADD CONSTRAINT flashcard_disciplinas_pkey PRIMARY KEY (flashcard_id, disciplina_id);
 
 
 --
@@ -5436,6 +5548,55 @@ CREATE INDEX idx_avaliacao_disciplina_turma ON public.avaliacao_competencia USIN
 
 
 --
+-- Name: idx_avaliacoes_ano_letivo; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_avaliacoes_ano_letivo ON public.avaliacoes_alunos USING btree (ano_letivo);
+
+
+--
+-- Name: idx_avaliacoes_ano_turma; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_avaliacoes_ano_turma ON public.avaliacoes_alunos USING btree (ano, turma);
+
+
+--
+-- Name: idx_avaliacoes_ciclo; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_avaliacoes_ciclo ON public.avaliacoes_alunos USING btree (ciclo);
+
+
+--
+-- Name: idx_avaliacoes_classificacoes; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_avaliacoes_classificacoes ON public.avaliacoes_alunos USING gin (classificacoes);
+
+
+--
+-- Name: idx_avaliacoes_disciplina; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_avaliacoes_disciplina ON public.avaliacoes_alunos USING btree (disciplina);
+
+
+--
+-- Name: idx_avaliacoes_media; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_avaliacoes_media ON public.avaliacoes_alunos USING btree (media);
+
+
+--
+-- Name: idx_avaliacoes_periodo; Type: INDEX; Schema: public; Owner: user
+--
+
+CREATE INDEX idx_avaliacoes_periodo ON public.avaliacoes_alunos USING btree (periodo);
+
+
+--
 -- Name: idx_ciclos_responsavel_id; Type: INDEX; Schema: public; Owner: user
 --
 
@@ -6020,7 +6181,7 @@ CREATE INDEX idx_student_quiz_answers_attempt_id ON public.student_quiz_answers 
 -- Name: idx_student_quiz_answers_question_id; Type: INDEX; Schema: public; Owner: user
 --
 
-CREATE INDEX idx_student_quiz_answers_question_id ON public.student_quiz_answers USING btree (question_id);
+CREATE INDEX idx_student_quiz_answers_question_id ON public.quiz_questions USING btree (quiz_id);
 
 
 --
@@ -7014,6 +7175,14 @@ ALTER TABLE ONLY public.eqavet_turma_ciclo
 
 
 --
+-- Name: pedidos_revisao_flashcard fk_aluno; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.pedidos_revisao_flashcard
+    ADD CONSTRAINT fk_aluno FOREIGN KEY (aluno_id) REFERENCES public.users(id);
+
+
+--
 -- Name: products fk_category; Type: FK CONSTRAINT; Schema: public; Owner: user
 --
 
@@ -7035,6 +7204,38 @@ ALTER TABLE ONLY public.external_user_disciplines
 
 ALTER TABLE ONLY public.external_user_disciplines
     ADD CONSTRAINT fk_external_user_disciplines_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pedidos_revisao_flashcard fk_flashcard; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.pedidos_revisao_flashcard
+    ADD CONSTRAINT fk_flashcard FOREIGN KEY (flashcard_id) REFERENCES public.flashcards(id);
+
+
+--
+-- Name: pedidos_revisao_flashcard fk_professor; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.pedidos_revisao_flashcard
+    ADD CONSTRAINT fk_professor FOREIGN KEY (professor_id) REFERENCES public.users(id);
+
+
+--
+-- Name: flashcard_disciplinas flashcard_disciplinas_disciplina_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_disciplinas
+    ADD CONSTRAINT flashcard_disciplinas_disciplina_id_fkey FOREIGN KEY (disciplina_id) REFERENCES public.subjects(id) ON DELETE CASCADE;
+
+
+--
+-- Name: flashcard_disciplinas flashcard_disciplinas_flashcard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: user
+--
+
+ALTER TABLE ONLY public.flashcard_disciplinas
+    ADD CONSTRAINT flashcard_disciplinas_flashcard_id_fkey FOREIGN KEY (flashcard_id) REFERENCES public.flashcards(id) ON DELETE CASCADE;
 
 
 --
@@ -7362,7 +7563,7 @@ ALTER TABLE ONLY public.quiz_questions
 --
 
 ALTER TABLE ONLY public.quizzes
-    ADD CONSTRAINT quizzes_discipline_id_fkey FOREIGN KEY (discipline_id) REFERENCES public.subjects(id);
+    ADD CONSTRAINT quizzes_discipline_id_fkey FOREIGN KEY (discipline_id) REFERENCES public.subjects(id) ON DELETE RESTRICT;
 
 
 --
@@ -7370,7 +7571,7 @@ ALTER TABLE ONLY public.quizzes
 --
 
 ALTER TABLE ONLY public.quizzes
-    ADD CONSTRAINT quizzes_professor_id_fkey FOREIGN KEY (professor_id) REFERENCES public.users(id);
+    ADD CONSTRAINT quizzes_professor_id_fkey FOREIGN KEY (professor_id) REFERENCES public.users(id) ON DELETE RESTRICT;
 
 
 --
@@ -7442,7 +7643,7 @@ ALTER TABLE ONLY public.student_quiz_answers
 --
 
 ALTER TABLE ONLY public.student_quiz_answers
-    ADD CONSTRAINT student_quiz_answers_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.quiz_questions(id);
+    ADD CONSTRAINT student_quiz_answers_question_id_fkey FOREIGN KEY (question_id) REFERENCES public.quiz_questions(id) ON DELETE CASCADE;
 
 
 --

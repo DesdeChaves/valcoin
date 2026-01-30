@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
+import ConversionWheel from '../shared/ConversionWheel';
 
 const EditFlashcardModal = ({ flashcard, onClose, onSave }) => {
     const [formData, setFormData] = useState({ ...flashcard });
@@ -10,6 +11,7 @@ const EditFlashcardModal = ({ flashcard, onClose, onSave }) => {
 
     useEffect(() => {
         if (!flashcard) return;
+        console.log("EditFlashcardModal - Initial flashcard prop:", flashcard);
         console.log("EditFlashcardModal - Initial flashcard prop:", flashcard);
         setFormData({ ...flashcard });
 
@@ -137,6 +139,42 @@ const EditFlashcardModal = ({ flashcard, onClose, onSave }) => {
                                 <div>
                                     <label className="block font-semibold text-gray-700 mb-3">URL da Imagem do Verso</label>
                                     <input type="text" name="back_image_url" value={formData.back_image_url || ''} onChange={handleChange} className="w-full p-4 border-2 border-gray-300 rounded-xl" />
+                                </div>
+                            </>
+                        )}
+                        {formData.type === 'roda' && (
+                            <>
+                                <div>
+                                    <label className="block font-semibold text-gray-700 mb-3">Pergunta / Contexto</label>
+                                    <textarea name="front" value={formData.front || ''} onChange={handleChange} rows="3" className="w-full p-4 border-2 border-gray-300 rounded-xl" />
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-gray-700 mb-3">Configuração Roda (Pergunta)</label>
+                                    <textarea name="roda_pergunta" value={formData.roda_pergunta || ''} onChange={handleChange} rows="4" className="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-sm" />
+                                </div>
+                                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                                    <h4 className="font-semibold text-gray-700 mb-2">Preview Pergunta:</h4>
+                                    {formData.roda_pergunta ? (
+                                        <ConversionWheel config={formData.roda_pergunta} revealed={false} />
+                                    ) : (
+                                        <p className="text-gray-500 text-sm">Preencha a configuração da roda para ver o preview.</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-gray-700 mb-3">Configuração Roda (Resposta)</label>
+                                    <textarea name="roda_resposta" value={formData.roda_resposta || ''} onChange={handleChange} rows="4" className="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-sm" />
+                                </div>
+                                <div className="mt-4 p-4 bg-green-50 rounded-lg">
+                                    <h4 className="font-semibold text-green-700 mb-2">Preview Resposta:</h4>
+                                    {formData.roda_resposta ? (
+                                        <ConversionWheel config={formData.roda_resposta} revealed={true} />
+                                    ) : (
+                                        <p className="text-gray-500 text-sm">Preencha a configuração da roda para ver o preview.</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block font-semibold text-gray-700 mb-3">Explicação Adicional (Opcional)</label>
+                                    <textarea name="roda_resposta_opcional" value={formData.roda_resposta_opcional || ''} onChange={handleChange} rows="3" className="w-full p-4 border-2 border-gray-300 rounded-xl" />
                                 </div>
                             </>
                         )}

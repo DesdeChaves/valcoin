@@ -32,8 +32,8 @@ const _criarFlashcard = async (flashcardData, creator_id) => {
         throw new Error('discipline_id e scheduled_date são obrigatórios');
     }
 
-    if (!['basic', 'cloze', 'image_occlusion', 'image_text'].includes(type)) {
-        throw new Error('type deve ser "basic", "cloze", "image_occlusion" ou "image_text"');
+    if (!['basic', 'cloze', 'image_occlusion', 'image_text', 'roda'].includes(type)) {
+        throw new Error('type deve ser "basic", "cloze", "image_occlusion", "image_text" ou "roda"');
     }
 
     if (type === 'basic' && (!front || !back)) {
@@ -64,14 +64,14 @@ const _criarFlashcard = async (flashcardData, creator_id) => {
 
     const result = await db.query(
         `INSERT INTO public.flashcards
-       (discipline_id, creator_id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, assunto_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, created_at, assunto_id`,
+       (discipline_id, creator_id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, assunto_id, roda_pergunta, roda_resposta, roda_resposta_opcional)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       RETURNING id, type, front, back, cloze_text, image_url, back_image_url, occlusion_data, hints, scheduled_date, created_at, assunto_id, roda_pergunta, roda_resposta, roda_resposta_opcional`,
         [
             discipline_id,
             creator_id,
             type,
-            (type === 'basic' || type === 'image_text') ? front : null,
+            (type === 'basic' || type === 'image_text' || type === 'roda') ? front : null,
             (type === 'basic' || type === 'image_text') ? back : null,
             type === 'cloze' ? cloze_text : null,
             (type === 'image_occlusion' || type === 'image_text') ? image_url : null,
@@ -80,6 +80,9 @@ const _criarFlashcard = async (flashcardData, creator_id) => {
             hints,
             scheduled_date,
             assunto_id,
+            type === 'roda' ? flashcardData.roda_pergunta : null,
+            type === 'roda' ? flashcardData.roda_resposta : null,
+            type === 'roda' ? flashcardData.roda_resposta_opcional : null,
         ]
     );
 
@@ -170,7 +173,7 @@ const listarFlashcardsProfessor = async (req, res) => {
     let query = `
       SELECT DISTINCT f.id, f.type, f.front, f.back, f.cloze_text, f.image_url, f.back_image_url,
         f.occlusion_data, f.hints, f.scheduled_date, f.active, f.created_at,
-        f.discipline_id,
+        f.discipline_id, f.roda_pergunta, f.roda_resposta, f.roda_resposta_opcional,
         s.nome as discipline_name,
         COALESCE(a.name, 'Sem assunto') as assunto_name
       FROM public.flashcards f
@@ -188,6 +191,9 @@ const listarFlashcardsProfessor = async (req, res) => {
           f.id, f.type, f.front, f.back, f.cloze_text, f.image_url, f.back_image_url,
           f.occlusion_data, f.hints, f.scheduled_date, f.active, f.created_at,
           f.discipline_id,
+          f.roda_pergunta,
+          f.roda_resposta,
+          f.roda_resposta_opcional,
           s.nome as discipline_name,
           COALESCE(a.name, 'Sem assunto') as assunto_name
         FROM public.flashcards f
@@ -200,7 +206,7 @@ const listarFlashcardsProfessor = async (req, res) => {
         SELECT
           f.id, f.type, f.front, f.back, f.cloze_text, f.image_url, f.back_image_url,
           f.occlusion_data, f.hints, f.scheduled_date, f.active, f.created_at,
-          f.discipline_id,
+          f.discipline_id, f.roda_pergunta, f.roda_resposta, f.roda_resposta_opcional,
           s.nome as discipline_name,
           COALESCE(a.name, 'Sem assunto') as assunto_name
         FROM public.flashcards f
@@ -247,7 +253,14 @@ const editarFlashcard = async (req, res) => {
       hints,
       scheduled_date,
       assunto_name,
+      roda_pergunta,
+      roda_resposta,
+      roda_resposta_opcional,
     } = req.body;
+
+    if (!['basic', 'cloze', 'image_occlusion', 'image_text', 'roda'].includes(type)) {
+        throw new Error('type deve ser "basic", "cloze", "image_occlusion", "image_text" ou "roda"');
+    }
 
     let assunto_id = null;
     if (assunto_name) {
@@ -267,12 +280,15 @@ const editarFlashcard = async (req, res) => {
           hints = $8,
           scheduled_date = $9,
           assunto_id = $10,
+          roda_pergunta = $11,
+          roda_resposta = $12,
+          roda_resposta_opcional = $13,
           updated_at = NOW()
-       WHERE id = $11
+       WHERE id = $14
        RETURNING *`,
       [
         type,
-        (type === 'basic' || type === 'image_text') ? front : null,
+        (type === 'basic' || type === 'image_text' || type === 'roda') ? front : null,
         (type === 'basic' || type === 'image_text') ? back : null,
         type === 'cloze' ? cloze_text : null,
         (type === 'image_occlusion' || type === 'image_text') ? image_url : null,
@@ -281,6 +297,9 @@ const editarFlashcard = async (req, res) => {
         hints,
         scheduled_date,
         assunto_id,
+        type === 'roda' ? roda_pergunta : null,
+        type === 'roda' ? roda_resposta : null,
+        type === 'roda' ? roda_resposta_opcional : null,
         id
       ]
     );
@@ -309,21 +328,35 @@ const editarFlashcard = async (req, res) => {
  * Apagar flashcard
  */
 const apagarFlashcard = async (req, res) => {
+  const client = await db.pool.connect();
   try {
+    await client.query('BEGIN');
     const { id } = req.params;
 
-    await db.query('DELETE FROM public.flashcards WHERE id = $1', [id]);
+    // Delete associated review requests first
+    await client.query('DELETE FROM public.pedidos_revisao_flashcard WHERE flashcard_id = $1', [id]);
+
+    // Delete associated quiz questions
+    await client.query('DELETE FROM public.quiz_questions WHERE flashcard_id = $1', [id]);
+
+    // Then delete the flashcard
+    await client.query('DELETE FROM public.flashcards WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
 
     res.json({
       success: true,
       message: 'Flashcard apagado com sucesso'
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Erro ao apagar flashcard:', error);
     res.status(500).json({
       success: false,
       message: 'Erro ao apagar flashcard'
     });
+  } finally {
+    client.release();
   }
 };
 
@@ -399,6 +432,7 @@ const obterFilaDiaria = async (req, res) => {
           f.id AS flashcard_id, f.type, f.front, f.back, f.cloze_text, f.image_url,
           f.hints, s.nome as original_discipline_name, f.occlusion_data, f.scheduled_date, 
           f.discipline_id as original_discipline_id,
+          f.roda_pergunta, f.roda_resposta, f.roda_resposta_opcional,
           f.discipline_id as effective_discipline_id
         FROM public.flashcards f
         JOIN public.subjects s ON f.discipline_id = s.id
@@ -413,6 +447,7 @@ const obterFilaDiaria = async (req, res) => {
           f.id AS flashcard_id, f.type, f.front, f.back, f.cloze_text, f.image_url,
           f.hints, os.nome as original_discipline_name, f.occlusion_data, f.scheduled_date, 
           f.discipline_id as original_discipline_id,
+          f.roda_pergunta, f.roda_resposta, f.roda_resposta_opcional,
           fd.disciplina_id as effective_discipline_id
         FROM public.flashcards f
         JOIN public.subjects os ON f.discipline_id = os.id
@@ -439,12 +474,15 @@ const obterFilaDiaria = async (req, res) => {
           fwen.image_url,
           fwen.hints,
           fwen.effective_discipline_name as discipline_name,
+          fwen.roda_pergunta,
+          fwen.roda_resposta,
+          fwen.roda_resposta_opcional,
           NULL::text AS sub_id,
           NULL::text AS sub_label,
           NULL::jsonb AS sub_data,
           fwen.effective_discipline_id
         FROM flashcards_with_effective_names fwen
-        WHERE fwen.type IN ('basic', 'image_text')
+        WHERE fwen.type IN ('basic', 'image_text', 'roda')
         
         UNION ALL
 
@@ -458,6 +496,9 @@ const obterFilaDiaria = async (req, res) => {
           fwen.image_url,
           fwen.hints,
           fwen.effective_discipline_name as discipline_name,
+          NULL::text AS roda_pergunta,
+          NULL::text AS roda_resposta,
+          NULL::text AS roda_resposta_opcional,
           (elem->>'mask_id')::text AS sub_id,
           elem->>'label' AS sub_label,
           elem AS sub_data,
@@ -478,6 +519,9 @@ const obterFilaDiaria = async (req, res) => {
           fwen.image_url,
           fwen.hints,
           fwen.effective_discipline_name as discipline_name,
+          NULL::text AS roda_pergunta,
+          NULL::text AS roda_resposta,
+          NULL::text AS roda_resposta_opcional,
           match[1]::text AS sub_id,
           match[2]::text AS sub_label,
           NULL::jsonb AS sub_data,
@@ -495,6 +539,9 @@ const obterFilaDiaria = async (req, res) => {
         ef.image_url,
         ef.hints,
         ef.discipline_name,
+        ef.roda_pergunta,
+        ef.roda_resposta,
+        ef.roda_resposta_opcional,
         ef.sub_id,
         ef.sub_label,
         ef.sub_data,
@@ -508,7 +555,7 @@ const obterFilaDiaria = async (req, res) => {
         ON ms.flashcard_id = ef.flashcard_id
         AND ms.student_id = $1
         AND (
-          (ef.type IN ('basic', 'image_text') AND ms.sub_id IS NULL)
+          (ef.type IN ('basic', 'image_text', 'roda') AND ms.sub_id IS NULL)
           OR (ef.type IN ('cloze', 'image_occlusion') AND ms.sub_id = ef.sub_id)
         )
       WHERE
@@ -544,6 +591,9 @@ const obterFilaDiaria = async (req, res) => {
       image_url: row.image_url,
       hints: row.hints,
       discipline_name: row.discipline_name,
+      roda_pergunta: row.roda_pergunta,
+      roda_resposta: row.roda_resposta,
+      roda_resposta_opcional: row.roda_resposta_opcional,
       sub_id: row.sub_id,
       sub_label: row.sub_label,
       sub_data: row.sub_data,

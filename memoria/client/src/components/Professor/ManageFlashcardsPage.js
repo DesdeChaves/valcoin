@@ -5,6 +5,7 @@ import EditFlashcardModal from './EditFlashcardModal';
 import ShareFlashcardModal from './ShareFlashcardModal';
 import ImportCSVModal from './ImportCSVModal';
 import { Search, Filter, X, Calendar, Tag, ChevronDown, ChevronUp, FileText, Download, Loader2, FileUp, Upload, Share2 } from 'lucide-react';
+import ConversionWheel from '../shared/ConversionWheel';
 
 
 // Função auxiliar para formatar data
@@ -52,60 +53,81 @@ const ManageFlashcardsPage = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const fetchDisciplines = async () => {
+    const fetchInitialData = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const response = await api.getProfessorDisciplines();
-        setDisciplines(response.data); // This is correct now, {id, nome}
-        if (response.data.length > 0) {
-            const queryParams = new URLSearchParams(location.search);
-            const flashcardIdFromQuery = queryParams.get('flashcardId');
+        const disciplinesResponse = await api.getProfessorDisciplines();
+        const disciplinesData = disciplinesResponse.data || [];
+        setDisciplines(disciplinesData);
 
-            // Se não houver flashcardId na query, seleciona a primeira disciplina
-            if (!flashcardIdFromQuery) {
-                setSelectedDiscipline(response.data[0].id);
-            } else {
-                // Se houver, a busca pelo flashcard vai despoletar a seleção da disciplina correta
-                setSearchTerm(flashcardIdFromQuery);
-                setExpandedCard(flashcardIdFromQuery);
-            }
-        } else {
+        if (disciplinesData.length === 0) {
           setLoading(false);
+          return;
         }
+
+        const queryParams = new URLSearchParams(location.search);
+        const flashcardIdFromQuery = queryParams.get('flashcardId');
+
+        let targetDisciplineId = disciplinesData[0].id;
+        
+        if (flashcardIdFromQuery) {
+          setSearchTerm(flashcardIdFromQuery);
+          setExpandedCard(flashcardIdFromQuery);
+
+          const flashcardsResponse = await api.getProfessorFlashcards(); // Fetch all
+          const allFlashcards = flashcardsResponse.data || [];
+          
+          const card = allFlashcards.find(fc => String(fc.id) === String(flashcardIdFromQuery));
+          
+          if (card) {
+            targetDisciplineId = card.discipline_id;
+            setFlashcards(allFlashcards.filter(fc => fc.discipline_id === targetDisciplineId));
+          } else {
+            setError(`Flashcard com ID ${flashcardIdFromQuery} não encontrado. A mostrar a primeira disciplina.`);
+            const flashcardsResponse = await api.getProfessorFlashcards(targetDisciplineId);
+            setFlashcards(flashcardsResponse.data || []);
+          }
+        } else {
+          const flashcardsResponse = await api.getProfessorFlashcards(targetDisciplineId);
+          setFlashcards(flashcardsResponse.data || []);
+        }
+        
+        if (targetDisciplineId) {
+          setSelectedDiscipline(targetDisciplineId);
+          const assuntosResponse = await api.getProfessorAssuntos(targetDisciplineId);
+          setAssuntos(assuntosResponse.data || []);
+        }
+
       } catch (err) {
-        console.error('Erro ao carregar disciplinas:', err);
-        setError('Não foi possível carregar as tuas disciplinas.');
+        console.error('Erro ao carregar dados:', err);
+        setError('Não foi possível carregar os dados da página.');
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchDisciplines();
+    fetchInitialData();
   }, [location.search]);
 
   useEffect(() => {
     if (selectedDiscipline) {
-      fetchFlashcards();
-      fetchAssuntos();
+      // Re-fetch flashcards ONLY when the user manually changes discipline,
+      // and NOT on the initial load triggered by a flashcardId in the URL.
+      const queryParams = new URLSearchParams(location.search);
+      if (!queryParams.has('flashcardId')) {
+        fetchFlashcards();
+        fetchAssuntos();
+      }
     }
   }, [selectedDiscipline]);
 
   const fetchFlashcards = async () => {
+    if (!selectedDiscipline) return;
     try {
       setLoading(true);
       const response = await api.getProfessorFlashcards(selectedDiscipline);
       setFlashcards(response.data);
-      
-      const queryParams = new URLSearchParams(location.search);
-      const flashcardIdFromQuery = queryParams.get('flashcardId');
-
-      if (flashcardIdFromQuery && response.data.some(fc => fc.id === flashcardIdFromQuery)) {
-        if (!selectedDiscipline) {
-            const card = response.data.find(fc => fc.id === flashcardIdFromQuery);
-            if (card) {
-                setSelectedDiscipline(card.discipline_id);
-            }
-        }
-      }
-
     } catch (err) {
       setError('Erro ao carregar flashcards');
     } finally {
@@ -330,6 +352,10 @@ const ManageFlashcardsPage = () => {
     // Filtro por pesquisa
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
+      // Adicionado para permitir pesquisa por ID
+      if (String(card.id).toLowerCase() === search) {
+        return true;
+      }
       const matchesFront = card.front?.toLowerCase().includes(search);
       const matchesBack = card.back?.toLowerCase().includes(search);
       const matchesCloze = card.cloze_text?.toLowerCase().includes(search);
@@ -455,6 +481,43 @@ const ManageFlashcardsPage = () => {
       );
     }
 
+    if (card.type === 'roda') {
+        return (
+            <div className="mt-3 space-y-2 text-sm">
+                <div>
+                    <span className="font-semibold text-gray-600">Pergunta / Contexto:</span>
+                    <div className="mt-1 p-2 bg-indigo-50 rounded">{card.front}</div>
+                </div>
+                <div>
+                    <span className="font-semibold text-gray-600">Configuração Roda (Pergunta):</span>
+                    <div className="mt-1 p-2 bg-indigo-50 rounded font-mono text-xs">{card.roda_pergunta}</div>
+                </div>
+                {card.roda_pergunta && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <h4 className="font-semibold text-gray-700 mb-2">Preview Pergunta:</h4>
+                        <ConversionWheel config={card.roda_pergunta} revealed={false} />
+                    </div>
+                )}
+                <div>
+                    <span className="font-semibold text-gray-600">Configuração Roda (Resposta):</span>
+                    <div className="mt-1 p-2 bg-indigo-50 rounded font-mono text-xs">{card.roda_resposta}</div>
+                </div>
+                {card.roda_resposta && (
+                    <div className="mt-4 p-4 bg-green-50 rounded-lg">
+                        <h4 className="font-semibold text-green-700 mb-2">Preview Resposta:</h4>
+                        <ConversionWheel config={card.roda_resposta} revealed={true} />
+                    </div>
+                )}
+                {card.roda_resposta_opcional && (
+                    <div>
+                        <span className="font-semibold text-gray-600">Explicação Adicional:</span>
+                        <div className="mt-1 p-2 bg-indigo-50 rounded">{card.roda_resposta_opcional}</div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     return null;
   };
 
@@ -465,7 +528,8 @@ const ManageFlashcardsPage = () => {
       image_occlusion: 'Imagem Oclusão',
       image_text: 'Imagem e Texto',
       phonetic: 'Fonético',
-      spelling: 'Soletrar'
+      spelling: 'Soletrar',
+      roda: 'Roda'
     };
     return labels[type] || type;
   };
@@ -489,6 +553,7 @@ const ManageFlashcardsPage = () => {
     if (card.type === 'image_text') return card.front;
     if (card.type === 'phonetic') return card.word || 'Flashcard Fonético';
     if (card.type === 'spelling') return card.audio_text || 'Flashcard de Soletrar';
+    if (card.type === 'roda') return card.front || 'Flashcard de Roda';
     return 'Flashcard';
   };
 

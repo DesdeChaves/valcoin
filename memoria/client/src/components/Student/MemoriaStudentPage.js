@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as memoriaApi from '../../services/memoria.api';
 import { Brain, CheckCircle, XCircle, AlertCircle, Lightbulb, Clock, Target, HelpCircle } from 'lucide-react';
 import AudioStudentPage from './AudioStudentPage';
+import ConversionWheel from '../shared/ConversionWheel'; // NOVO IMPORT
 
 const MemoriaStudentPage = () => {
   const [deck, setDeck] = useState([]);
@@ -243,7 +244,7 @@ const MemoriaStudentPage = () => {
     }
 
     const cardHeader = (
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-4">
         <div className="text-sm font-semibold text-gray-500">{currentCard.discipline_name}</div>
         <button onClick={handleOpenReviewModal} className="text-gray-400 hover:text-indigo-600 transition-colors">
           <HelpCircle className="w-6 h-6" />
@@ -268,11 +269,23 @@ const MemoriaStudentPage = () => {
             </button>
           ) : (
             <div className="bg-green-50 rounded-lg p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="text-sm font-semibold text-green-600 uppercase">Resposta</span>
+              <div className="flex justify-between items-center gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-semibold text-green-600 uppercase">Resposta</span>
+                </div>
+                {currentCard.hints && currentCard.hints.length > 0 && (
+                  <button onClick={() => setShowHint(!showHint)} className="text-gray-400 hover:text-yellow-500">
+                    <Lightbulb className="w-5 h-5" />
+                  </button>
+                )}
               </div>
               <div className="text-xl text-gray-800" dangerouslySetInnerHTML={{ __html: currentCard.back }} />
+              {showHint && currentCard.hints && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">{currentCard.hints[currentHintIndex]}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -288,10 +301,24 @@ const MemoriaStudentPage = () => {
             <span className="text-sm font-semibold text-purple-600 uppercase">Completa a frase</span>
           </div>
           <div className="text-xl leading-relaxed mb-6" dangerouslySetInnerHTML={{ __html: renderClozeText(currentCard.cloze_text, currentCard.sub_id, isFlipped) }} />
-          {!isFlipped && (
+          {!isFlipped ? (
             <button onClick={handleFlip} className="w-full py-4 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-medium transition-colors">
               Revelar resposta
             </button>
+          ) : (
+            currentCard.hints && currentCard.hints.length > 0 && (
+              <div className="mt-4">
+                <button onClick={() => setShowHint(!showHint)} className="text-gray-400 hover:text-yellow-500 flex items-center gap-2">
+                  <Lightbulb className="w-5 h-5" />
+                  <span>Dica</span>
+                </button>
+                {showHint && (
+                  <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800">{currentCard.hints[currentHintIndex]}</p>
+                  </div>
+                )}
+              </div>
+            )
           )}
         </div>
       );
@@ -324,17 +351,25 @@ const MemoriaStudentPage = () => {
       return (
         <div className="bg-white rounded-xl shadow-lg p-8">
           {cardHeader}
-          <p className="text-lg font-semibold text-indigo-800 mb-4">
-            {!isFlipped ? 'Identifica a região oculta' : currentCard.sub_label}
+          <p className="text-lg font-semibold text-indigo-800 mb-4 flex justify-between items-center">
+            <span>{!isFlipped ? 'Identifica a região oculta' : currentCard.sub_label}</span>
+            {isFlipped && currentCard.hints && currentCard.hints.length > 0 && (
+              <button onClick={() => setShowHint(!showHint)} className="text-gray-400 hover:text-yellow-500">
+                <Lightbulb className="w-5 h-5" />
+              </button>
+            )}
           </p>
+          {isFlipped && showHint && currentCard.hints && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">{currentCard.hints[currentHintIndex]}</p>
+            </div>
+          )}
           
-          {/* Container com posicionamento relativo */}
           <div 
             ref={imageContainerRef}
             className="relative mx-auto rounded-lg shadow-md border-2 border-gray-300 overflow-hidden"
             style={{ maxWidth: '800px', width: '100%' }}
           >
-            {/* Imagem base */}
             <img
               key={getCardUniqueId(currentCard)}
               src={currentCard.image_url}
@@ -348,10 +383,8 @@ const MemoriaStudentPage = () => {
               onError={() => setIsImageError(true)}
             />
             
-            {/* Overlays apenas quando não está flipped */}
             {!isFlipped && fracW > 0 && fracH > 0 && (
               <>
-                {/* Máscara preta totalmente opaca */}
                 <div
                   className="absolute bg-black pointer-events-none"
                   style={{ 
@@ -362,7 +395,6 @@ const MemoriaStudentPage = () => {
                   }}
                 />
                 
-                {/* Borda vermelha */}
                 <div
                   className="absolute border-4 border-red-500 pointer-events-none"
                   style={{ 
@@ -373,7 +405,6 @@ const MemoriaStudentPage = () => {
                   }}
                 />
                 
-                {/* Barra inferior com interrogação */}
                 <div
                   className="absolute bg-red-600 flex items-center justify-center text-white font-bold pointer-events-none"
                   style={{
@@ -428,9 +459,16 @@ const MemoriaStudentPage = () => {
             </button>
           ) : (
             <div className="bg-green-50 rounded-lg p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="text-sm font-semibold text-green-600 uppercase">Resposta</span>
+              <div className="flex justify-between items-center gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-semibold text-green-600 uppercase">Resposta</span>
+                </div>
+                {currentCard.hints && currentCard.hints.length > 0 && (
+                  <button onClick={() => setShowHint(!showHint)} className="text-gray-400 hover:text-yellow-500">
+                    <Lightbulb className="w-5 h-5" />
+                  </button>
+                )}
               </div>
               <div className="text-xl text-gray-800" dangerouslySetInnerHTML={{ __html: currentCard.back }} />
               {currentCard.back_image_url && (
@@ -440,6 +478,103 @@ const MemoriaStudentPage = () => {
                   className="mt-4 max-w-full rounded shadow-md mx-auto" 
                   style={{ maxHeight: '300px', objectFit: 'contain' }}
                 />
+              )}
+              {showHint && currentCard.hints && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">{currentCard.hints[currentHintIndex]}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ============================================
+    // NOVO TIPO: RODA DE CONVERSÃO
+    // ============================================
+    if (currentCard.type === 'roda') {
+      return (
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          {cardHeader}
+          
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-lg">⚙️</span>
+            <span className="text-sm font-semibold text-indigo-600 uppercase">
+              Roda de Conversão
+            </span>
+          </div>
+
+          {/* Pergunta/Contexto */}
+          {currentCard.front && (
+            <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-l-4 border-indigo-500">
+              <p className="text-lg text-gray-800 font-medium">
+                {currentCard.front}
+              </p>
+            </div>
+          )}
+
+          {/* Roda - Estado Pergunta (não flipped) */}
+          {!isFlipped && currentCard.roda_pergunta && (
+            <div className="mb-6">
+              <ConversionWheel 
+                config={currentCard.roda_pergunta} 
+                revealed={false} 
+              />
+            </div>
+          )}
+
+          {/* Botão Revelar */}
+          {!isFlipped ? (
+            <button 
+              onClick={handleFlip} 
+              className="w-full py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-medium transition-colors"
+            >
+              Revelar resposta
+            </button>
+          ) : (
+            <div className="space-y-4">
+              {/* Roda - Estado Resposta (flipped) */}
+              {currentCard.roda_resposta && (
+                <div className="bg-green-50 rounded-lg p-6 border-2 border-green-200">
+                  <div className="flex justify-between items-center gap-2 mb-4">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <span className="text-sm font-semibold text-green-600 uppercase">
+                        Solução
+                      </span>
+                    </div>
+                    {currentCard.hints && currentCard.hints.length > 0 && (
+                      <button onClick={() => setShowHint(!showHint)} className="text-gray-400 hover:text-yellow-500">
+                        <Lightbulb className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                  <ConversionWheel 
+                    config={currentCard.roda_resposta} 
+                    revealed={true} 
+                  />
+                  {showHint && currentCard.hints && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">{currentCard.hints[currentHintIndex]}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Explicação Adicional (se existir) */}
+              {currentCard.roda_resposta_opcional && (
+                <div className="bg-white border-2 border-green-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-green-600 font-bold text-2xl flex-shrink-0">💡</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-green-700 mb-2">Explicação</p>
+                      <p className="text-gray-700 leading-relaxed">
+                        {currentCard.roda_resposta_opcional}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -465,7 +600,6 @@ const MemoriaStudentPage = () => {
     return <AudioStudentPage />;
   }
 
-  
   const renderReviewModal = () => {
     if (!isReviewModalOpen) return null;
   
@@ -546,19 +680,7 @@ const MemoriaStudentPage = () => {
           </div>
         </div>
         <div className="mb-6">{renderCardContent()}</div>
-        {currentCard?.hints?.length > 0 && !isFlipped && (
-          <div className="mb-6">
-            <button onClick={handleShowHint} className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors font-medium">
-              <Lightbulb className="w-5 h-5" />
-              Ver Dica ({currentHintIndex + 1}/{currentCard.hints.length})
-            </button>
-            {showHint && (
-              <div className="mt-3 p-4 bg-white rounded-lg shadow-md">
-                <p className="text-base text-gray-700">{currentCard.hints[currentHintIndex]}</p>
-              </div>
-            )}
-          </div>
-        )}
+
         {isFlipped && currentCard && (
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-center gap-2 mb-4 text-sm text-gray-600">
@@ -592,5 +714,3 @@ const MemoriaStudentPage = () => {
 };
 
 export default MemoriaStudentPage;
-
-

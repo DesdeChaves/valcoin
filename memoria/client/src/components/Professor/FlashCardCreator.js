@@ -5,7 +5,7 @@ import { api, audioApi } from '../../api';
 import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { Mic, Volume2, Plus, Trash2, Info } from 'lucide-react';
-import ConversionWheel from './ConversionWheel'; // Import the ConversionWheel component
+import ConversionWheel from '../shared/ConversionWheel'; // Import the ConversionWheel component
 
 /**
  * FlashCardCreator - VERSÃO FINAL COMPLETA
@@ -436,16 +436,10 @@ const FlashCardCreator = ({ disciplineId, selectedIdioma, onSuccess }) => {
           setLoading(false);
           return;
         }
-        endpoint = '/flashcards/roda'; // Assuming a new endpoint for roda type
-        payload = {
-          discipline_id: disciplineId,
-          front: front,
-          roda_pergunta: rodaPergunta,
-          roda_resposta: rodaResposta,
-          roda_resposta_opcional: rodaRespostaOpcional, // Optional
-          scheduled_date: scheduledDate,
-          assunto_name: assuntoName
-        };
+        payload.front = front;
+        payload.roda_pergunta = rodaPergunta;
+        payload.roda_resposta = rodaResposta;
+        payload.roda_resposta_opcional = rodaRespostaOpcional;
       }
 
       await api.post(endpoint, payload);

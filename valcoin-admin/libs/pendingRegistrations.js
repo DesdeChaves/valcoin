@@ -1,6 +1,7 @@
 const db = require('./db');
-const bcrypt = require('bcryptjs'); // Corrected to bcryptjs
+const bcrypt = require('bcryptjs'); 
 const { v4: uuidv4 } = require('uuid');
+const { sendEmail } = require('./email');
 
 // POST /api/external-register
 const registerExternalUser = async (req, res) => {
@@ -62,17 +63,31 @@ const approvePendingRegistration = async (req, res) => {
         }
 
         const pendingUser = pendingUserRows[0];
+        const numeroMecanografico = `EXT-${Date.now()}`;
 
         // Create user in the main users table
         const newUser = await client.query(
             'INSERT INTO users (id, nome, email, password_hash, tipo_utilizador, numero_mecanografico) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, nome, email, tipo_utilizador',
-            [uuidv4(), pendingUser.nome, pendingUser.email, pendingUser.password_hash, 'EXTERNO', `EXT-${Date.now()}`] // Generate a simple mecanografico
+            [uuidv4(), pendingUser.nome, pendingUser.email, pendingUser.password_hash, 'EXTERNO', numeroMecanografico] // Generate a simple mecanografico
         );
 
         // Update pending_registrations status
         await client.query('UPDATE pending_registrations SET status = $1, data_atualizacao = NOW() WHERE id = $2', ['APPROVED', id]);
 
         await client.query('COMMIT');
+        
+        // Send approval email
+        const subject = 'A sua inscrição foi aprovada!';
+        const html = `
+            <p>Olá ${pendingUser.nome},</p>
+            <p>A sua inscrição na plataforma foi aprovada com sucesso.</p>
+            <p>O seu número mecanográfico é: <strong>${numeroMecanografico}</strong></p>
+            <p>Pode agora fazer login utilizando o seu email ou o número mecanográfico e a palavra-passe que definiu no momento do registo.</p>
+            <p>Pode aceder à plataforma aqui: <a href="http://aevalpacos.duckdns.org">http://aevalpacos.duckdns.org</a></p>
+            <p>Obrigado!</p>
+        `;
+        await sendEmail(pendingUser.email, subject, html);
+
         res.json({ message: 'Utilizador externo aprovado com sucesso.', user: newUser.rows[0] });
 
     } catch (err) {
@@ -101,7 +116,7 @@ const rejectPendingRegistration = async (req, res) => {
         res.json({ message: 'Registo pendente rejeitado com sucesso.', user: rows[0] });
 
     } catch (err) {
-error('Error rejecting pending registration:', err);
+        console.error('Error rejecting pending registration:', err);
         res.status(500).json({ error: 'Internal server error during rejection.' });
     }
 };
